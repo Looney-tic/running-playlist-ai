@@ -61,6 +61,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-01T11:28:04Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: None
+Last session: 2026-02-01
+Stopped at: Plan 01-02 checkpoint — waiting for user to verify app on 3 platforms + Supabase
+Resume file: .planning/phases/01-project-foundation/.continue-here.md

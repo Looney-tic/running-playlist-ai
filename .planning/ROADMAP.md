@@ -34,11 +34,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. App launches and renders a screen in a web browser
   4. Navigation between placeholder screens works on all platforms
   5. Supabase connection is established (can read/write test data)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Flutter project creation with dependencies, linting, architecture, and navigation
+- [ ] 01-02-PLAN.md — Supabase connection, platform config, and cross-platform verification
 
 ### Phase 2: Spotify Authentication
 **Goal**: Users can securely log in with their Spotify account and stay logged in across app restarts

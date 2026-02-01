@@ -82,35 +82,35 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| TASTE-01 | — | Pending |
-| TASTE-02 | — | Pending |
-| TASTE-03 | — | Pending |
-| TASTE-04 | — | Pending |
-| STRIDE-01 | — | Pending |
-| STRIDE-02 | — | Pending |
-| STRIDE-03 | — | Pending |
-| BPM-01 | — | Pending |
-| BPM-02 | — | Pending |
-| BPM-03 | — | Pending |
-| RUN-01 | — | Pending |
-| RUN-02 | — | Pending |
-| RUN-03 | — | Pending |
-| PLAY-01 | — | Pending |
-| PLAY-02 | — | Pending |
-| PLAY-03 | — | Pending |
-| PLAY-04 | — | Pending |
-| PLAT-01 | — | Pending |
-| PLAT-02 | — | Pending |
-| PLAT-03 | — | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| TASTE-01 | Phase 4 | Pending |
+| TASTE-02 | Phase 4 | Pending |
+| TASTE-03 | Phase 4 | Pending |
+| TASTE-04 | Phase 4 | Pending |
+| STRIDE-01 | Phase 5 | Pending |
+| STRIDE-02 | Phase 5 | Pending |
+| STRIDE-03 | Phase 5 | Pending |
+| BPM-01 | Phase 3 | Pending |
+| BPM-02 | Phase 3 | Pending |
+| BPM-03 | Phase 7 | Pending |
+| RUN-01 | Phase 6 | Pending |
+| RUN-02 | Phase 8 | Pending |
+| RUN-03 | Phase 8 | Pending |
+| PLAY-01 | Phase 7 | Pending |
+| PLAY-02 | Phase 7 | Pending |
+| PLAY-03 | Phase 7 | Pending |
+| PLAY-04 | Phase 9 | Pending |
+| PLAT-01 | Phase 1 | Pending |
+| PLAT-02 | Phase 1 | Pending |
+| PLAT-03 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 ⚠️
+- Mapped to phases: 23
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after initial definition*
+*Last updated: 2026-02-01 after roadmap creation*

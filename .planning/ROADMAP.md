@@ -2,7 +2,10 @@
 
 ## Overview
 
-This roadmap delivers a BPM-matched running playlist generator in 9 phases, progressing from cross-platform foundation through Spotify integration, data pipeline validation, user preference systems, and culminating in playlist generation with structured run support. The critical path validates BPM data availability early (Phase 3) before investing in generation logic, since external BPM sources are an existential dependency after Spotify deprecated their Audio Features API.
+This roadmap delivers a BPM-matched running playlist generator in 10 phases, progressing from cross-platform foundation through Spotify integration, data pipeline validation, user preference systems, and culminating in playlist generation with structured run support. The critical path validates BPM data availability early (Phase 3) before investing in generation logic, since external BPM sources are an existential dependency after Spotify deprecated their Audio Features API.
+
+**Development Strategy: Web-First**
+Phases 3-9 develop and test on web (Chrome) only for fastest iteration. Phase 2 (Spotify Auth) includes mobile OAuth testing since redirect flows differ per platform. Phase 10 handles iOS/Android verification and platform-specific fixes. Flutter's shared widget layer means 95%+ of code works cross-platform without changes.
 
 ## Phases
 
@@ -21,6 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 7: Playlist Generation** - Users get a BPM-matched playlist pushed to their Spotify account
 - [ ] **Phase 8: Structured Run Types** - Users can plan warm-up/cool-down and interval runs
 - [ ] **Phase 9: Playlist History** - Users can view and reuse previously generated playlists
+- [ ] **Phase 10: Mobile Hardening** - App verified and polished on iOS and Android
 
 ## Phase Details
 
@@ -44,11 +48,12 @@ Plans:
 **Goal**: Users can securely log in with their Spotify account and stay logged in across app restarts
 **Depends on**: Phase 1
 **Requirements**: AUTH-01, AUTH-02, AUTH-03
+**Note**: Exception to web-first strategy — OAuth redirect flows differ per platform, so this phase tests web + at least one mobile platform.
 **Success Criteria** (what must be TRUE):
   1. User can tap "Log in with Spotify" and complete OAuth PKCE flow
   2. User closes and reopens the app and remains logged in
   3. User can log out and is returned to a logged-out state
-  4. OAuth flow works correctly on web, Android, and iOS
+  4. OAuth flow works correctly on web and at least one mobile platform (iOS or Android)
 **Plans**: TBD
 
 Plans:
@@ -157,11 +162,28 @@ Plans:
 Plans:
 - [ ] 09-01: TBD
 
+### Phase 10: Mobile Hardening
+**Goal**: App works correctly and feels native on both iOS and Android
+**Depends on**: Phase 9
+**Requirements**: PLAT-01, PLAT-02 (re-verification after all features built)
+**Note**: Web-first development means features were built/tested on Chrome. This phase catches platform-specific issues.
+**Success Criteria** (what must be TRUE):
+  1. All features work on iOS simulator (navigation, auth, playlist generation, history)
+  2. All features work on Android emulator (same checks)
+  3. Platform-specific UI issues fixed (safe areas, status bar, back navigation)
+  4. No platform-specific crashes or errors in debug console
+**Plans**: TBD
+
+Plans:
+- [ ] 10-01: TBD
+- [ ] 10-02: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 > 2 > 3 > 4 > 5 > 6 > 7 > 8 > 9
+Phases execute in numeric order: 1 > 2 > 3 > 4 > 5 > 6 > 7 > 8 > 9 > 10
 Note: Phases 3, 4, and 5 can execute in parallel after Phase 2 (or Phase 1 for Phase 5).
+Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -174,3 +196,4 @@ Note: Phases 3, 4, and 5 can execute in parallel after Phase 2 (or Phase 1 for P
 | 7. Playlist Generation | 0/TBD | Not started | - |
 | 8. Structured Run Types | 0/TBD | Not started | - |
 | 9. Playlist History | 0/TBD | Not started | - |
+| 10. Mobile Hardening | 0/TBD | Not started | - |

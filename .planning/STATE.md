@@ -9,7 +9,7 @@ See: .planning/PROJECT.md (updated 2026-02-01)
 
 ## Current Position
 
-Phase: 1 of 9 (Project Foundation)
+Phase: 1 of 10 (Project Foundation)
 Plan: 2 of 2 in current phase
 Status: Phase complete
 Last activity: 2026-02-05 — Completed 01-02-PLAN.md
@@ -49,6 +49,7 @@ Recent decisions affecting current work:
 - **[01-01]** Manual Riverpod providers (not @riverpod code-gen) due to Dart 3.10 analyzer_plugin incompatibility
 - **[01-01]** riverpod_lint removed due to same Dart 3.10 incompatibility
 - **[01-02]** Used Supabase publishable key format (sb_publishable_xxx) matching current dashboard output
+- **[post-01]** Web-first development strategy: phases 3-9 test on Chrome only, Phase 10 added for mobile hardening. Exception: Phase 2 (OAuth) tests mobile too.
 
 ### Pending Todos
 

@@ -37,9 +37,23 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Clipboard copy: copy full playlist as text -- v1.0
 - ✓ Playlist history: save, view, and delete previously generated playlists -- v1.0
 
+## Current Milestone: v1.1 Experience Quality
+
+**Goal:** Make generated playlists genuinely great for running — not just BPM-matched, but songs that are proven good running songs, matched to the user's taste, with frictionless stride adjustment and repeat generation.
+
+**Target features:**
+- Running song quality scoring (what makes a song good for running beyond BPM)
+- Curated running song data per genre from web sources
+- Improved taste profiling specifically for running music
+- Easy post-run stride/cadence adjustment ("that was a bit fast/slow")
+- Streamlined repeat generation flow (near-instant for returning users)
+
 ### Active
 
-(No active requirements -- run `/gsd:new-milestone` to define next milestone)
+- [ ] Song quality: playlist includes songs that are proven good for running, not just BPM-matched
+- [ ] Taste accuracy: running-specific taste profiling produces results users actually want to hear
+- [ ] Stride adjustment: easy to nudge cadence after a real run
+- [ ] Repeat flow: returning users can generate a new playlist with minimal friction
 
 ### Out of Scope
 
@@ -90,4 +104,4 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | Shared widget extraction | SegmentHeader/SongTile used by both PlaylistScreen and HistoryDetailScreen | ✓ Good |
 
 ---
-*Last updated: 2026-02-05 after v1.0 milestone shipped*
+*Last updated: 2026-02-05 after v1.1 milestone started*

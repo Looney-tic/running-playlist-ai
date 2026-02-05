@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.0 shipped. Ready for next milestone.
+**Current focus:** v1.1 Experience Quality — making playlists genuinely great for running
 
 ## Current Position
 
-Phase: --
+Phase: Not started (defining requirements)
 Plan: --
-Status: Between milestones (v1.0 shipped, next milestone not started)
-Last activity: 2026-02-05 -- v1.0 Standalone Playlist Generator shipped
+Status: Defining requirements
+Last activity: 2026-02-05 -- Milestone v1.1 started
 
 Progress: v0.1 + v1.0 complete (20 plans across 9 phases)
 

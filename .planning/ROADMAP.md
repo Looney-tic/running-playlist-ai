@@ -60,7 +60,7 @@ Plans:
 - [x] **Phase 12: Taste Profile** - Users can define their running music preferences
 - [x] **Phase 13: BPM Data Pipeline** - Discover songs by BPM via GetSongBPM API with caching
 - [x] **Phase 14: Playlist Generation** - Users get a BPM-matched playlist for their run
-- [ ] **Phase 15: Playlist History** - Users can save, view, and reuse past playlists
+- [x] **Phase 15: Playlist History** - Users can save, view, and reuse past playlists
 
 ## Phase Details
 
@@ -136,7 +136,7 @@ Plans:
 
 Plans:
 - [x] 15-01-PLAN.md -- Domain model extensions (id, distanceKm, paceMinPerKm), persistence, history provider, auto-save hook, and unit tests
-- [ ] 15-02-PLAN.md -- History list screen, detail screen, shared widget extraction (SegmentHeader, SongTile), and router update
+- [x] 15-02-PLAN.md -- History list screen, detail screen, shared widget extraction (SegmentHeader, SongTile), and router update
 
 ## Progress
 
@@ -150,4 +150,4 @@ Note: Phases 11, 12, and 13 have no cross-dependencies. Phase 14 requires both 1
 | 12. Taste Profile | 2/2 | Complete | 2026-02-05 |
 | 13. BPM Data Pipeline | 2/2 | Complete | 2026-02-05 |
 | 14. Playlist Generation | 3/3 | Complete | 2026-02-05 |
-| 15. Playlist History | 1/2 | In progress | - |
+| 15. Playlist History | 2/2 | Complete | 2026-02-05 |

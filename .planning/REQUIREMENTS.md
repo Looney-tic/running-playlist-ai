@@ -36,9 +36,9 @@ Requirements for milestone v1.0: Standalone Playlist Generator (no Spotify depen
 
 ### Playlist History
 
-- [ ] **HIST-01**: User can view a list of previously generated playlists
-- [ ] **HIST-02**: User can open a past playlist and see its tracks
-- [ ] **HIST-03**: User can delete a past playlist
+- [x] **HIST-01**: User can view a list of previously generated playlists
+- [x] **HIST-02**: User can open a past playlist and see its tracks
+- [x] **HIST-03**: User can delete a past playlist
 
 ## v2 Requirements
 
@@ -95,9 +95,9 @@ Deferred to future milestones.
 | PLAY-12 | Phase 14 | Complete |
 | PLAY-13 | Phase 14 | Complete |
 | PLAY-14 | Phase 14 | Complete |
-| HIST-01 | Phase 15 | Pending |
-| HIST-02 | Phase 15 | Pending |
-| HIST-03 | Phase 15 | Pending |
+| HIST-01 | Phase 15 | Complete |
+| HIST-02 | Phase 15 | Complete |
+| HIST-03 | Phase 15 | Complete |
 
 **Coverage:**
 - v1.0 requirements: 18 total
@@ -106,4 +106,4 @@ Deferred to future milestones.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after Phase 14 completion*
+*Last updated: 2026-02-05 after Phase 15 completion*

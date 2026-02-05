@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/auth/presentation/login_screen.dart';
 import 'package:running_playlist_ai/features/home/presentation/home_screen.dart';
+import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
 import 'package:running_playlist_ai/features/stride/presentation/stride_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -58,7 +59,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = authNotifier.isAuthenticated;
       final isLoginRoute = state.matchedLocation == '/login';
       final isPublicRoute = isLoginRoute ||
-          state.matchedLocation == '/stride';
+          state.matchedLocation == '/stride' ||
+          state.matchedLocation == '/run-plan';
 
       // Not authenticated and not on a public page -> go to login
       if (!isAuthenticated && !isPublicRoute) return '/login';
@@ -85,6 +87,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/stride',
         builder: (context, state) => const StrideScreen(),
+      ),
+      GoRoute(
+        path: '/run-plan',
+        builder: (context, state) => const RunPlanScreen(),
       ),
     ],
   );

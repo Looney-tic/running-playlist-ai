@@ -36,6 +36,12 @@ class HomeScreen extends ConsumerWidget {
               label: const Text('Stride Calculator'),
             ),
             const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/run-plan'),
+              icon: const Icon(Icons.timer),
+              label: const Text('Plan Run'),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
                 try {

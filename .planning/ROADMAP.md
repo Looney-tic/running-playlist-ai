@@ -99,11 +99,11 @@ Plans:
   2. User enters their height and the cadence estimate adjusts accordingly
   3. User can perform a real-world calibration (count strides) that overrides the formula estimate
   4. Calculated cadence falls within realistic running range (150-200 spm)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md — TDD: Stride calculator domain logic with unit tests (pure Dart computation + pace parsing)
+- [ ] 05-02-PLAN.md — Providers, persistence, UI screen, router integration, and calibration flow
 
 ### Phase 6: Steady Run Planning
 **Goal**: Users can define a steady-pace run and see the BPM target for playlist generation
@@ -191,7 +191,7 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | 2. Spotify Authentication | 0/2 | Not started | - |
 | 3. BPM Data Pipeline | 0/TBD | Not started | - |
 | 4. Taste Profile | 0/TBD | Not started | - |
-| 5. Stride & Cadence | 0/TBD | Not started | - |
+| 5. Stride & Cadence | 0/2 | Not started | - |
 | 6. Steady Run Planning | 0/TBD | Not started | - |
 | 7. Playlist Generation | 0/TBD | Not started | - |
 | 8. Structured Run Types | 0/TBD | Not started | - |

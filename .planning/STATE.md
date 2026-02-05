@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality -- Phase 16: Scoring Foundation
+**Current focus:** v1.1 Experience Quality -- Phase 17: Taste Enhancement
 
 ## Current Position
 
 Phase: 16 of 18 (Scoring Foundation)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-05 -- Completed 16-01-PLAN.md (SongQualityScorer)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-05 -- Completed 16-02-PLAN.md (Scorer Integration)
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██░░░░░░░░] 1/6
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████░░░░░░] 2/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21 (10 from v0.1 + 10 from v1.0 + 1 from v1.1)
+- Total plans completed: 22 (10 from v0.1 + 10 from v1.0 + 2 from v1.1)
 - Average duration: 6m
-- Total execution time: ~1.8 hours
+- Total execution time: ~1.9 hours
 
 **By Phase (v0.1):**
 
@@ -46,7 +46,7 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██░░�
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 16 | 1/2 | 3m | 3m |
+| 16 | 2/2 | 8m | 4m |
 
 ## Accumulated Context
 
@@ -57,6 +57,9 @@ Full decision log in PROJECT.md Key Decisions table.
 - **Energy alignment proximity threshold:** 15-point proximity gives +2 partial match (avoids harsh cutoffs)
 - **Public weight constants:** All scoring weights are static const for testability and future tuning
 - **Bidirectional artist substring match:** Preserved exact logic from PlaylistGenerator for backward compatibility
+- **Danceability parsed as int? from API:** Handles both string and int values, forward-compatible with endpoint availability
+- **Quality metadata on PlaylistSong:** runningQuality + isEnriched for future UI quality indicators
+- **Provider layer unchanged for scoring:** SongQualityScorer invoked inside PlaylistGenerator, not injected externally
 
 ### Pending Todos
 
@@ -73,10 +76,10 @@ Full decision log in PROJECT.md Key Decisions table.
 
 - GetSongBPM API rate limits and coverage gaps unknown until runtime validation
 - build_runner code-gen partially broken with Dart 3.10 (monitor package updates)
-- GetSongBPM `/song/` endpoint: confirm danceability field availability before Phase 16 implementation
+- Danceability field availability from GetSongBPM API unconfirmed -- scoring gracefully degrades to neutral when absent
 
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 16-01-PLAN.md -- SongQualityScorer ready for integration
+Stopped at: Completed 16-02-PLAN.md -- Phase 16 Scoring Foundation complete
 Resume file: None

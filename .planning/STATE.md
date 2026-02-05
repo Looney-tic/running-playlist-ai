@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 5 (Stride & Cadence) -- plan 02 complete, awaiting phase verification
+**Current focus:** Phase 6 (Steady Run Planning) -- plan 01 complete, plan 02 next
 
 ## Current Position
 
-Phase: 5 of 10 (Stride & Cadence)
-Plan: 2 of 2 in current phase (05-02 complete)
-Status: In progress -- phase verification pending
-Last activity: 2026-02-05 -- 05-02 checkpoint approved after domain fix + UI improvements
+Phase: 6 of 10 (Steady Run Planning)
+Plan: 1 of 2 in current phase (06-01 complete)
+Status: In progress
+Last activity: 2026-02-05 -- Completed 06-01-PLAN.md (run plan domain model + calculator)
 
-Progress: [█████░░░░░░░░░░░░] ~29% (5/17 plans)
+Progress: [██████░░░░░░░░░░░] ~35% (6/17 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 9m
-- Total execution time: 0.82 hours
+- Total plans completed: 6
+- Average duration: 8m
+- Total execution time: 0.87 hours
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [█████░░░░░░░░░░░░] ~29% (5/17 plans
 | 01 | 2/2 | 36m | 18m |
 | 02 | 1/3 | 4m | 4m |
 | 05 | 2/2 | 9m | 5m |
+| 06 | 1/2 | 3m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (16m), 01-02 (20m), 02-01 (4m), 05-01 (3m), 05-02 (6m)
+- Last 5 plans: 01-02 (20m), 02-01 (4m), 05-01 (3m), 05-02 (6m), 06-01 (3m)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -60,6 +61,8 @@ Recent decisions affecting current work:
 - **[05-02]** Step/stride formula corrected: height*0.65 returns step length, not stride length. Removed erroneous *2 multiplier. Recalibrated speed-based default to 0.26*speed+0.25.
 - **[05-02]** Pace input changed from text field to dropdown (3:00-10:00 in 15s increments) per user feedback
 - **[05-02]** /stride route made public (no auth required) while Spotify auth is blocked
+- **[06-01]** Segment-based RunPlan model: steady run = 1 segment, extends to intervals (Phase 8) without restructuring
+- **[06-01]** Calibrated cadence always overrides formula-based BPM in RunPlanCalculator.targetBpm
 
 ### Pending Todos
 
@@ -76,5 +79,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Phase 5 plans complete. Phase verification next.
+Stopped at: Completed 06-01-PLAN.md. Next: 06-02-PLAN.md (run plan screen UI).
 Resume file: None

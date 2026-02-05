@@ -89,8 +89,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01: Taste profile domain model, persistence layer, and Riverpod providers
-- [ ] 12-02: Taste profile UI screens (genre picker, artist input, energy selector) and router integration
+- [ ] 12-01-PLAN.md -- Domain model, persistence layer, Riverpod providers, and unit tests
+- [ ] 12-02-PLAN.md -- UI screen (genre picker, artist input, energy selector) and router integration
 
 ### Phase 13: BPM Data Pipeline
 **Goal**: The app can discover songs at a target BPM from the GetSongBPM API, cache results locally, and handle half/double-time matching

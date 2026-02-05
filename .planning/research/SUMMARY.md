@@ -1,250 +1,288 @@
 # Project Research Summary
 
 **Project:** Running Playlist AI
-**Domain:** BPM-matched running playlist generator
-**Researched:** 2026-02-01
+**Milestone:** v1.1 Experience Quality
+**Domain:** Running music playlist generation with song quality scoring
+**Researched:** 2026-02-05
 **Confidence:** MEDIUM-HIGH
 
 ## Executive Summary
 
-Running Playlist AI is a BPM-matched playlist generator that creates Spotify playlists tailored to a runner's pace and music taste. The product is technically feasible but faces one critical constraint: Spotify deprecated its Audio Features API in November 2024, making BPM data unavailable from Spotify itself. This requires using third-party BPM sources (GetSongBPM API is recommended) and aggressive caching strategies from day one. The project must validate the BPM data pipeline before building anything else.
+Running Playlist AI v1.1 focuses on improving playlist quality beyond basic BPM matching by incorporating song suitability scoring. Research reveals that successful running music apps distinguish between **objective running suitability** (beat strength, rhythmic drive, danceability) and **subjective taste matching** (genre, artist, energy preferences). The Karageorghis framework establishes that rhythm response matters more than melody, which matters more than cultural impact, which matters more than personal associations.
 
-The recommended technical approach is Flutter (cross-platform web/mobile) with Riverpod state management and Supabase backend. This stack provides the cross-platform reach needed for a web-first experience while keeping backend complexity low. The architecture should follow clean architecture patterns with feature-first organization, heavy caching of BPM data, and a swappable BPM data layer to mitigate provider risk.
+The critical discovery is that GetSongBPM's `/song/` endpoint already returns `danceability` and `acousticness` fields—data points the current app completely ignores. This enables quality scoring without additional API dependencies. The recommended approach combines a two-tier enrichment strategy: (1) bundled curated song data (200-500 known-good running songs as a static JSON asset) for the quality "floor," and (2) dynamic API enrichment for danceability on non-curated songs. Crucially, no new package dependencies are required—all improvements build on the existing Flutter/Riverpod stack.
 
-Key risks include Spotify's extended access gate (250K MAU requirement for more than 25 users), BPM data source reliability, and the complexity of accurate stride/cadence calculations. Mitigations include early extended access application, designing a pluggable BPM abstraction layer, and building user calibration flows rather than relying on universal biomechanics formulas. The core differentiator is pre-generating complete playlists from run parameters (distance + pace + type) rather than real-time matching, which allows the app to work with any Spotify client and avoids battery drain during runs.
+The key risk is treating "good running song" as universal rather than contextual. A metalcore fan's ideal running song differs completely from a pop listener's. The architecture must separate running suitability scoring from taste matching to avoid regressing toward bland, lowest-common-denominator recommendations. Other critical pitfalls include making curated data immutable (bundle with remote update capability), over-engineering taste profiles before fixing song pool quality, and scraping copyrighted running song lists.
 
 ## Key Findings
 
 ### Recommended Stack
 
-Flutter 3.38.x with Dart 3.x provides the cross-platform foundation, supporting web, Android, and iOS from a single codebase. Riverpod 3.x is the community consensus for state management in 2026, offering compile-time safety and reactive caching with minimal boilerplate. Supabase provides backend services (auth, PostgreSQL database, edge functions) with transparent pricing and no vendor lock-in, making it superior to Firebase for the relational nature of user-song-playlist data.
+**Core decision: No new dependencies needed.** All v1.1 features can be built with the existing stack plus pure Dart domain logic and Flutter bundled assets. The v1.0 stack (Flutter 3.38, Riverpod 2.x, go_router 17, http, SharedPreferences, GetSongBPM API) remains validated and stable.
 
-**Core technologies:**
-- **Flutter 3.38.x**: Cross-platform UI (web, Android, iOS) — latest stable with quarterly release cadence
-- **Riverpod 3.x**: State management — community standard for new projects, reactive caching for playlist data
-- **Supabase**: Backend (auth, database, storage) — PostgreSQL fits relational data model, row-level security, portable
-- **GetSongBPM API**: BPM data source — free with attribution, Spotify audio-features is deprecated
-- **spotify (Dart package)**: Spotify Web API client — pure Dart, covers OAuth, playlist CRUD, search, library access
-- **go_router**: Navigation — official Flutter team package, deep linking for OAuth redirects
+**Core technologies for v1.1:**
+- **GetSongBPM `/song/` endpoint** — Returns danceability, acousticness, key, time signature, artist genres. Currently unused, but critical for quality scoring. Requires lazy enrichment with rate limiting (top-N candidates only, 300ms delays, aggressive caching).
+- **Bundled JSON asset** — Ships 200-500 curated running songs as `assets/curated_running_songs.json`. No SQLite/Drift needed for this data volume; SharedPreferences + rootBundle.loadString() handles it efficiently.
+- **Pure Dart scoring algorithm** — Weighted multi-factor score (danceability + genre + artist + energy + BPM). No ML/AI packages required; hand-tuned weights based on research.
+- **Existing state management** — Extend TasteProfile model, PlaylistGenerator scoring, StrideNotifier with new methods. All within current architecture patterns.
 
-**Critical discovery:** Spotify's audio-features endpoint was deprecated November 27, 2024. New apps get 403 errors. BPM data must come from external sources like GetSongBPM, Soundcharts, or community datasets (MusicBrainz/AcousticBrainz).
+**What NOT to add:** drift/SQLite (overkill for <500 songs), dio (http works fine), Supabase activation (not needed for local-first features), any ML/AI packages, Spotify integration (still blocked), speculative animation libraries.
+
+**Critical API strategy:** Enrichment cache (SharedPreferences, 7-day TTL) with lazy loading. Only enrich top-20 candidates per generation, not all. Over time the cache builds up and generations become near-instant.
 
 ### Expected Features
 
+Research synthesized from the Karageorghis framework, 2025 groove/running studies, and competitor analysis (RockMyRun, PaceDJ, Weav).
+
 **Must have (table stakes):**
-- BPM-to-cadence matching — core value proposition of every app in this space
-- Pace/cadence input — both manual BPM entry and calculated from pace
-- Genre/taste preferences — filter generated playlists by user's music taste
-- Playlist export to Spotify — users expect to play via Spotify, not a custom player
-- Warm-up/cool-down support — playlist segments with ascending/descending BPM
-- Multiple run types — steady pace, intervals, progressive runs
-- Cross-platform access — web + mobile baseline expectation
+- **Danceability-weighted scoring** — High-danceability songs at the right BPM are objectively better for running. GetSongBPM returns this; currently ignored. Users will feel the difference even if they can't articulate why.
+- **Genre-aware song scoring** — Taste profile stores genres but doesn't use them in scoring. Genre match should boost ranking.
+- **Variety within playlists** — No artist repeats in succession. Already partially implemented; needs artist-diversity constraint in scoring.
+- **Post-run cadence nudge** — Simple "+/- 2 BPM" adjustment on playlist screen or home, not forcing users back through stride calculator.
 
-**Should have (competitive differentiators):**
-- Run-detail-driven generation — distance + pace + type produces complete structured playlist (unique to this app)
-- Taste profile from Spotify import + manual tuning — combines listening history analysis with running-specific preferences
-- Stride rate calculation from pace — removes friction of users needing to know their cadence
-- BPM range tolerance with half/double tempo — 170 BPM target can use 85 BPM songs, dramatically expands pool
-- Pre-run playlist generation — generate before the run, works with any Spotify client/watch, no battery drain
+**Should have (differentiators):**
+- **Composite running quality score** — Combines danceability + genre + artist + BPM + energy into weighted score. No competitor in BPM-matching space does multi-factor scoring at this sophistication.
+- **Energy-level-to-danceability mapping** — TasteProfile.energyLevel (chill/balanced/intense) maps to preferred danceability ranges. Currently stored but unused.
+- **One-tap regeneration** — "Same run, new songs" from home screen. Current flow requires 4 navigation steps; should be 1 tap.
+- **Curated "proven running song" bonus** — Static lists per genre from Runner's World, running playlists, community recommendations. Boost in scoring, not a filter.
+- **Segment-appropriate energy** — Warm-up prefers lower energy, sprints prefer highest, cool-down prefers calm. Map automatically based on segment labels.
 
-**Defer (v2+):**
-- Interval training with BPM-matched segments — high complexity, requires mapping interval structure to song durations
-- Advanced taste tuning — manual refinement of taste profile (start with Spotify-derived data first)
-- Heart rate integration — adds complexity without proportional value for playlist generation
-- GPS run tracking — Strava/Nike Run Club already do this well, don't rebuild
-- Real-time cadence detection — requires foreground app, accelerometer, battery drain
+**Defer (anti-features):**
+- **Audio analysis/beat detection** — Requires audio file access (unavailable), massive compute. GetSongBPM already provides danceability.
+- **AI-powered recommendations** — Overkill; research-backed scoring formula is effectively a hand-tuned model.
+- **Real-time BPM adjustment** — Requires foreground app, accelerometer, streaming integration. Weav's entire business model; patent-protected.
+- **Lyric analysis** — No free API, marginal benefit over danceability + genre.
+- **Social playlist sharing** — Requires accounts, backend, moderation. App is intentionally account-free.
 
 ### Architecture Approach
 
-Feature-first clean architecture with Riverpod for dependency injection and state management. Three-layer separation (Data/Domain/Presentation) per feature module. The BPM data pipeline must be designed as a swappable abstraction from day one since external providers may change terms or disappear. Heavy caching is essential to avoid hitting rate limits and to enable fast playlist generation.
+**Design principle: Add a scoring layer, do not restructure.** The existing PlaylistGenerator architecture is clean and well-bounded. Song quality is a new scoring dimension injected into `_scoreAndRank`, not a new pipeline.
 
 **Major components:**
-1. **Auth Module** — Spotify OAuth PKCE flow, token refresh, session management
-2. **Spotify Client** — User library, saved tracks, playlist CRUD, search API calls
-3. **BPM Data Service** — Fetch from GetSongBPM, cache aggressively in Supabase, resolve Spotify ID to BPM
-4. **Stride Calculator** — Compute target cadence from height, pace, optional user calibration
-5. **Run Plan Engine** — Define run structure (steady, warm-up/cool-down, intervals) with BPM targets per segment
-6. **Taste Profile** — Aggregate genre/artist preferences from Spotify top tracks + manual overrides
-7. **Playlist Generator** — Core algorithm: match songs to segments by BPM + taste score, assemble ordered playlist
 
-**Key patterns:**
-- Cache-first BPM enrichment: pre-fetch BPM for user's library in background, generate from cache only
-- Half/double-time matching: check BPM, BPM/2, and BPM*2 when matching to expand candidate pool
-- Pluggable BPM source abstraction: design data layer to swap providers without rewriting business logic
+1. **RunningQualityIndex** — Lookup structure for curated song data. Loaded once from bundled JSON asset (`rootBundle.loadString`), kept in memory via Riverpod provider. Supports exact song match (artist|title key) and artist-level fallback for genre/energy inference. ~200-500 songs = 50-200KB, well within asset limits.
+
+2. **SongQualityScorer** — Pure Dart static scoring methods. Replaces simple `_scoreAndRank` logic with weighted multi-factor score:
+   - Artist match: +10 (existing)
+   - Running quality (curated): +8 (NEW)
+   - Genre match: +6 (NEW)
+   - Energy alignment: +4 (NEW)
+   - Exact BPM: +3 (existing)
+   - Tempo variant: +1 (existing)
+
+3. **Enhanced TasteProfile** — Add `preferVocals` (bool), `tempoVarianceTolerance` (double), `dislikedArtists` (Set). Backward-compatible via fromJson defaults.
+
+4. **Stride adjustment layer** — Add `adjustCadence(int delta)` method to existing StrideNotifier. UI shows +/- buttons; persisted as cadence offset.
+
+5. **Quick regeneration state** — Cache last song pool and run plan in PlaylistGenerationNotifier. `regenerate()` method reuses cached data for instant re-generation with different shuffle.
+
+**Data flow enhancement:** PlaylistGenerationNotifier reads RunningQualityIndex → passes to PlaylistGenerator.generate() → SongQualityScorer computes composite score → songs ranked → quality indicators added to PlaylistSong model → displayed in UI.
+
+**Key decision: Curated data is a boost, not a filter.** Unknown songs still appear, just ranked lower. This prevents empty playlists for niche genres.
 
 ### Critical Pitfalls
 
-1. **Spotify Audio Features API deprecated** — Returns 403 for new apps since Nov 2024. No BPM data from Spotify. Must use GetSongBPM or alternative from day one. Design BPM layer as swappable abstraction. **Phase 1 blocker.**
+1. **Treating "good running song" as universal** — A metalcore fan's ideal differs completely from a pop listener's. Conflating running suitability (objective: beat strength, rhythm) with taste fit (subjective: genre, mood) produces bland recommendations. **Prevention:** Separate scoring dimensions explicitly. Running suitability and taste match must be independent signals, combined at generation time.
 
-2. **Spotify Extended Access gate** — 250K MAU + registered business required for extended access. Apps stuck at 25 users in development mode. Apply early with pitch about driving artist discovery. Have Apple Music fallback plan. **Shapes entire project timeline.**
+2. **Curated data that requires app store releases to update** — Bundled JSON assets are immutable after build. Errors, new songs, licensing changes require full submission cycle (days to weeks). **Prevention:** Hybrid approach—bundle baseline dataset as fallback, serve latest from Supabase/remote JSON with version checking, cache locally. Shorebird cannot update assets.
 
-3. **OAuth flow migration** — Implicit grant removed Nov 2025. Must use Authorization Code with PKCE. HTTPS redirect URIs only (except 127.0.0.1 for dev). Test all three platforms early. **Phase 1 auth setup must get this right.**
+3. **Over-engineering taste profile before fixing song pool** — Adding sub-genres, mood dimensions, decade preferences doesn't help if the GetSongBPM candidate pool is mediocre. No amount of sophisticated ranking fixes poor candidates. **Prevention:** Invert priority—curate seed database of known-good songs first (Phase 1), then improve taste profiling (Phase 2+).
 
-4. **BPM half/double-time confusion** — 140 BPM track can be reported as 70 or 280 BPM. Runner at 170 spm matched to 85 BPM ballads ruins experience. Always check x2 and /2 candidates, filter to sane range (100-210 BPM). **Phase 2 matching logic.**
+4. **Scraping running song lists without legal/quality considerations** — Scraping Runner's World, Cosmopolitan lists violates ToS, introduces data quality issues (promotional placements, recency bias), and creates reconciliation problems (fuzzy matching between scraped names and GetSongBPM IDs). **Prevention:** Use legitimate sources—GetSongBPM API as candidate pool + manual verification, public playlists for inspiration (not scraping), community curation model like jog.fm.
 
-5. **Stride calculation assumes universal constants** — Fixed formulas (stride = height * 0.415) are wildly inaccurate for individuals. Speed = stride_length * cadence, but relationship is individual. Build calibration flow, offer presets, let users override. **Phase 2 cadence logic.**
+5. **Designing around Spotify Audio Features that no longer exist** — Spotify deprecated Audio Features (energy, valence, loudness) in Nov 2024. Designing models assuming 7 features breaks when only 2 (danceability, acousticness) are available from GetSongBPM. **Prevention:** Design scoring exclusively around confirmed available data: GetSongBPM fields + curated manual ratings + future user feedback.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on combined research, v1.1 should be structured as 3 phases with clear dependencies.
 
-### Phase 1: Foundation & BPM Validation
-**Rationale:** The BPM data source is an existential dependency. Nothing else matters if BPM data is unavailable or unreliable. Spotify OAuth is a hard prerequisite for all features. These must be validated before building business logic.
-
-**Delivers:**
-- Spotify OAuth with PKCE (all three platforms: web, Android, iOS)
-- GetSongBPM API integration and validation
-- BPM cache layer in Supabase
-- Project skeleton (Flutter, Riverpod, clean architecture, routing)
-- Local storage setup (secure token storage)
-
-**Addresses:**
-- Table stakes: Spotify integration foundation
-- Critical pitfall: Validate BPM data source works before proceeding
-- Critical pitfall: OAuth PKCE flow, not deprecated implicit grant
-- Extended access: Apply for Spotify extended access immediately
-
-**Avoids:**
-- Building on deprecated Spotify audio-features API
-- Using implicit grant OAuth flow
-- Proceeding without confirming BPM data availability
-
-### Phase 2: Data Pipeline & Core Engine
-**Rationale:** Once BPM data is confirmed available, build the data pipeline that feeds playlist generation. Background BPM enrichment needs time to populate cache. Stride calculation and run planning are independent of Spotify but must exist before generation.
+### Phase 1: Scoring Foundation (Must Have)
+**Rationale:** Core quality improvement. All other enhancements depend on better song selection. Research shows danceability/groove is the single most impactful signal for running music (Karageorghis hierarchy: rhythm response > musicality > cultural impact).
 
 **Delivers:**
-- Spotify library import (saved tracks, top tracks)
-- Background BPM enrichment for user's library
-- Stride calculator with user calibration flow
-- Run plan engine (steady pace, warm-up/cool-down structures)
-- Taste profile from Spotify listening data
+- Parse danceability from GetSongBPM `/song/` endpoint
+- Parse artist genres from API
+- Implement composite quality score (SongQualityScorer)
+- Integrate energy level (TasteProfile.energyLevel) into scoring
+- Artist diversity constraint (no back-to-back same artist)
 
-**Uses:**
-- Supabase for BPM cache and user data
-- GetSongBPM API with aggressive caching
-- Pure Dart biomechanics formulas
+**Uses from STACK.md:**
+- GetSongBPM `/song/` endpoint enrichment
+- Pure Dart scoring algorithm
+- Existing http package for API calls
+- SharedPreferences for enrichment cache
 
-**Implements:**
-- BPM Data Service component (cache-first architecture)
-- Stride Calculator component (with calibration, not just formulas)
-- Run Plan Engine component (segment-based BPM targets)
+**Implements from ARCHITECTURE.md:**
+- SongQualityScorer class (new)
+- Enhanced PlaylistGenerator._scoreAndRank
+- Modified PlaylistGenerationNotifier (pass quality index)
 
-**Avoids:**
-- Synchronous BPM fetching during generation (use background enrichment)
-- Universal stride formulas (build calibration)
-- Exact BPM matching only (plan for tolerance window)
+**Avoids from PITFALLS.md:**
+- Pitfall 1: Separates running suitability from taste matching as independent dimensions
+- Pitfall 5: Uses only confirmed available data (danceability, acousticness from GetSongBPM)
 
-### Phase 3: Playlist Generation & Export
-**Rationale:** With BPM data cached and run plans defined, build the core value proposition: generate BPM-matched playlists and push to Spotify.
+**Research flag:** SKIP — Well-documented patterns. GetSongBPM API fields confirmed, scoring logic is pure domain logic.
 
-**Delivers:**
-- Playlist generation algorithm (BPM matching + taste scoring)
-- Half/double-time tempo matching
-- Spotify playlist creation and track addition
-- Generate flow UI (run input -> playlist output)
-- Playlist preview before export
+---
 
-**Addresses:**
-- Table stakes: BPM-to-cadence matching, playlist export to Spotify
-- Differentiator: Run-detail-driven generation (distance + pace + type)
-- Differentiator: Pre-run playlist generation (not real-time)
-
-**Implements:**
-- Playlist Generator component
-- Taste scoring integration
-- BPM tolerance and half/double-time logic
-
-**Avoids:**
-- Exact BPM matching (use tolerance window)
-- Half/double-time confusion (explicit handling in algorithm)
-
-### Phase 4: Polish & Multiple Run Types
-**Rationale:** Core steady-pace generation working. Add structured workout types and UX refinements.
+### Phase 2: Curated Data Foundation (Should Have)
+**Rationale:** Establishes quality "floor" for recommendations. Even with perfect scoring, GetSongBPM's random BPM results need curation. Research shows 200-500 manually verified songs dramatically improves perceived quality.
 
 **Delivers:**
-- Warm-up/cool-down BPM ramps
-- Multiple run type support (steady, progressive)
-- Playlist regeneration and history
-- Advanced taste tuning UI
+- Curated running songs JSON asset (200-500 songs, manually verified)
+- CuratedSongsLoader (rootBundle + JSON parse)
+- RunningQualityIndex (in-memory lookup structure)
+- Integration with SongQualityScorer (curated bonus in composite score)
+- Baseline remote update capability (Supabase table + version check)
 
-**Addresses:**
-- Table stakes: Warm-up/cool-down support, multiple run types
-- Differentiator: Taste profile manual tuning
+**Uses from STACK.md:**
+- Bundled JSON asset (assets/curated_running_songs.json)
+- No new packages—rootBundle.loadString() for loading
+- Optional: Supabase for remote updates (already in project)
 
-### Phase 5 (Future): Interval Training
-**Rationale:** High complexity feature requiring segment-based generation with distinct BPM targets and song duration matching per interval. Defer until core product validated.
+**Implements from ARCHITECTURE.md:**
+- RunningSong model
+- RunningQualityIndex class
+- runningQualityProvider (Riverpod)
+- pubspec.yaml asset declaration
+
+**Avoids from PITFALLS.md:**
+- Pitfall 2: Includes remote update path from day one (hybrid: bundled baseline + Supabase/remote fetch)
+- Pitfall 3: Prioritizes song pool quality before taste sophistication
+- Pitfall 4: Manual curation from legitimate sources; no scraping copyrighted lists
+
+**Research flag:** MEDIUM — Needs manual data curation effort (not technical research). Sourcing strategy must be defined: which running playlists to reference, which genres to prioritize, quality rating methodology.
+
+---
+
+### Phase 3: UX Refinements (Should Have)
+**Rationale:** Low-friction improvements that leverage the enhanced scoring. These are independent of each other and can be built in parallel or prioritized based on user feedback.
 
 **Delivers:**
-- Interval training support with BPM-matched segments
-- Interval structure definition UI
+- Post-run cadence nudge (+/- 2 BPM buttons)
+- One-tap regeneration from home screen
+- Segment-appropriate energy mapping (warm-up/cool-down auto-adjust)
+- Song quality indicators in UI (badge/icon for curated songs)
+- Extended TasteProfile fields (preferVocals, tempoVarianceTolerance, dislikedArtists)
 
-**Addresses:**
-- Table stakes: Interval training (expected but complex)
+**Uses from STACK.md:**
+- Existing StrideNotifier extension
+- Existing go_router navigation restructure
+- Existing Riverpod state management
+
+**Implements from ARCHITECTURE.md:**
+- StrideNotifier.adjustCadence() method
+- PlaylistGenerationNotifier.regenerate() method
+- PlaylistSong.runningQuality field
+- SongTile widget enhancement
+- TasteProfile model extension
+
+**Avoids from PITFALLS.md:**
+- UX pitfall: Nudge increments are 2-3 BPM (not aggressive 5+ BPM jumps)
+- UX pitfall: Quality score is internal; only show simple badge, not raw numbers
+- UX pitfall: Quick action shows confirmation with visible parameters
+
+**Research flag:** SKIP — Standard Flutter UI patterns. All components extend existing features.
+
+---
+
+### Future (v1.2+)
+Deferred features based on research:
+- Song feedback loop (heart/flag per song) → scoring integration
+- Playlist freshness tracking (penalize recently played songs)
+- Taste profile refinement from accumulated feedback
+- Expand curated dataset to 1000+ songs with community contributions
+
+---
 
 ### Phase Ordering Rationale
 
-- **Phase 1 first:** BPM data availability is existential risk. Must validate before building anything else. OAuth is hard prerequisite for all Spotify features.
-- **Phase 2 before 3:** Playlist generation depends on cached BPM data, taste profile, and run planning. Background enrichment needs time to run.
-- **Stride calculation in Phase 2:** Independent of Spotify, but must exist before generation. Include calibration to avoid universal formula pitfall.
-- **Warm-up/cool-down in Phase 4:** Natural extension of steady pace, but requires working generation first.
-- **Intervals last:** Highest complexity, requires segment-duration matching, defer until product validated.
+- **Phase 1 before Phase 2:** Scoring algorithm must exist before curated data can provide scoring bonuses. However, Phase 1 can ship without curated data (quality improves from danceability alone). Phase 2 enhances Phase 1 but isn't a hard dependency.
+
+- **Phase 2 before Phase 3:** UX refinements like quality indicators require quality data to exist. Cadence nudge and quick regen are independent, but make more sense once playlists are higher quality.
+
+- **Phase 1+2 are parallelizable if needed:** Different developers can work on scoring logic (Phase 1) and data curation (Phase 2) simultaneously. Integration point is clear: SongQualityScorer reads from RunningQualityIndex.
+
+- **Phase 3 items are fully parallel:** Cadence nudge, quick regen, segment energy, UI badges, and taste profile extensions have zero dependencies on each other. Prioritize by user feedback or developer preference.
+
+**Pitfall mitigation through ordering:**
+- Addressing Pitfall 3 explicitly: Song pool quality (Phase 2) comes before taste sophistication (deferred to v1.2+)
+- Addressing Pitfall 1 explicitly: Architecture separates concerns in Phase 1, data model enforces it in Phase 2
+- Addressing Pitfall 2 explicitly: Phase 2 includes remote update capability from day one
 
 ### Research Flags
 
-**Phases likely needing deeper research during planning:**
-- **Phase 1:** BPM data source evaluation — GetSongBPM may have coverage gaps, rate limits unclear, need fallback strategy
-- **Phase 2:** Stride/cadence formulas — biomechanics research needed for accurate calibration defaults
-- **Phase 5:** Interval training — segment-duration matching algorithm needs investigation
+**Phases needing deeper research during planning:**
+- **Phase 2 (Curated Data):** Requires non-technical research—data sourcing strategy, genre prioritization, quality rating methodology, manual curation workflow. Technical implementation is straightforward (JSON + loader), but data compilation is labor-intensive.
 
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Spotify OAuth with PKCE — well-documented, official guides available
-- **Phase 1:** Flutter project setup — established clean architecture patterns
-- **Phase 3:** Spotify playlist creation — standard Web API calls, well-documented
+- **Phase 1 (Scoring Foundation):** Pure domain logic + confirmed API fields. No unknowns.
+- **Phase 3 (UX Refinements):** Standard Flutter/Riverpod patterns. All changes are extensions of existing features.
+
+**Critical unknowns to validate during Phase 1 implementation:**
+- GetSongBPM `/tempo/` vs `/song/` endpoint: Which returns danceability? Does `/tempo/` include it, or is a follow-up `/song/` call required? This determines API call volume and rate limiting strategy.
+- Rate limiting behavior: Can we safely make 20-30 `/song/` enrichment calls per generation with 300ms delays? Needs production testing.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Flutter 3.38 is latest stable, Riverpod 3.x is community consensus 2026, Supabase is well-proven. Versions and rationale verified. |
-| Features | MEDIUM | Based on competitor analysis (RockMyRun, PaceDJ, Weav) but not direct user research. Table stakes clearly identified. |
-| Architecture | MEDIUM | Clean architecture + Riverpod is standard Flutter approach, but BPM caching strategy inferred from rate limit constraints, not battle-tested. |
-| Pitfalls | HIGH | Spotify API deprecation verified across multiple authoritative sources. OAuth changes confirmed via official Spotify blog. BPM half/double-time issue well-documented in MIR literature. |
+| Stack | HIGH | All recommendations build on existing validated stack. GetSongBPM `/song/` endpoint fields confirmed via API docs. No new package dependencies reduces risk. |
+| Features | MEDIUM-HIGH | Feature priorities grounded in peer-reviewed research (Karageorghis framework, 2025 groove study). Must-haves vs should-haves clearly distinguished. Competitor analysis validates differentiation. Confidence docked slightly because danceability as running proxy is strongly supported but not universally tested across all genres. |
+| Architecture | HIGH | Direct codebase analysis of all relevant files. Proposed changes are surgical extensions, not restructures. Integration points clearly mapped to specific files/line ranges. Clean separation of concerns (scoring, data loading, UI) reduces risk. |
+| Pitfalls | HIGH | All pitfalls grounded in domain-specific patterns (music recommendation systems), confirmed by research sources and existing v1.0 experience. Recovery strategies documented. Pitfall-to-phase mapping makes prevention actionable. |
 
 **Overall confidence:** MEDIUM-HIGH
 
-The critical Spotify API constraints are verified with HIGH confidence (official sources). Stack choices are verified (official docs, pub.dev). Feature landscape is MEDIUM confidence (inferred from competitors, not user interviews). Architecture patterns are standard but BPM caching strategy needs validation at scale.
+The technical approach is sound and low-risk (no new dependencies, extends existing patterns). The architectural changes are well-scoped. The primary uncertainties are:
+
+1. **Data quality/sourcing** — Curated song compilation is manual labor; quality depends on curation discipline
+2. **Danceability effectiveness** — Strong research support, but needs real-world validation across diverse genres
+3. **API rate limits** — GetSongBPM's undocumented rate limits for `/song/` endpoint; mitigation strategy (lazy enrichment, aggressive caching) is sound but unproven at scale
 
 ### Gaps to Address
 
-- **GetSongBPM API reliability at scale:** Unknown rate limits, uptime SLA, coverage completeness. Needs validation in Phase 1 with real user libraries. Have fallback plan (Soundcharts, MusicBrainz).
-- **Spotify extended access approval likelihood:** Unclear how Spotify evaluates applications. Apply early, but have contingency for 25-user cap (Apple Music integration, playlist export as text lists).
-- **BPM data coverage for non-popular tracks:** Alternative sources may have gaps for niche genres. Monitor cache hit rate, surface "BPM unavailable" gracefully to users.
-- **Accurate stride calculation defaults:** Biomechanics formulas are population averages. User calibration is essential, but need good defaults. Test with diverse runner profiles in Phase 2.
-- **Flutter Web performance:** Initial load time and bundle size unknown until first build. May need to de-prioritize web for v1 if performance unacceptable. Measure baseline in Phase 1.
+**During Phase 1 planning:**
+- Confirm whether `/tempo/` endpoint returns danceability or if `/song/` call is required. Test empirically with API before finalizing enrichment strategy.
+- Define scoring weight tuning methodology. Initial weights based on research (artist: 10, curated: 8, genre: 6, energy: 4, BPM: 3, variant: 1), but may need adjustment based on user feedback.
+
+**During Phase 2 planning:**
+- Define data sourcing protocol: which public running playlists are legitimate references, manual verification checklist, quality rating rubric (1-10 scale definition).
+- Establish minimum song count per genre (suggested: 15-20 per RunningGenre enum value for balanced coverage).
+- Design Supabase schema for remote curated data: single table with version field, or more normalized structure?
+
+**During implementation:**
+- Monitor GetSongBPM API behavior with increased call volume. Adjust enrichment strategy (top-N candidates, delay timing) if rate limiting issues emerge.
+- Validate danceability correlation with actual runner preferences. A/B test if possible (danceability scoring on vs off) or gather qualitative feedback.
+- Assess SharedPreferences performance with growing enrichment cache. If >500 enriched songs cause jank, consider migration to SQLite (but unlikely—100 bytes/song * 500 = 50KB is trivial).
+
+**Post-v1.1 validation:**
+- Does composite scoring noticeably improve playlist quality vs v1.0? Measure via user feedback or retention metrics if available.
+- Which genres benefit most from curated data? Identify coverage gaps for curation expansion in v1.2.
+- Are any Phase 3 features underutilized? Deprioritize in future roadmaps if low engagement.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Flutter 3.38 release notes](https://docs.flutter.dev/release/release-notes) — Stack verification
-- [Riverpod 3.0 What's New](https://riverpod.dev/docs/whats_new) — State management features
-- [Spotify Web API Changes (Nov 2024)](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) — Audio Features deprecation
-- [Spotify OAuth Migration (Nov 2025)](https://developer.spotify.com/blog/2025-10-14-reminder-oauth-migration-27-nov-2025) — Implicit grant removal
-- [Spotify Extended Access Criteria Update (Apr 2025)](https://developer.spotify.com/blog/2025-04-15-updating-the-criteria-for-web-api-extended-access) — 250K MAU requirement
-- [Spotify community: Audio Features 403 errors](https://community.spotify.com/t5/Spotify-for-Developers/Web-API-Get-Track-s-Audio-Features-403-error/td-p/6654507) — Deprecation confirmation
-- [Flutter architecture guide](https://docs.flutter.dev/app-architecture/guide) — Architecture patterns
+- Direct codebase analysis: All files in `lib/features/` — Complete analysis of existing architecture, state management patterns, data models, scoring logic
+- [Flutter asset documentation](https://docs.flutter.dev/ui/assets/assets-and-images) — Asset loading, rootBundle.loadString() patterns
+- [GetSongBPM API documentation](https://getsongbpm.com/api) — `/song/` endpoint returns danceability, acousticness, key, time signature, artist genres
+- [Spotify API deprecation](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) — Audio Features permanently removed Nov 2024
+- [PLOS One: Music synchronization and running](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0208702) — BPM matching improves efficiency by ~7%
 
 ### Secondary (MEDIUM confidence)
-- [GetSongBPM API](https://getsongbpm.com/api) — BPM data alternative
-- [Supabase vs Firebase comparison](https://www.clickittech.com/software-development/supabase-vs-firebase/) — Backend choice rationale
-- [RockMyRun](https://www.rockmyrun.com/), [PaceDJ](https://www.pacedj.com/faq/), [Weav](https://www.producthunt.com/products/weav-run) — Competitor feature analysis
-- [Running cadence science](https://runningwritings.com/2026/01/science-of-cadence.html) — Stride calculation research
-- [Molab cadence guide](https://molab.me/running-cadence-the-ultimate-guide/) — Biomechanics formulas
-- [TechCrunch Spotify API coverage](https://techcrunch.com/2024/11/27/spotify-cuts-developer-access-to-several-of-its-recommendation-features/) — Deprecation context
+- [Karageorghis framework / BMRI research](https://pmc.ncbi.nlm.nih.gov/articles/PMC3339578/) — Rhythm response > musicality > cultural impact > association hierarchy
+- [Frontiers: High-groove music boosts running speed (2025)](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2025.1586484/full) — Danceability/groove directly improves running performance and mood
+- [ScraperAPI: Web scraping legality](https://www.scraperapi.com/web-scraping/is-web-scraping-legal/) — Legal framework for data sourcing
+- [Shorebird documentation](https://docs.shorebird.dev/code-push/) — Code push limitations (cannot update assets/bundled data)
+- Runner's World, Boston Globe, KURU running song lists — Community-curated running music; useful as seed data references
+- Competitor analysis: RockMyRun (DJ curation), PaceDJ (library filtering), Weav (adaptive music) — Feature differentiation
 
 ### Tertiary (LOW confidence)
-- [SoundNet Track Analysis API](https://medium.com/@soundnet717/spotify-audio-analysis-has-been-deprecated-what-now-4808aadccfcb) — Alternative BPM source, single source
-- [Flutter Web performance critique](https://suica.dev/en/blogs/fuck-off-flutter-web,-unless-you-slept-through-school,-you-know-flutter-web-is-a-bad-idea) — Opinionated take, needs validation
+- [Running with Data: Danceability correlation](https://runningwithdata.com/2010/10/15/danceability-and-energy.html) — Blog post (2010) but aligns with academic research
+- jog.fm model (community voting per pace) — Observed via app store listing; methodology inferred
+- SharedPreferences size limits — Community guidance suggests <1MB practical limit; not officially documented by Flutter team
 
 ---
-*Research completed: 2026-02-01*
+*Research completed: 2026-02-05*
 *Ready for roadmap: yes*

@@ -1,280 +1,288 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** Running playlist BPM-matching app (Flutter, Spotify integration)
-**Researched:** 2026-02-01
-**Overall confidence:** HIGH (multiple authoritative sources confirm key findings)
-
----
+**Domain:** Adding song quality scoring, curated content, and recommendation improvements to an existing running playlist app (v1.1 Experience Quality)
+**Researched:** 2026-02-05
+**Confidence:** HIGH (domain-specific, grounded in existing codebase analysis + research literature)
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites or make the project infeasible.
+### Pitfall 1: Treating "Good Running Song" as an Objective, Universal Property
 
-### Pitfall 1: Spotify Audio Features API Is Deprecated -- No BPM Data From Spotify
+**What goes wrong:**
+The team builds a single "running quality score" (e.g., 0-100) for each song and treats it as ground truth. A song scored 85/100 is presented as objectively better for running than one scored 60/100. But "good for running" is deeply personal: a metalcore fan's ideal 170 BPM running song is completely different from a pop listener's. The score conflates two orthogonal dimensions -- *running suitability* (rhythmic drive, energy consistency, beat clarity) with *taste fit* (genre, mood, familiarity). When these are merged into one number, the system recommends bland, lowest-common-denominator songs that nobody actually loves running to.
 
-**What goes wrong:** The entire project premise depends on knowing track BPM/tempo. Spotify's `GET /audio-features` endpoint (which returned tempo) was deprecated on November 27, 2024. New apps get 403 Forbidden. There is no replacement endpoint from Spotify.
+**Why it happens:**
+It feels elegant to have one score. The scoring function is easier to test with a single output. And early testing with the developer's own taste confirms it "works." But taste diversity means a universal score will always regress toward inoffensive pop.
 
-**Why it happens:** Spotify removed Audio Features, Audio Analysis, and Recommendations endpoints to prevent AI model training on their data. Apps created after Nov 2024 cannot access these endpoints at all.
+**How to avoid:**
+Separate the concerns explicitly. Build two independent scoring dimensions:
+1. **Running suitability score** -- Objective-ish properties: beat consistency/stability, rhythmic drive (strong downbeats), energy sustain (not too many quiet sections), tempo match quality. These are genre-agnostic.
+2. **Taste match score** -- Already exists in `PlaylistGenerator._scoreAndRank()` as artist matching and BPM exactness bonuses. Extend with genre affinity, energy level preference.
 
-**Consequences:** Without an alternative BPM source, the app cannot function. This is an existential risk to the project.
+Multiply or combine at playlist generation time, not at data ingestion time. A song can have high running suitability but low taste match (or vice versa). The user's playlist should prioritize songs high in both.
 
-**Prevention:**
-- Use a third-party BPM data source from day one. Options include:
-  - **SoundNet Track Analysis API** -- marketed as a drop-in replacement for Spotify Audio Features
-  - **ReccoBeats API** (`reccobeats.com/docs/apis/get-track-audio-features`)
-  - **ListenBrainz Labs API** -- open-source alternative with similar metadata
-  - **MusicBrainz + AcousticBrainz** datasets
-  - **Local BPM analysis** using libraries like Essentia (heavy, but no API dependency)
-- Design the BPM data layer as a swappable abstraction from the start -- providers may disappear or change terms
+**Warning signs:**
+- Your curated "top running songs" list looks like a generic pop workout playlist
+- Test users in different genres report the same songs being recommended
+- The scoring model has no input from the taste profile
+- Songs with niche genre appeal consistently score low
 
-**Detection:** You will discover this immediately when calling `/v1/audio-features/{id}` and receiving 403.
+**Phase to address:**
+Song quality scoring design phase -- the data model and scoring architecture must separate these concerns from the start. Retrofitting is expensive because curated data entries with baked-in single scores need to be re-evaluated.
 
-**Phase:** Must be resolved in Phase 1 (architecture/proof-of-concept). Do not proceed without confirming a working BPM data source.
-
-**Confidence:** HIGH -- confirmed via Spotify developer blog, TechCrunch reporting, and community forums.
-
-**Sources:**
-- [Spotify Web API changes announcement](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api)
-- [TechCrunch coverage](https://techcrunch.com/2024/11/27/spotify-cuts-developer-access-to-several-of-its-recommendation-features/)
-- [SoundNet alternative](https://medium.com/@soundnet717/spotify-audio-analysis-has-been-deprecated-what-now-4808aadccfcb)
+**Confidence:** HIGH -- this is the fundamental design trap in music recommendation systems. Research confirms "danceability and energy are not indicative of personal preference regardless of geography" (Spotify audio features research). Jog.fm solved this via community voting per pace, not per song quality.
 
 ---
 
-### Pitfall 2: Spotify Extended Access Gate -- 250K MAU Requirement
+### Pitfall 2: Curated Data That Cannot Be Updated Without an App Store Release
 
-**What goes wrong:** Since May 2025, Spotify requires apps to have 250,000+ monthly active users and be a registered business entity to get extended API access. Without extended access, apps are stuck in "development mode" with severe rate limits and a cap of 25 users.
+**What goes wrong:**
+The team bundles a curated running song database as a JSON asset file in the Flutter app bundle. The data ships with the app. To add new songs, fix errors, or respond to licensing changes, a full app store submission is required. The curated data becomes stale within weeks, and the update cycle (dev -> review -> release -> user update) takes days to weeks.
 
-**Why it happens:** Spotify tightened criteria to focus on apps that "drive Spotify's platform strategy forward."
+**Why it happens:**
+Bundled JSON is the simplest approach -- it requires no backend, no network requests, and works offline. The current app already uses SharedPreferences for all persistence, so "just add a JSON file" feels consistent with the existing architecture. Supabase is initialized but barely used.
 
-**Consequences:** Your app cannot scale beyond 25 users without extended access approval. Getting approval as a new indie app is near-impossible under current criteria.
+**Consequences:**
+- New popular songs cannot be added without an app update
+- Errors in curated data (wrong BPM, wrong genre tag, removed song) persist until the next release
+- Genre coverage gaps require a full release cycle to fix
+- If GetSongBPM removes or changes a song ID, the curated data references break silently
 
-**Prevention:**
-- Build and launch in development mode (25 users) first to validate the concept
-- Apply for extended access early with a clear pitch about driving Spotify engagement
-- Design the app so the Spotify integration adds playlists to user accounts (this "promotes artist discovery," aligning with Spotify's stated goals)
-- Have a fallback plan: support exporting playlists as text lists that users can manually recreate, or support Apple Music as an alternative target
+**How to avoid:**
+Use a hybrid approach:
+1. **Bundle a baseline dataset** as a Flutter asset for offline/first-launch experience
+2. **Serve the latest version from Supabase** (or any remote source) on app start, with a version number
+3. **Cache the remote version locally** with SharedPreferences or local file storage
+4. **Fall through gracefully**: remote -> local cache -> bundled baseline
 
-**Detection:** Warning signs: your extended access application is rejected or goes unanswered for weeks.
+This pattern is standard for mobile content apps. Supabase is already in the project and can host a simple `curated_songs` table or a versioned JSON endpoint. The existing `BpmCachePreferences` pattern (TTL-based caching in SharedPreferences) can be reused.
 
-**Phase:** Phase 1 (apply immediately), but the constraint shapes the entire project timeline.
+Shorebird (Flutter code push) can update Dart code without app store releases but *cannot* update assets or bundled data files. Remote data is the correct solution.
 
-**Confidence:** HIGH -- confirmed via Spotify developer blog (April 2025) and community reports.
+**Warning signs:**
+- Team discussion about "we'll just push an update" when data errors are found
+- No version number on the curated dataset
+- No network fetch path for curated data
+- All test scenarios assume the bundled data is current
 
-**Sources:**
-- [Updated extended access criteria](https://developer.spotify.com/blog/2025-04-15-updating-the-criteria-for-web-api-extended-access)
-- [Community discussion on restrictions](https://community.latenode.com/t/spotifys-updated-api-policies-are-blocking-independent-developers/20610)
+**Phase to address:**
+Data layer architecture phase -- before populating the curated database, decide the storage and update strategy. Building the curator tool before the delivery mechanism wastes effort.
 
----
-
-### Pitfall 3: Spotify OAuth -- Implicit Grant Flow Removed
-
-**What goes wrong:** As of November 27, 2025, Spotify removed support for implicit grant flow, HTTP redirect URIs, and localhost aliases. Many tutorials and packages still reference the old flow.
-
-**Why it happens:** Security hardening. Implicit grant was vulnerable to token interception.
-
-**Consequences:** Auth breaks entirely if using deprecated flow. Migration has been described as "a nightmare" by developers due to few working examples.
-
-**Prevention:**
-- Use **Authorization Code Flow with PKCE** from the start (required for mobile/web apps where client secret cannot be stored safely)
-- Use HTTPS redirect URIs only (except `http://127.0.0.1` for local dev)
-- Do not follow any tutorial that mentions implicit grant flow
-- Test auth flow on all three platforms (web, Android, iOS) early -- redirect URI handling differs significantly per platform
-
-**Detection:** Auth requests return errors immediately if using deprecated flows.
-
-**Phase:** Phase 1 (auth setup). Get this right before building anything else.
-
-**Confidence:** HIGH -- confirmed via official Spotify developer blog.
-
-**Sources:**
-- [OAuth migration reminder](https://developer.spotify.com/blog/2025-10-14-reminder-oauth-migration-27-nov-2025)
-- [Spotify authorization docs](https://developer.spotify.com/documentation/web-api/concepts/authorization)
+**Confidence:** HIGH -- confirmed by Flutter documentation (assets are immutable after build) and Shorebird documentation (cannot update non-Dart resources). This is a well-known mobile app pattern.
 
 ---
 
-### Pitfall 4: BPM Half-Time / Double-Time Confusion
+### Pitfall 3: Over-Engineering the Taste Profile When the Real Problem Is Song Pool Quality
 
-**What goes wrong:** A track at 140 BPM can be reported as 70 BPM (half-time) or 280 BPM (double-time). Both are technically correct. Running at 170 spm and getting matched to 85 BPM doom metal tracks ruins the experience.
+**What goes wrong:**
+The team invests heavily in sophisticated taste profiling -- adding sub-genres, mood dimensions, decade preferences, vocal style preferences, instrument preferences -- while the underlying song pool from GetSongBPM API remains the same. No amount of taste profiling sophistication helps if the candidate songs at 170 BPM are mostly obscure tracks the user has never heard of and would never choose to run to.
 
-**Why it happens:** Tempo is perceptually ambiguous. Algorithms detect pulse, but the "correct" pulse level depends on genre conventions. Hip-hop often sits at 70-85 BPM but feels double-time. Drum and bass at 170+ BPM is felt in half-time.
+The v1.0 `PlaylistGenerator` scores songs by artist match (+10) and BPM exactness (+3/+1). Adding 15 more taste dimensions to this scoring function produces a more complex model that outputs the same mediocre results, because the problem is not in the ranking -- it's in the candidate pool.
 
-**Consequences:** Users get matched to completely wrong-feeling music. A runner at 160 spm could get 80 BPM ballads or 320 BPM speedcore.
+**Why it happens:**
+Taste profiling is "fun" engineering work. It's fully within the app's control (no external dependencies). It feels productive. Meanwhile, improving the song pool requires data sourcing, curation effort, and external research -- less glamorous work.
 
-**Prevention:**
-- When matching BPM to cadence, also check BPM x2 and BPM /2 as candidates
-- Filter by a sane BPM range for running (typically 120-200 BPM; reject anything outside 100-210)
-- Use genre as a secondary signal: hip-hop tracks at 70-85 BPM should be treated as 140-170 effective BPM
-- Apply log-Gaussian weighting to prefer moderate tempos (120-180) over extremes
-- Let users report "this song feels wrong" and learn from corrections
+**Consequences:**
+- Development time spent on taste features that don't move the quality needle
+- Users re-do the taste questionnaire hoping for better results, but get the same songs
+- The app becomes more complex to use (longer questionnaire) without better output
+- The core complaint ("these songs aren't good for running") persists despite the engineering effort
 
-**Detection:** Test with known tracks across genres. If your 170 BPM playlist includes slow jazz ballads, you have this bug.
+**How to avoid:**
+Invert the priority. Fix the song pool first, taste profile second:
+1. **Phase 1**: Curate a seed database of known-good running songs per genre/BPM range. Even 50-100 verified songs per genre is transformative compared to random GetSongBPM results.
+2. **Phase 2**: Add a simple "running quality" flag or score to curated songs (binary: is/isn't a good running song, or a 1-5 rating).
+3. **Phase 3**: Only then consider taste profile improvements -- and only where the curated pool is large enough that taste differentiation matters.
 
-**Phase:** Phase 2 (BPM matching logic). Build explicit half/double-time handling into the matching algorithm.
+The current taste profile (1-5 genres, 0-10 artists, energy level) is actually well-designed for the problem size. The bottleneck is not taste understanding -- it's song selection.
 
-**Confidence:** HIGH -- this is extremely well-documented in music information retrieval literature.
+**Warning signs:**
+- The taste profile screen gets more complex but playlist satisfaction doesn't improve
+- A/B testing (if possible) shows taste profile changes have no effect on user behavior
+- User feedback mentions specific songs ("why is this in my playlist?") rather than categories
+- The team debates adding more taste dimensions before verifying the song pool is good
 
-**Sources:**
-- [Essentia beat detection tutorial](https://essentia.upf.edu/tutorial_rhythm_beatdetection.html)
-- [BPM detection accuracy analysis](https://www.swayzio.com/blog/bpm-detection-technology-how-accurate-tempo-analysis-transforms-music-production)
+**Phase to address:**
+This is a *prioritization* pitfall, not a technical one. The roadmap must sequence song pool quality improvement before taste profile sophistication.
 
----
-
-## Moderate Pitfalls
-
-Mistakes that cause delays or technical debt.
-
-### Pitfall 5: Flutter Web Performance and Bundle Size
-
-**What goes wrong:** Flutter Web apps ship a large WASM runtime, have poor SEO, slow initial load times, and inconsistent rendering compared to mobile. The debugging experience on web is significantly worse than mobile.
-
-**Why it happens:** Flutter renders everything to a canvas rather than using native DOM elements. The entire Skia/Impeller rendering engine must be downloaded.
-
-**Prevention:**
-- Treat web as a secondary target. Build and polish mobile first, then adapt for web.
-- Keep the web version simple -- avoid complex animations or heavy scroll views
-- Use deferred loading/lazy loading for non-critical features on web
-- Set performance budgets for initial load time early
-- Consider whether web is truly needed for v1 -- a mobile-only launch is simpler
-
-**Detection:** First time you load the web build, note the blank screen duration and bundle size. If initial load exceeds 3 seconds on fast connection, you have a problem.
-
-**Phase:** Phase 1 (project setup) -- decide web priority level. Phase 3+ for web-specific optimization.
-
-**Confidence:** MEDIUM -- based on multiple developer experience reports; Flutter Web has improved with WASM compilation but fundamental issues remain.
-
-**Sources:**
-- [Flutter Web pros and cons](https://medium.com/@bartzalewski/cross-platform-development-with-flutter-web-pros-and-cons-7369fef60b54)
-- [Critical Flutter Web analysis](https://suica.dev/en/blogs/fuck-off-flutter-web,-unless-you-slept-through-school,-you-know-flutter-web-is-a-bad-idea)
+**Confidence:** HIGH -- this is a well-documented pattern in recommendation systems: improving the ranker has diminishing returns when the candidate set is poor. "Garbage in, garbage out" applies directly.
 
 ---
 
-### Pitfall 6: Spotify Rate Limits Without Batching Strategy
+### Pitfall 4: Scraping Running Song Lists Without Understanding Legal and Data Quality Risks
 
-**What goes wrong:** Generating a playlist requires: (1) searching/fetching tracks, (2) getting BPM data for each track, (3) creating a playlist, (4) adding tracks. Without batching, a single playlist generation can consume dozens of API calls, quickly hitting rate limits in development mode.
+**What goes wrong:**
+To populate the curated running song database, the team scrapes "Best Running Songs" lists from Runner's World, Cosmopolitan, timeout.com, etc. This creates three compound problems:
+1. **Legal risk**: Scraping copyrighted curated lists may violate terms of service and copyright. The scraped data is someone else's editorial work.
+2. **Data quality**: These lists mix genuine running songs with promotional placements, recency bias, and editorial preferences that may not match running suitability.
+3. **Data reconciliation**: Song names and artists from scraped lists don't always match GetSongBPM's identifiers, requiring fuzzy matching that introduces errors.
 
-**Why it happens:** Spotify's rate limits are not publicly documented as exact numbers. Development mode has very low limits. There is no batch endpoint for fetching multiple playlists.
+**Why it happens:**
+It feels like the fastest path to "lots of data." Manually curating 500+ songs across 15 genres is tedious. Scraping automates the collection.
 
-**Prevention:**
-- Cache all track metadata aggressively (BPM doesn't change)
-- Use batch endpoints where available (`/tracks?ids=` accepts up to 50 IDs)
-- Implement exponential backoff on 429 responses with the `Retry-After` header
-- Build a request queue that respects rate limits rather than firing calls in parallel
-- Pre-fetch and cache BPM data for user's library rather than fetching on-demand
+**Consequences:**
+- ToS violations can result in legal action (unlikely for small apps, but ToS enforcement is unpredictable)
+- Scraped lists skew heavily toward English-language pop/rock, leaving genres like K-Pop, Latin, and Metal with poor coverage
+- Fuzzy matching between scraped song names and GetSongBPM IDs introduces phantom entries (song exists in curated data but can't be found via API) or wrong matches (different songs with similar names)
+- Data staleness: scraped lists from 2023 include songs that may no longer be available on streaming platforms
 
-**Detection:** You start seeing 429 responses during testing, especially when loading a user's full library.
+**How to avoid:**
+Use legitimate data sources and manual curation:
+1. **GetSongBPM's own data**: The API returns songs by BPM. Use this as the candidate pool, then manually verify running suitability. No scraping needed.
+2. **Public playlists**: Spotify and YouTube Music public playlists tagged with "running" are user-generated and can be referenced (not scraped) for inspiration. Note song names, then look them up via GetSongBPM.
+3. **Community curation**: jog.fm's model -- users submit songs they run to -- is the gold standard. Build a lightweight song submission/voting feature for the app itself.
+4. **Manual seed curation**: Start with 20-30 personally verified running songs per genre. This is enough for a meaningful quality improvement over random BPM matching.
 
-**Phase:** Phase 1 (API layer design). Bake caching and throttling into the HTTP client from the start.
+For any data collected, store the source and date so stale entries can be identified.
 
-**Confidence:** HIGH -- rate limit issues are extensively reported in Spotify developer forums.
+**Warning signs:**
+- The curation plan starts with "we'll scrape X website"
+- Genre coverage is heavily skewed toward English-language pop
+- More than 10% of curated song IDs don't resolve when looked up via GetSongBPM API
+- No source attribution on curated entries
 
-**Sources:**
-- [Spotify rate limits documentation](https://developer.spotify.com/documentation/web-api/concepts/rate-limits)
-- [Community rate limit discussion](https://community.spotify.com/t5/Spotify-for-Developers/Getting-rate-limited-with-Spotify-Web-API-despite-using/td-p/7034479)
+**Phase to address:**
+Data sourcing phase -- must be designed before curation begins. The sourcing strategy determines the entire data pipeline architecture.
 
----
-
-### Pitfall 7: Stride/Cadence Calculation Assumes Universal Constants
-
-**What goes wrong:** Using a fixed formula like `stride_length = height * 0.415` or assuming 180 spm is ideal for all runners. These rules of thumb are wildly inaccurate for individuals.
-
-**Why it happens:** The relationship between height, pace, cadence, and stride length is highly individual. Research shows that when runners increase pace by 33%, stride length increases ~28% while cadence increases only ~4%. The variables are deeply coupled to individual biomechanics.
-
-**Consequences:** A tall runner with short strides or a short runner with long strides gets completely wrong BPM targets. Users lose trust in the app immediately.
-
-**Prevention:**
-- The core formula is: `speed = stride_length * cadence`. If you know any two, you can derive the third.
-- Provide a calibration flow: let users input their actual cadence (from a running watch) or run a short calibration session using phone accelerometer
-- Offer cadence presets by pace (e.g., "easy run at 10:00/mi" vs "tempo run at 7:30/mi") rather than computing from height alone
-- Show cadence as a range, not a single number
-- Let users manually override the target BPM
-
-**Detection:** Ask 5 runners of different heights/speeds to test. If more than one says "this BPM feels completely wrong," the formula is too rigid.
-
-**Phase:** Phase 2 (cadence logic). Build calibration before building the formula.
-
-**Confidence:** HIGH -- the speed/cadence/stride relationship is well-established in exercise science.
-
-**Sources:**
-- [Science of cadence for runners](https://runningwritings.com/2026/01/science-of-cadence.html)
-- [Stride frequency vs stride length](https://www.runningshoesguru.com/content/stride-frequency-cadence-vs-stride-length-for-run-speed/)
+**Confidence:** HIGH -- web scraping legality is well-documented; music metadata inconsistency is a known industry problem ("Copyright's critical mess: music metadata" -- Kluwer Copyright Blog).
 
 ---
 
-### Pitfall 8: Flutter State Management Complexity Creep
+### Pitfall 5: Song Quality Score Based on Spotify Audio Features That No Longer Exist
 
-**What goes wrong:** Starting without a state management pattern and bolting one on later, or choosing an overly complex solution (BLoC with full event/state classes for simple screens) that slows development.
+**What goes wrong:**
+The natural approach to "running quality scoring" is to use Spotify Audio Features (energy, danceability, valence, tempo, loudness) to compute a running suitability score. Every blog post and tutorial about music recommendation uses these features. But Spotify deprecated Audio Features in November 2024 and returns 403 for new apps. The team spends time designing scoring models around features they cannot actually access.
 
-**Prevention:**
-- Choose a state management approach in Phase 1 and stick with it
-- For this app's complexity level, Riverpod or simple BLoC is appropriate -- avoid over-engineering
-- The key state to manage well: auth tokens, cached track/BPM data, current playlist generation state, user preferences
+This was the critical v1.0 pitfall (#1 in the original research), but it manifests again in v1.1 in a subtler form: even if you don't plan to call Spotify's API directly, you might design a scoring model that *assumes* these features exist in your data, planning to get them "from somewhere." GetSongBPM returns `danceability` and `acousticness` but NOT energy, valence, loudness, or the full feature set. The scoring model designed around 7 features breaks when only 2 are available.
 
-**Detection:** If adding a new screen requires touching 5+ files of boilerplate, the state management is too heavy.
+**Why it happens:**
+All the recommendation system literature and blog posts reference Spotify Audio Features. They are deeply embedded in how developers think about music scoring. It's easy to design a model using them and assume "we'll source the data somehow."
 
-**Phase:** Phase 1 (project architecture).
+**How to avoid:**
+Design the scoring model exclusively around data you can actually obtain:
+- **From GetSongBPM API**: BPM, danceability, acousticness, time signature, key
+- **From curated data**: manually assigned running suitability flags, genre tags, verified BPM accuracy
+- **From user behavior**: skip rates, repeat plays, "thumbs up/down" on individual songs (future feature)
 
-**Confidence:** MEDIUM -- general Flutter development wisdom, widely reported.
+Do NOT design features requiring energy, valence, or loudness unless you have a confirmed source for them. If a third-party API like SoundNet or ReccoBeats can provide these, verify it works before building features on top of it.
 
----
+**Warning signs:**
+- Scoring model design documents reference "energy" or "valence" without a confirmed data source
+- The BpmSong model gets new fields that no API actually populates
+- Tests use hardcoded feature values that came from Spotify documentation examples
 
-## Minor Pitfalls
+**Phase to address:**
+Scoring model design phase -- audit available data fields from GetSongBPM before designing the scoring function. The model must be grounded in accessible data.
 
-Mistakes that cause annoyance but are fixable.
-
-### Pitfall 9: Unit Confusion in Pace/Cadence/Stride Calculations
-
-**What goes wrong:** Mixing metric and imperial units. Pace is often min/mile or min/km. Cadence is steps/min (some systems use strides/min = steps/2). Stride length can be meters or feet.
-
-**Prevention:**
-- Internally, use SI units everywhere (meters, seconds, steps per minute)
-- Convert to user's preferred units only at the display layer
-- Be explicit: "cadence" means steps per minute (both feet), not strides per minute
-- Document unit conventions in code comments at the calculation layer
-
-**Detection:** Any test case where the output is exactly 2x or 0.5x the expected value likely has a steps-vs-strides or metric-vs-imperial bug.
-
-**Phase:** Phase 2 (calculation logic).
-
-**Confidence:** HIGH -- Garmin forums are full of exactly this class of bug.
-
-**Sources:**
-- [Garmin stride length calculation issues](https://forums.garmin.com/sports-fitness/running-multisport/f/forerunner-945/170741/stride-length-calculation-on-treadmill-way-off-after-upgrade-from-2-50-0-0-to-2-70-0-0)
+**Confidence:** HIGH -- confirmed by direct API experience in v1.0 and Spotify developer blog.
 
 ---
 
-### Pitfall 10: Platform-Specific Redirect URI Handling
+## Technical Debt Patterns
 
-**What goes wrong:** OAuth redirect URIs work differently on web (URL redirect), Android (deep link / app link), and iOS (universal link / custom scheme). A redirect URI that works on web fails on mobile or vice versa.
+Shortcuts that seem reasonable but create long-term problems.
 
-**Prevention:**
-- Register separate redirect URIs per platform in the Spotify dashboard
-- On mobile, use custom URL schemes (e.g., `myapp://callback`) or verified app links
-- Test the full auth flow on each platform individually before building features on top of it
-- Use a well-maintained Flutter OAuth/Spotify package that handles platform differences
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Hardcoding running quality scores in JSON | No backend needed, fast to implement | Cannot update without app release; scores become stale; no user feedback loop | MVP/prototype only, with remote update path planned |
+| Single composite score instead of separate dimensions | Simpler data model, easier to sort | Cannot tune taste vs. suitability independently; genre bias baked in | Never -- always keep running suitability and taste match separate |
+| Bundling entire curated database as Flutter asset | Offline-first, simple architecture | Stale data, large app bundle, no incremental updates | Only as fallback baseline, with remote fetch as primary path |
+| Using `SharedPreferences` for curated song data | Consistent with v1.0 patterns | SharedPreferences has a ~1MB practical limit on some platforms; poor query performance for large datasets | Acceptable for < 500 songs; migrate to SQLite/Drift if larger |
+| Estimating song duration at 210 seconds for all songs | Simple calculation, already works in v1.0 | Playlists overshoot or undershoot duration by up to 2 minutes per hour; perceived as inaccurate | Acceptable until actual duration data is available |
+| Adding taste dimensions without A/B validation | Feels like progress | Complexity without proven value; longer questionnaire without better results | Only when song pool is large enough that taste differentiation matters |
 
-**Detection:** Auth works on one platform but silently fails on another.
+## Integration Gotchas
 
-**Phase:** Phase 1 (auth setup).
+Common mistakes when connecting to external services in this domain.
 
-**Confidence:** MEDIUM -- standard cross-platform OAuth challenge.
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| GetSongBPM `/tempo/` endpoint | Assuming genre filtering exists on the tempo endpoint -- it does not. Songs returned are across all genres. | Filter by genre client-side after fetching. Cache broadly, filter narrowly. Accept that API calls return cross-genre results and your curation layer handles genre matching. |
+| GetSongBPM song IDs | Assuming song IDs are stable forever. IDs can change if GetSongBPM re-indexes their database. | Store song title + artist as the canonical key, use song ID as a cache optimization only. Always fall back to title/artist matching. |
+| GetSongBPM danceability/acousticness | Assuming these are on the same 0-1 scale as Spotify's deprecated features. They may use different algorithms and scales. | Treat GetSongBPM's danceability as an independent measure. Do not compare to Spotify documentation values. Calibrate thresholds empirically against known running songs. |
+| Supabase for curated data | Over-designing the schema with full relational models (songs, artists, genres, tags, votes) before having any data. | Start with a single `curated_songs` table: `id, title, artist, bpm, genre, running_quality, source, updated_at`. Normalize later only if needed. |
+| Remote JSON fetch for curated data | No versioning, so the app refetches the full dataset every launch. | Include a `version` or `last_modified` header. Only download when version > cached version. Reduces bandwidth and startup time. |
+
+## Performance Traps
+
+Patterns that work at small scale but fail as usage grows.
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Loading entire curated song database into memory on app start | Startup lag, high memory usage on low-end Android devices | Lazy-load by genre/BPM range on demand, keep only active segment's candidates in memory | > 2,000 curated songs, or on devices with < 2GB RAM |
+| SharedPreferences storing large JSON blobs for curated data | `getString()` blocks the platform channel; noticeable jank when reading | Use SQLite/Drift for structured data > 500 entries; SharedPreferences for small config only | > 500 curated songs or > 100KB JSON |
+| Scoring all candidates on every playlist generation | Fine with 50 songs; O(n * m) with n candidates and m taste dimensions | Pre-compute running suitability scores at data ingestion time; only compute taste match at generation time | > 500 candidates per BPM value |
+| Re-fetching curated data on every app launch | Wastes bandwidth, adds latency to first playlist generation | Cache with version check; only fetch delta or full set when version mismatch | Always wasteful, but becomes user-visible with > 1MB curated dataset |
+
+## UX Pitfalls
+
+Common user experience mistakes specific to this domain.
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Showing a numerical "running quality score" (e.g., 85/100) next to each song | Users argue with the score ("this song is NOT an 85!"), focus on the number instead of enjoying the playlist. Creates distrust in the system. | Use quality scoring internally for ranking only. Never show the raw score to users. If anything, show a simple badge: "Popular running song" or a heart icon. |
+| Stride adjustment that changes BPM by > 5 per nudge | One "a bit fast" tap changes cadence from 170 to 160, which is a completely different song pool. The playlist changes dramatically for a minor adjustment. | Nudge in increments of 2-3 BPM. Running cadence adjustment in practice is subtle (168 vs 172, not 170 vs 160). Show the BPM changing in real-time so users understand the effect. |
+| "Quick action" repeat flow that skips the run plan screen entirely | Users who changed their run plan since last time get a playlist for outdated parameters. Confusion: "I wanted 10K today but got my usual 5K playlist." | Default to last-used parameters but always show a confirmation step with distance, pace, and run type visible. One-tap "Same run, fresh playlist" with visible parameters, not invisible defaults. |
+| Post-activity adjustment that requires re-generating the entire playlist | User just finished a run, wants to tweak cadence for next time. Being forced to wait for API calls and playlist generation is frustrating. | Save the cadence adjustment immediately (one tap: "a bit fast" / "just right" / "a bit slow"). Apply it to the *next* playlist generation. Don't re-generate the current one. |
+| Taste profile changes that silently invalidate cached/curated data | User updates genres, but the cached playlist and curated data rankings are still based on old preferences. Next playlist seems to ignore the changes. | When taste profile changes, clear relevant caches or at minimum flag that the next generation should skip cached rankings. Show "Preferences updated -- your next playlist will reflect this." |
+| Overwhelming users with new v1.1 features on upgrade | Existing v1.0 users suddenly see stride adjustment buttons, quality indicators, and a modified taste profile flow. Cognitive overload. | Introduce new features progressively. Stride adjustment appears only after the first playlist generation (contextual). Quality improvements are invisible (better ranking, same UI). |
+
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete but are missing critical pieces.
+
+- [ ] **Song quality scoring:** Model produces scores, but no validation against actual runners' preferences -- verify by having 5+ runners rate 20 songs and comparing to model output
+- [ ] **Curated database:** 200 songs added, but coverage skewed to 3-4 genres -- verify minimum 15 songs per selected RunningGenre
+- [ ] **Curated database:** Songs have BPM values, but not verified against GetSongBPM IDs -- verify every curated song resolves to a valid GetSongBPM entry
+- [ ] **Curated database:** Remote fetch works, but no fallback when network unavailable -- verify app works in airplane mode with bundled baseline
+- [ ] **Stride adjustment:** +/- buttons exist, but the adjusted cadence is not persisted -- verify adjustment survives app restart
+- [ ] **Stride adjustment:** Cadence changes, but the next playlist generation still uses the old cadence -- verify the adjustment flows through to `RunPlan.segments[].targetBpm`
+- [ ] **Repeat flow:** "Generate again" button exists, but it re-uses the exact same song pool (no variety) -- verify repeat generation shuffles or cycles through different curated songs
+- [ ] **Repeat flow:** Quick action preserves last run parameters, but not the latest stride adjustment -- verify stride nudge from previous run is reflected in quick-action defaults
+- [ ] **Taste profile update:** Genres changed, but curated song filter still uses old genres until app restart -- verify real-time reactivity of genre filter in playlist generation
+- [ ] **Scoring integration:** Quality scoring works in isolation, but `PlaylistGenerator.generate()` was not updated to use it -- verify the generator actually reads and applies quality scores
+
+## Recovery Strategies
+
+When pitfalls occur despite prevention, how to recover.
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Single composite score baked into curated data | MEDIUM | Add separate `running_suitability` and `taste_relevance` columns; backfill from composite score using genre heuristics; update generator to use both |
+| Curated data bundled as immutable asset | LOW | Add Supabase table + remote fetch layer; keep bundled data as fallback; version the remote data |
+| Over-engineered taste profile | LOW | Revert to simple profile; keep extra fields but make them optional/hidden; data migration is backward-compatible since TasteProfile.fromJson handles missing fields |
+| Scraped data with legal issues | HIGH | Remove all scraped entries; rebuild from legitimate sources; audit every curated entry for source provenance |
+| Scoring model depends on unavailable audio features | MEDIUM | Strip unavailable features from model; re-weight remaining features; accept reduced model quality until alternative data source found |
+| SharedPreferences overloaded with curated data | MEDIUM | Migrate to SQLite/Drift; convert SharedPreferences entries to database rows; update all read/write paths |
+
+## Pitfall-to-Phase Mapping
+
+How roadmap phases should address these pitfalls.
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Single universal score (#1) | Scoring model design | Score has separate `runningSuitability` and `tasteMatch` dimensions in data model |
+| Immutable bundled data (#2) | Data layer architecture | Curated data can be updated via Supabase without app release; verified by changing a value remotely and seeing it in-app |
+| Over-engineering taste profile (#3) | Roadmap sequencing | Song pool quality phase completes before taste profile changes; user satisfaction measured before/after |
+| Scraping legal/quality risks (#4) | Data sourcing strategy | Every curated entry has a `source` field; no entries sourced from scraped copyrighted lists |
+| Unavailable audio features (#5) | Scoring model design | Every field in the scoring model maps to a confirmed data source; no orphan features |
+| Stride nudge too aggressive (UX) | Stride adjustment UX | Nudge increment is 2-3 BPM; tested with actual runners for feel |
+| Repeat flow with stale parameters (UX) | Quick action design | Confirmation screen shows all parameters; stride adjustment from last run is reflected |
+| Curated data genre gaps | Data curation | Minimum song count per genre verified before feature is considered complete |
+
+## Sources
+
+- [ForeverFitScience: The Science Behind Good Running Music](https://foreverfitscience.com/running/good-running-music/) -- research on music complexity and synchronization effects on running performance
+- [PLOS One: Optimizing beat synchronized running to music](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0208702) -- phase alignment and tempo matching research
+- [Kluwer Copyright Blog: Copyright's critical mess: music metadata](https://copyrightblog.kluweriplaw.com/2025/03/13/copyrights-critical-mess-music-metadata/) -- music metadata quality issues
+- [ScraperAPI: Is Web Scraping Legal? 2026 Guide](https://www.scraperapi.com/web-scraping/is-web-scraping-legal/) -- legal framework for data scraping
+- [jog.fm FAQ](https://jog.fm/pages/faq) -- community-driven running song curation model
+- [Spotify developer blog: API changes Nov 2024](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) -- Audio Features deprecation
+- [GetSongBPM API documentation](https://getsongbpm.com/api) -- available data fields and limitations
+- [Shorebird documentation](https://docs.shorebird.dev/code-push/) -- code push limitations (Dart only, no assets)
+- [Music Tomorrow: Fairness in Music Streaming Algorithms](https://www.music-tomorrow.com/blog/fairness-transparency-music-recommender-systems) -- popularity bias in recommendation systems
+- [LinkedIn: Cold Start Problem in Music Recommendation](https://www.linkedin.com/advice/0/how-do-you-deal-cold-start-problem-long-tail-music) -- cold start mitigation strategies
 
 ---
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|---|---|---|
-| Phase 1: Project setup | Flutter Web bundle size surprises | Measure baseline bundle size immediately; decide if web is v1 scope |
-| Phase 1: Auth setup | OAuth implicit grant / HTTP redirect mistakes | Use PKCE + HTTPS from the start; test all 3 platforms |
-| Phase 1: API layer | No BPM data from Spotify | Confirm third-party BPM source works before building anything else |
-| Phase 1: API layer | Rate limits in dev mode (25 user cap) | Apply for extended access early; build aggressive caching |
-| Phase 2: BPM matching | Half/double time mismatches | Check x2 and /2 candidates; filter to 100-210 BPM range |
-| Phase 2: Cadence calc | Universal formula assumption | Build calibration flow; offer presets, not just formulas |
-| Phase 2: Cadence calc | Unit confusion (steps vs strides, m vs ft) | Use SI internally; convert at display layer only |
-| Phase 3+: Scaling | Extended access rejection | Have Apple Music fallback plan; align pitch with Spotify's artist-discovery goals |
-
----
-
-## Key Takeaway
-
-The single most critical finding: **Spotify's Audio Features API is deprecated and returns 403 for new apps.** The entire BPM-matching feature depends on getting tempo data from somewhere else. This must be the first thing validated -- before writing any other code. Design the BPM data layer as a pluggable abstraction so the source can be swapped without rewrites.
+*Pitfalls research for: v1.1 Experience Quality -- Running Playlist AI*
+*Researched: 2026-02-05*

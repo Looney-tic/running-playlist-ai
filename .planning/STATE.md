@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 13 complete (BPM Data Pipeline). Ready for Phase 14 (Playlist Generation).
+**Current focus:** Phase 14 in progress (Playlist Generation). Plan 14-01 complete, ready for 14-02.
 
 ## Current Position
 
-Phase: 13 of 15 (BPM Data Pipeline)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 -- Completed 13-02-PLAN.md (BPM cache, lookup notifier, providers)
+Phase: 14 of 15 (Playlist Generation)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-05 -- Completed 14-01-PLAN.md (playlist domain models + algorithm + tests)
 
-Progress: [█████░░░░░] 56% (5/9 plans in v1.0)
+Progress: [██████░░░░] 67% (6/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15 (10 from v0.1 + 5 from v1.0)
+- Total plans completed: 16 (10 from v0.1 + 6 from v1.0)
 - Average duration: 7m
-- Total execution time: 1.35 hours
+- Total execution time: 1.47 hours
 
 **By Phase (v0.1):**
 
@@ -39,10 +39,11 @@ Progress: [█████░░░░░] 56% (5/9 plans in v1.0)
 | 11 | 1/1 | 1m | 1m |
 | 12 | 2/2 | 4m | 2m |
 | 13 | 2/2 | 7m | 4m |
+| 14 | 1/3 | 7m | 7m |
 
 **Recent Trend:**
-- Last 5 plans: 12-01 (2m), 12-02 (2m), 13-01 (4m), 13-02 (3m)
-- Trend: stable at 2-4m per plan
+- Last 5 plans: 12-02 (2m), 13-01 (4m), 13-02 (3m), 14-01 (7m)
+- Trend: stable at 3-7m per plan
 
 *Updated after each plan completion*
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - **[13-02]** Cache keyed by queried BPM (not target BPM) for reuse across different target lookups
 - **[13-02]** getSongBpmClientProvider reads API key from dotenv with empty string fallback
 - **[13-02]** Catch-all in BpmLookupNotifier produces generic user-facing error message
+- **[14-01]** PlaylistSong.toJson includes matchType (unlike BpmSong) -- display attribute in playlist context
+- **[14-01]** PlaylistGenerator.generate() param order: required (runPlan, songsByBpm) before optional (tasteProfile, random)
+- **[14-01]** Generator skips empty segments instead of crashing on clamp(1, 0)
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-05
-Stopped at: Completed 13-02-PLAN.md (BPM cache, lookup notifier, providers) -- Phase 13 complete, ready for Phase 14
+Last session: 2026-02-05T18:22:18Z
+Stopped at: Completed 14-01-PLAN.md (playlist domain models + algorithm + tests) -- Ready for 14-02
 Resume file: None

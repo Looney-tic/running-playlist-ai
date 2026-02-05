@@ -102,8 +102,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — TDD: Stride calculator domain logic with unit tests (pure Dart computation + pace parsing)
-- [ ] 05-02-PLAN.md — Providers, persistence, UI screen, router integration, and calibration flow
+- [x] 05-01-PLAN.md — TDD: Stride calculator domain logic with unit tests (pure Dart computation + pace parsing)
+- [x] 05-02-PLAN.md — Providers, persistence, UI screen, router integration, and calibration flow
 
 ### Phase 6: Steady Run Planning
 **Goal**: Users can define a steady-pace run and see the BPM target for playlist generation
@@ -191,7 +191,7 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | 2. Spotify Authentication | 0/2 | Not started | - |
 | 3. BPM Data Pipeline | 0/TBD | Not started | - |
 | 4. Taste Profile | 0/TBD | Not started | - |
-| 5. Stride & Cadence | 0/2 | Not started | - |
+| 5. Stride & Cadence | 2/2 | Complete | 2026-02-05 |
 | 6. Steady Run Planning | 0/TBD | Not started | - |
 | 7. Playlist Generation | 0/TBD | Not started | - |
 | 8. Structured Run Types | 0/TBD | Not started | - |

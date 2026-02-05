@@ -144,11 +144,11 @@ Plans:
   1. User can create a run with warm-up and cool-down segments that ramp BPM up and down
   2. User can create an interval training run with alternating fast/slow BPM segments
   3. Generated playlist for structured runs transitions between BPM targets at segment boundaries
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — TDD: Calculator factory methods for warm-up/cool-down and interval plans
+- [ ] 08-02-PLAN.md — Run type selector UI, type-specific config forms, segment timeline, save logic
 
 ### Phase 9: Playlist History
 **Goal**: Users can revisit and reuse playlists they have previously generated
@@ -195,6 +195,6 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | 5. Stride & Cadence | 2/2 | Complete | 2026-02-05 |
 | 6. Steady Run Planning | 2/2 | Complete | 2026-02-05 |
 | 7. Playlist Generation | 0/TBD | Not started | - |
-| 8. Structured Run Types | 0/TBD | Not started | - |
+| 8. Structured Run Types | 0/2 | Not started | - |
 | 9. Playlist History | 0/TBD | Not started | - |
 | 10. Mobile Hardening | 0/TBD | Not started | - |

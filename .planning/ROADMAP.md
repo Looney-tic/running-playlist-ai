@@ -59,7 +59,7 @@ Plans:
 - [x] **Phase 11: Auth Cleanup** - Remove Spotify login, establish home hub navigation
 - [x] **Phase 12: Taste Profile** - Users can define their running music preferences
 - [x] **Phase 13: BPM Data Pipeline** - Discover songs by BPM via GetSongBPM API with caching
-- [ ] **Phase 14: Playlist Generation** - Users get a BPM-matched playlist for their run
+- [x] **Phase 14: Playlist Generation** - Users get a BPM-matched playlist for their run
 - [ ] **Phase 15: Playlist History** - Users can save, view, and reuse past playlists
 
 ## Phase Details
@@ -120,9 +120,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 14-01-PLAN.md -- Domain models (Playlist, PlaylistSong, SongLinkBuilder), playlist generation algorithm, and unit tests
-- [ ] 14-02-PLAN.md -- url_launcher dependency, Android manifest, PlaylistGenerationNotifier with batch BPM fetching, providers, and unit tests
-- [ ] 14-03-PLAN.md -- PlaylistScreen UI (generation trigger, segment-grouped display, external links, clipboard copy) and router update
+- [x] 14-01-PLAN.md -- Domain models (Playlist, PlaylistSong, SongLinkBuilder), playlist generation algorithm, and unit tests
+- [x] 14-02-PLAN.md -- url_launcher dependency, Android manifest, PlaylistGenerationNotifier with batch BPM fetching, providers, and unit tests
+- [x] 14-03-PLAN.md -- PlaylistScreen UI (generation trigger, segment-grouped display, external links, clipboard copy) and router update
 
 ### Phase 15: Playlist History
 **Goal**: Users can save generated playlists and come back to view or manage them later
@@ -148,5 +148,5 @@ Note: Phases 11, 12, and 13 have no cross-dependencies. Phase 14 requires both 1
 | 11. Auth Cleanup | 1/1 | Complete | 2026-02-05 |
 | 12. Taste Profile | 2/2 | Complete | 2026-02-05 |
 | 13. BPM Data Pipeline | 2/2 | Complete | 2026-02-05 |
-| 14. Playlist Generation | 0/3 | Not started | - |
+| 14. Playlist Generation | 3/3 | Complete | 2026-02-05 |
 | 15. Playlist History | 0/1 | Not started | - |

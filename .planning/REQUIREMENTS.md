@@ -28,11 +28,11 @@ Requirements for milestone v1.0: Standalone Playlist Generator (no Spotify depen
 
 ### Playlist Generation
 
-- [ ] **PLAY-10**: User triggers generation and receives a playlist covering full run duration with BPM-matched songs
-- [ ] **PLAY-11**: Generated playlist respects user's taste profile (genre and artist preferences)
-- [ ] **PLAY-12**: Each song shows title, artist, BPM, and segment assignment
-- [ ] **PLAY-13**: User can open any song via external link (Spotify or YouTube)
-- [ ] **PLAY-14**: User can copy the full playlist as text to clipboard
+- [x] **PLAY-10**: User triggers generation and receives a playlist covering full run duration with BPM-matched songs
+- [x] **PLAY-11**: Generated playlist respects user's taste profile (genre and artist preferences)
+- [x] **PLAY-12**: Each song shows title, artist, BPM, and segment assignment
+- [x] **PLAY-13**: User can open any song via external link (Spotify or YouTube)
+- [x] **PLAY-14**: User can copy the full playlist as text to clipboard
 
 ### Playlist History
 
@@ -90,11 +90,11 @@ Deferred to future milestones.
 | BPM-11 | Phase 13 | Complete |
 | BPM-12 | Phase 13 | Complete |
 | BPM-13 | Phase 13 | Complete |
-| PLAY-10 | Phase 14 | Pending |
-| PLAY-11 | Phase 14 | Pending |
-| PLAY-12 | Phase 14 | Pending |
-| PLAY-13 | Phase 14 | Pending |
-| PLAY-14 | Phase 14 | Pending |
+| PLAY-10 | Phase 14 | Complete |
+| PLAY-11 | Phase 14 | Complete |
+| PLAY-12 | Phase 14 | Complete |
+| PLAY-13 | Phase 14 | Complete |
+| PLAY-14 | Phase 14 | Complete |
 | HIST-01 | Phase 15 | Pending |
 | HIST-02 | Phase 15 | Pending |
 | HIST-03 | Phase 15 | Pending |
@@ -106,4 +106,4 @@ Deferred to future milestones.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after Phase 13 completion*
+*Last updated: 2026-02-05 after Phase 14 completion*

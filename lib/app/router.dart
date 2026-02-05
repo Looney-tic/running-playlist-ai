@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/auth/presentation/login_screen.dart';
 import 'package:running_playlist_ai/features/home/presentation/home_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
+import 'package:running_playlist_ai/features/stride/presentation/stride_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// A `ChangeNotifier` that listens to Supabase auth state changes
@@ -78,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/stride',
+        builder: (context, state) => const StrideScreen(),
       ),
     ],
   );

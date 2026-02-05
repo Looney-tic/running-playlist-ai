@@ -132,10 +132,11 @@ Plans:
   1. After generating a playlist, user can navigate to a history screen and see it listed with run details (date, distance, pace)
   2. User can tap a past playlist and see all its tracks with title, artist, BPM, and segment info
   3. User can delete a past playlist and it disappears from the history list
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 15-01: Playlist history persistence, list screen, detail view, delete functionality, and router integration
+- [ ] 15-01-PLAN.md -- Domain model extensions (id, distanceKm, paceMinPerKm), persistence, history provider, auto-save hook, and unit tests
+- [ ] 15-02-PLAN.md -- History list screen, detail screen, shared widget extraction (SegmentHeader, SongTile), and router update
 
 ## Progress
 
@@ -149,4 +150,4 @@ Note: Phases 11, 12, and 13 have no cross-dependencies. Phase 14 requires both 1
 | 12. Taste Profile | 2/2 | Complete | 2026-02-05 |
 | 13. BPM Data Pipeline | 2/2 | Complete | 2026-02-05 |
 | 14. Playlist Generation | 3/3 | Complete | 2026-02-05 |
-| 15. Playlist History | 0/1 | Not started | - |
+| 15. Playlist History | 0/2 | Not started | - |

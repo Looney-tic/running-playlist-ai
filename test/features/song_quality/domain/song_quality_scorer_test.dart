@@ -599,13 +599,13 @@ void main() {
       final profile = TasteProfile(
         artists: ['Eminem'],
         genres: [RunningGenre.pop],
-        energyLevel: EnergyLevel.chill,
+        energyLevel: EnergyLevel.intense,
       );
       final score = SongQualityScorer.score(
         song: _song(
             artistName: 'Unknown', matchType: BpmMatchType.halfTime),
         tasteProfile: profile,
-        danceability: 10, // -> 1 point, chill range 20-50, 10 is outside -> +0
+        danceability: 10, // -> 1 point, intense range 60-100, 10 far outside -> +0
         songGenres: [RunningGenre.rock],
       );
       expect(score, equals(2));

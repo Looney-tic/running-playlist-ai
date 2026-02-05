@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 6 (Steady Run Planning) -- plan 01 complete, plan 02 next
+**Current focus:** Phase 6 complete. Next: Phase 7 (Playlist Generation) -- requires Phases 3, 4, 6
 
 ## Current Position
 
-Phase: 6 of 10 (Steady Run Planning)
-Plan: 1 of 2 in current phase (06-01 complete)
-Status: In progress
-Last activity: 2026-02-05 -- Completed 06-01-PLAN.md (run plan domain model + calculator)
+Phase: 6 of 10 (Steady Run Planning) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: Complete
+Last activity: 2026-02-05 -- Completed 06-02-PLAN.md (run plan screen UI + persistence)
 
-Progress: [██████░░░░░░░░░░░] ~35% (6/17 plans)
+Progress: [████████░░░░░░░░░] ~47% (8/17 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 8
 - Average duration: 8m
-- Total execution time: 0.87 hours
+- Total execution time: 1.0 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [██████░░░░░░░░░░░] ~35% (6/17 plans
 | 01 | 2/2 | 36m | 18m |
 | 02 | 1/3 | 4m | 4m |
 | 05 | 2/2 | 9m | 5m |
-| 06 | 1/2 | 3m | 3m |
+| 06 | 2/2 | 8m | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (20m), 02-01 (4m), 05-01 (3m), 05-02 (6m), 06-01 (3m)
+- Last 5 plans: 02-01 (4m), 05-01 (3m), 05-02 (6m), 06-01 (3m), 06-02 (5m)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - **[05-02]** /stride route made public (no auth required) while Spotify auth is blocked
 - **[06-01]** Segment-based RunPlan model: steady run = 1 segment, extends to intervals (Phase 8) without restructuring
 - **[06-01]** Calibrated cadence always overrides formula-based BPM in RunPlanCalculator.targetBpm
+- **[06-02]** Single active run plan stored in SharedPreferences (one plan at a time, sufficient for playlist gen)
+- **[06-02]** Run plan screen reads stride state for height/calibrated cadence via strideNotifierProvider
+- **[06-02]** Auth guard disabled entirely (return null) while Spotify Dashboard blocked
 
 ### Pending Todos
 
@@ -79,5 +82,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 06-01-PLAN.md. Next: 06-02-PLAN.md (run plan screen UI).
+Stopped at: Phase 6 complete (both plans). Next: Phase 7 (Playlist Generation) -- blocked on Phases 3 and 4.
 Resume file: None

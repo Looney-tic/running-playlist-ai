@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: BPM Data Pipeline** - External BPM lookup and caching validated and operational
 - [ ] **Phase 4: Taste Profile** - Users can import and customize their music preferences
 - [ ] **Phase 5: Stride & Cadence** - Users can determine their target cadence from pace and body metrics
-- [ ] **Phase 6: Steady Run Planning** - Users can define a steady-pace run with calculated BPM target
+- [x] **Phase 6: Steady Run Planning** - Users can define a steady-pace run with calculated BPM target
 - [ ] **Phase 7: Playlist Generation** - Users get a BPM-matched playlist pushed to their Spotify account
 - [ ] **Phase 8: Structured Run Types** - Users can plan warm-up/cool-down and interval runs
 - [ ] **Phase 9: Playlist History** - Users can view and reuse previously generated playlists
@@ -116,8 +116,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — TDD: Run plan domain model and calculator with unit tests (data classes, duration/BPM computation)
-- [ ] 06-02-PLAN.md — Persistence, providers, UI screen, router integration, and home navigation
+- [x] 06-01-PLAN.md — TDD: Run plan domain model and calculator with unit tests (data classes, duration/BPM computation)
+- [x] 06-02-PLAN.md — Persistence, providers, UI screen, router integration, and home navigation
 
 ### Phase 7: Playlist Generation
 **Goal**: Users get a complete BPM-matched playlist for their run, exported directly to their Spotify account
@@ -193,7 +193,7 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | 3. BPM Data Pipeline | 0/TBD | Not started | - |
 | 4. Taste Profile | 0/TBD | Not started | - |
 | 5. Stride & Cadence | 2/2 | Complete | 2026-02-05 |
-| 6. Steady Run Planning | 0/2 | Not started | - |
+| 6. Steady Run Planning | 2/2 | Complete | 2026-02-05 |
 | 7. Playlist Generation | 0/TBD | Not started | - |
 | 8. Structured Run Types | 0/TBD | Not started | - |
 | 9. Playlist History | 0/TBD | Not started | - |

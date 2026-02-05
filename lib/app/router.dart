@@ -5,6 +5,7 @@ import 'package:running_playlist_ai/features/home/presentation/home_screen.dart'
 import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
 import 'package:running_playlist_ai/features/stride/presentation/stride_screen.dart';
+import 'package:running_playlist_ai/features/taste_profile/presentation/taste_profile_screen.dart';
 
 /// Application router with routes for all app features.
 ///
@@ -31,8 +32,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/taste-profile',
-        builder: (context, state) =>
-            const _ComingSoonScreen(title: 'Taste Profile'),
+        builder: (context, state) => const TasteProfileScreen(),
       ),
       GoRoute(
         path: '/playlist',

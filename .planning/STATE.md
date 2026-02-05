@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 Phase: 16 of 18 (Scoring Foundation)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-05 -- Roadmap created for v1.1
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-05 -- Completed 16-01-PLAN.md (SongQualityScorer)
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [░░░░░░░░░░] 0%
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██░░░░░░░░] 1/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (10 from v0.1 + 10 from v1.0)
+- Total plans completed: 21 (10 from v0.1 + 10 from v1.0 + 1 from v1.1)
 - Average duration: 6m
-- Total execution time: ~1.75 hours
+- Total execution time: ~1.8 hours
 
 **By Phase (v0.1):**
 
@@ -42,11 +42,21 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [░░░░�
 | 14 | 3/3 | 15m | 5m |
 | 15 | 2/2 | 6m | 3m |
 
+**By Phase (v1.1):**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 16 | 1/2 | 3m | 3m |
+
 ## Accumulated Context
 
 ### Decisions
 
 Full decision log in PROJECT.md Key Decisions table.
+
+- **Energy alignment proximity threshold:** 15-point proximity gives +2 partial match (avoids harsh cutoffs)
+- **Public weight constants:** All scoring weights are static const for testability and future tuning
+- **Bidirectional artist substring match:** Preserved exact logic from PlaylistGenerator for backward compatibility
 
 ### Pending Todos
 
@@ -68,5 +78,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: v1.1 roadmap created -- ready to plan Phase 16
+Stopped at: Completed 16-01-PLAN.md -- SongQualityScorer ready for integration
 Resume file: None

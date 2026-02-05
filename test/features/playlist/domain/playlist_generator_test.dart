@@ -12,12 +12,14 @@ BpmSong _song({
   String title = 'Song',
   String artist = 'Artist',
   int tempo = 170,
+  int? danceability,
 }) =>
     BpmSong(
       songId: id,
       title: title,
       artistName: artist,
       tempo: tempo,
+      danceability: danceability,
     );
 
 void main() {
@@ -645,5 +647,189 @@ void main() {
         equals(210),
       );
     });
+  });
+
+  // -- Composite scoring (SongQualityScorer integration) --------------------
+
+  group('PlaylistGenerator composite scoring', () {
+    test('ranks high-danceability songs above low-danceability songs',
+        () {
+      const plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 420,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      final songsByBpm = {
+        170: [
+          _song(
+            id: 'low',
+            title: 'Low Dance',
+            artist: 'Artist A',
+            danceability: 10,
+          ),
+          _song(
+            id: 'high',
+            title: 'High Dance',
+            artist: 'Artist B',
+            danceability: 90,
+          ),
+        ],
+      };
+
+      final playlist = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        random: Random(42),
+      );
+
+      // Both songs present (420/210=2). High danceability should
+      // rank first.
+      expect(playlist.songs.length, equals(2));
+      expect(playlist.songs.first.title, equals('High Dance'));
+    });
+
+    test('no consecutive same-artist songs in generated playlist',
+        () {
+      const plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 1050,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      // One dominant artist with 3 songs, plus 3 different others
+      // (enough diversity to ensure interleaving is possible)
+      final songsByBpm = {
+        170: [
+          _song(id: 'd1', title: 'Dom 1', artist: 'Dominant'),
+          _song(id: 'd2', title: 'Dom 2', artist: 'Dominant'),
+          _song(id: 'd3', title: 'Dom 3', artist: 'Dominant'),
+          _song(id: 'o1', title: 'Other 1', artist: 'Other A'),
+          _song(id: 'o2', title: 'Other 2', artist: 'Other B'),
+          _song(id: 'o3', title: 'Other 3', artist: 'Other C'),
+        ],
+      };
+
+      final playlist = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        random: Random(42),
+      );
+
+      // 1050/210 = 5 songs needed, 6 available
+      expect(playlist.songs.length, equals(5));
+
+      // Verify no two consecutive songs by the same artist
+      for (var i = 1; i < playlist.songs.length; i++) {
+        expect(
+          playlist.songs[i].artistName.toLowerCase() !=
+              playlist.songs[i - 1].artistName.toLowerCase(),
+          isTrue,
+          reason:
+              'Songs at index ${i - 1} and $i should have '
+              'different artists, but both are '
+              '"${playlist.songs[i].artistName}"',
+        );
+      }
+    });
+
+    test(
+      'warm-up segment prefers lower-danceability songs '
+      'over main segment',
+      () {
+        const plan = RunPlan(
+          type: RunType.warmUpCoolDown,
+          distanceKm: 5,
+          paceMinPerKm: 6,
+          segments: [
+            RunSegment(
+              durationSeconds: 210,
+              targetBpm: 170,
+              label: 'Warm-up',
+            ),
+            RunSegment(
+              durationSeconds: 210,
+              targetBpm: 170,
+              label: 'Running',
+            ),
+          ],
+        );
+
+        const tasteProfile = TasteProfile(
+          energyLevel: EnergyLevel.intense,
+        );
+
+        // Songs with varying danceability. Enough for both segments.
+        final songsByBpm = {
+          170: [
+            _song(
+              id: 'chill1',
+              title: 'Chill Song',
+              artist: 'Artist A',
+              danceability: 30,
+            ),
+            _song(
+              id: 'chill2',
+              title: 'Chill Song 2',
+              artist: 'Artist B',
+              danceability: 35,
+            ),
+            _song(
+              id: 'hype1',
+              title: 'Hype Song',
+              artist: 'Artist C',
+              danceability: 85,
+            ),
+            _song(
+              id: 'hype2',
+              title: 'Hype Song 2',
+              artist: 'Artist D',
+              danceability: 90,
+            ),
+          ],
+        };
+
+        final playlist = PlaylistGenerator.generate(
+          runPlan: plan,
+          tasteProfile: tasteProfile,
+          songsByBpm: songsByBpm,
+          random: Random(42),
+        );
+
+        final warmUpSong = playlist.songs
+            .firstWhere((s) => s.segmentLabel == 'Warm-up');
+        final runningSong = playlist.songs
+            .firstWhere((s) => s.segmentLabel == 'Running');
+
+        // Warm-up overrides to chill energy, so low-danceability
+        // songs score higher for energy alignment. The running
+        // segment uses 'intense' from tasteProfile, preferring high
+        // danceability.
+        expect(
+          warmUpSong.runningQuality! < runningSong.runningQuality!,
+          isTrue,
+          reason:
+              'Warm-up song (chill energy) should have lower '
+              'quality score than running song (intense energy) '
+              'because chill-range danceability songs score lower '
+              'overall. Warm-up: ${warmUpSong.runningQuality}, '
+              'Running: ${runningSong.runningQuality}',
+        );
+      },
+    );
   });
 }

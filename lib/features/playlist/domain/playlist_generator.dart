@@ -13,6 +13,7 @@ import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
 import 'package:running_playlist_ai/features/playlist/domain/song_link_builder.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
+import 'package:running_playlist_ai/features/song_quality/domain/song_quality_scorer.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
 
 /// Generates BPM-matched playlists from run plans and taste profiles.
@@ -20,9 +21,10 @@ import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.
 /// The generator is a pure synchronous function. It:
 /// 1. Iterates each [RunSegment] in the plan
 /// 2. Finds candidate songs matching the segment's target BPM
-/// 3. Scores candidates by taste profile match (artist name matching)
+/// 3. Scores candidates using [SongQualityScorer] composite scoring
 /// 4. Fills each segment's duration using a greedy algorithm
-/// 5. Avoids repeating songs across segments
+/// 5. Enforces artist diversity (no consecutive same-artist)
+/// 6. Avoids repeating songs across segments
 ///
 /// Song duration is estimated at 210 seconds (3.5 min) since the
 /// GetSongBPM API does not return song duration.
@@ -33,15 +35,6 @@ class PlaylistGenerator {
   /// estimate is used to calculate how many songs are needed per
   /// segment.
   static const estimatedSongDurationSeconds = 210;
-
-  /// Score bonus for songs by artists in the taste profile.
-  static const _artistMatchScore = 10;
-
-  /// Score bonus for exact BPM match (vs half/double-time).
-  static const _exactMatchScore = 3;
-
-  /// Score bonus for half-time or double-time match.
-  static const _tempoVariantScore = 1;
 
   /// Generates a playlist from a run plan, taste profile, and
   /// available songs.
@@ -83,11 +76,12 @@ class PlaylistGenerator {
           .where((s) => !usedSongIds.contains(s.songId))
           .toList();
 
-      // Score and rank by taste profile match
+      // Score and rank by composite quality
       final scored = _scoreAndRank(
         candidates: available,
         rng: rng,
         tasteProfile: tasteProfile,
+        segmentLabel: segmentLabel,
       );
 
       // Skip segment when no candidates available
@@ -98,10 +92,17 @@ class PlaylistGenerator {
           (segment.durationSeconds / estimatedSongDurationSeconds)
               .ceil();
       final selected =
-          scored.take(songsNeeded.clamp(1, scored.length));
+          scored.take(songsNeeded.clamp(1, scored.length)).toList();
+
+      // Enforce artist diversity within selected songs
+      final diverseSelected =
+          SongQualityScorer.enforceArtistDiversity<_ScoredSong>(
+        selected,
+        (s) => s.song.artistName,
+      );
 
       // Build PlaylistSong objects and track used song IDs
-      for (final entry in selected) {
+      for (final entry in diverseSelected) {
         usedSongIds.add(entry.song.songId);
         allPlaylistSongs.add(
           PlaylistSong(
@@ -120,6 +121,8 @@ class PlaylistGenerator {
               entry.song.title,
               entry.song.artistName,
             ),
+            runningQuality: entry.score,
+            isEnriched: entry.song.danceability != null,
           ),
         );
       }
@@ -163,13 +166,11 @@ class PlaylistGenerator {
     return candidates;
   }
 
-  /// Scores and ranks candidate songs by taste profile match.
+  /// Scores and ranks candidate songs using composite quality scoring.
   ///
-  /// Scoring:
-  /// - +10 if song's artist matches any artist in the taste profile
-  ///   (case-insensitive)
-  /// - +3 for exact BPM match
-  /// - +1 for half-time or double-time match
+  /// Delegates to [SongQualityScorer.score] for each candidate.
+  /// Scoring dimensions include artist match, genre match,
+  /// danceability, energy alignment, BPM match, and artist diversity.
   ///
   /// Songs are sorted by score descending. Within the same score
   /// tier, songs are shuffled for variety across regenerations.
@@ -181,36 +182,22 @@ class PlaylistGenerator {
     required List<BpmSong> candidates,
     required Random rng,
     TasteProfile? tasteProfile,
+    String? segmentLabel,
   }) {
-    final artistsLower = tasteProfile?.artists
-            .map((a) => a.toLowerCase())
-            .toList() ??
-        const [];
+    String? previousArtist;
 
     // Shuffle first for randomness within same-score tiers,
     // then stable-sort by score descending.
     final scored = candidates.map((song) {
-      var score = 0;
+      final score = SongQualityScorer.score(
+        song: song,
+        tasteProfile: tasteProfile,
+        danceability: song.danceability,
+        segmentLabel: segmentLabel,
+        previousArtist: previousArtist,
+      );
 
-      // Artist match (case-insensitive)
-      if (artistsLower.isNotEmpty) {
-        final songArtistLower = song.artistName.toLowerCase();
-        if (artistsLower.any(
-          (a) =>
-              songArtistLower.contains(a) ||
-              a.contains(songArtistLower),
-        )) {
-          score += _artistMatchScore;
-        }
-      }
-
-      // Match type bonus
-      if (song.matchType == BpmMatchType.exact) {
-        score += _exactMatchScore;
-      } else {
-        score += _tempoVariantScore;
-      }
-
+      previousArtist = song.artistName;
       return _ScoredSong(song, score);
     }).toList()
       ..shuffle(rng)

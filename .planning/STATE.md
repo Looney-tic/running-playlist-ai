@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 14 in progress (Playlist Generation). Plans 14-01 and 14-02 complete, ready for 14-03.
+**Current focus:** Phase 14 complete (Playlist Generation). All 3 plans delivered. Ready for Phase 15 (Playlist History).
 
 ## Current Position
 
 Phase: 14 of 15 (Playlist Generation)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-05 -- Completed 14-02-PLAN.md (providers + platform config)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-05 -- Completed 14-03-PLAN.md (PlaylistScreen UI + router)
 
-Progress: [███████░░░] 78% (7/9 plans in v1.0)
+Progress: [████████░░] 89% (8/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17 (10 from v0.1 + 7 from v1.0)
-- Average duration: 7m
-- Total execution time: 1.57 hours
+- Total plans completed: 18 (10 from v0.1 + 8 from v1.0)
+- Average duration: 6m
+- Total execution time: 1.60 hours
 
 **By Phase (v0.1):**
 
@@ -39,11 +39,11 @@ Progress: [███████░░░] 78% (7/9 plans in v1.0)
 | 11 | 1/1 | 1m | 1m |
 | 12 | 2/2 | 4m | 2m |
 | 13 | 2/2 | 7m | 4m |
-| 14 | 2/3 | 13m | 7m |
+| 14 | 3/3 | 15m | 5m |
 
 **Recent Trend:**
-- Last 5 plans: 13-01 (4m), 13-02 (3m), 14-01 (7m), 14-02 (6m)
-- Trend: stable at 3-7m per plan
+- Last 5 plans: 13-02 (3m), 14-01 (7m), 14-02 (6m), 14-03 (2m)
+- Trend: stable at 2-7m per plan
 
 *Updated after each plan completion*
 
@@ -75,11 +75,16 @@ Recent decisions affecting current work:
 - **[14-02]** PlaylistGenerationNotifier uses GetSongBpmClient + BpmCachePreferences directly (not BpmLookupNotifier) for batch multi-BPM fetching
 - **[14-02]** Pre-populate SharedPreferences mock values in tests for reliable notifier loading
 - **[14-02]** on Exception catch-all instead of bare catch for very_good_analysis compliance
+- **[14-03]** ConsumerWidget (not ConsumerStatefulWidget) for PlaylistScreen -- all state via providers
+- **[14-03]** Bottom sheet for song tap gives user choice of Spotify or YouTube (not direct link)
+- **[14-03]** No canLaunchUrl pre-check -- just call launchUrl and handle failure
+- **[14-03]** _ComingSoonScreen retained for /playlist-history (Phase 15)
 
 ### Pending Todos
 
 - **Manual UI verification:** Phase 8 structured run types (saved to 08-02-MANUAL-TEST.md)
 - **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, persistence)
+- **Manual UI verification:** Playlist generation screen (all 5 states, song tap, clipboard copy)
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
@@ -91,6 +96,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-05T18:31:00Z
-Stopped at: Completed 14-02-PLAN.md (providers + platform config) -- Ready for 14-03
+Last session: 2026-02-05T18:35:00Z
+Stopped at: Completed 14-03-PLAN.md (PlaylistScreen UI + router) -- Phase 14 complete
 Resume file: None

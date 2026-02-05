@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 12 complete (Taste Profile). Next: Phase 13 (BPM Data Pipeline).
+**Current focus:** Phase 13 in progress (BPM Data Pipeline). Plan 01 complete, Plan 02 next.
 
 ## Current Position
 
-Phase: 12 of 15 (Taste Profile)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 -- Completed 12-02-PLAN.md (Taste Profile UI screen)
+Phase: 13 of 15 (BPM Data Pipeline)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-05 -- Completed 13-01-PLAN.md (BPM domain models, API client, tests)
 
-Progress: [███░░░░░░░] 33% (3/9 plans in v1.0)
+Progress: [████░░░░░░] 44% (4/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13 (10 from v0.1 + 3 from v1.0)
+- Total plans completed: 14 (10 from v0.1 + 4 from v1.0)
 - Average duration: 7m
-- Total execution time: 1.2 hours
+- Total execution time: 1.3 hours
 
 **By Phase (v0.1):**
 
@@ -38,10 +38,11 @@ Progress: [███░░░░░░░] 33% (3/9 plans in v1.0)
 |-------|-------|-------|----------|
 | 11 | 1/1 | 1m | 1m |
 | 12 | 2/2 | 4m | 2m |
+| 13 | 1/2 | 4m | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 08-02 (4m), 11-01 (1m), 12-01 (2m), 12-02 (2m)
-- Trend: accelerating
+- Last 5 plans: 11-01 (1m), 12-01 (2m), 12-02 (2m), 13-01 (4m)
+- Trend: stable (13-01 slightly longer due to 33 unit tests)
 
 *Updated after each plan completion*
 
@@ -61,6 +62,9 @@ Recent decisions affecting current work:
 - **[12-01]** addArtist returns bool for UI rejection feedback; case-insensitive dedup preserves original casing
 - **[12-02]** Local UI state pattern for TasteProfileScreen: genres/artists/energy in State class, synced to notifier only on save
 - **[12-02]** FilterChip (not ChoiceChip) for multi-select genre picking; TextField hidden at max artists
+- **[13-01]** toJson excludes matchType to avoid cache key collisions (assigned at load time by notifier)
+- **[13-01]** BpmMatcher bounds: minQueryBpm=40, maxQueryBpm=300 for practical API coverage
+- **[13-01]** http.Client constructor injection pattern for testability with MockClient
 
 ### Pending Todos
 
@@ -68,6 +72,7 @@ Recent decisions affecting current work:
 - **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, persistence)
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
+- **User setup:** Add GETSONGBPM_API_KEY to .env before Phase 13-02 integration testing
 
 ### Blockers/Concerns
 
@@ -77,5 +82,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 12-02-PLAN.md (Taste Profile UI) -- Phase 12 complete, ready for Phase 13
+Stopped at: Completed 13-01-PLAN.md (BPM domain models, API client, tests) -- ready for 13-02
 Resume file: None

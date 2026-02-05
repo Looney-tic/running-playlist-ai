@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 2 blocked (Spotify Developer Dashboard unavailable) -- skipping to Phase 5 (Stride & Cadence)
+**Current focus:** Phase 5 (Stride & Cadence) -- plan 01 complete, plan 02 next
 
 ## Current Position
 
-Phase: 2 of 10 (Spotify Authentication)
-Plan: 2 of 2 in current phase (02-02 blocked at checkpoint)
-Status: Blocked -- external dependency
-Last activity: 2026-02-05 -- 02-02 Task 1 complete, checkpoint blocked by Spotify Dashboard
+Phase: 5 of 10 (Stride & Cadence)
+Plan: 1 of 2 in current phase (05-01 complete)
+Status: In progress
+Last activity: 2026-02-05 -- Completed 05-01-PLAN.md (stride calculator domain logic)
 
-Progress: [███░░░░░░░░░░░░░░] ~18% (3/17 plans)
+Progress: [████░░░░░░░░░░░░░] ~24% (4/17 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 13m
-- Total execution time: 0.67 hours
+- Total plans completed: 4
+- Average duration: 10m
+- Total execution time: 0.72 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [███░░░░░░░░░░░░░░] ~18% (3/17 plans
 |-------|-------|-------|----------|
 | 01 | 2/2 | 36m | 18m |
 | 02 | 1/3 | 4m | 4m |
+| 05 | 1/2 | 3m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (16m), 01-02 (20m), 02-01 (4m)
+- Last 5 plans: 01-01 (16m), 01-02 (20m), 02-01 (4m), 05-01 (3m)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -55,6 +56,8 @@ Recent decisions affecting current work:
 - **[02-01]** LaunchMode.externalApplication on mobile (never inAppWebView) per iOS redirect failure research
 - **[02-01]** All 6 Spotify scopes requested upfront to avoid re-authentication
 - **[02-01]** Zero manual navigation after login/logout -- GoRouter redirect handles all routing reactively
+- **[05-01]** Test boundary values adjusted: 15:00 min/km for lower cadence clamp, 7:00 min/km with 170cm for height differentiation (plan-specified values didn't exercise clamping)
+- **[05-01]** Pure domain logic pattern: zero Flutter imports, static methods on calculator class, top-level helpers for parsing
 
 ### Pending Todos
 
@@ -70,5 +73,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Phase 2 blocked at 02-02 checkpoint (Spotify Dashboard unavailable). Skipping to Phase 5.
+Stopped at: Completed 05-01-PLAN.md (stride calculator domain logic). Next: 05-02-PLAN.md (cadence input UI).
 Resume file: None

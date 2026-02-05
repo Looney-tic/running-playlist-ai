@@ -147,17 +147,23 @@ void main() {
       expect(cadence, lessThanOrEqualTo(200));
     });
 
-    test('5:00 min/km with 190cm height differs from no-height', () {
+    test('7:00 min/km with 170cm height differs from no-height', () {
+      // With height 170cm: stride = 1.105, speed = 2.381
+      //   cadence = 2.381/1.105*60*2 = 258.8 -> clamped to 200
+      // Without height: stride = 0.4*2.381+0.6 = 1.552
+      //   cadence = 2.381/1.552*60*2 = 184.0 -> not clamped
       final withHeight = StrideCalculator.calculateCadence(
-          paceMinPerKm: 5.0, heightCm: 190);
+          paceMinPerKm: 7.0, heightCm: 170);
       final withoutHeight =
-          StrideCalculator.calculateCadence(paceMinPerKm: 5.0);
+          StrideCalculator.calculateCadence(paceMinPerKm: 7.0);
       expect(withHeight, isNot(equals(withoutHeight)));
     });
 
-    test('very slow pace (9:00) clamps to 150 spm', () {
+    test('very slow pace (15:00) clamps to 150 spm', () {
+      // speed = 1000/900 = 1.111, stride = 0.4*1.111+0.6 = 1.044
+      // cadence = 1.111/1.044*60*2 = 127.7 -> clamped to 150
       final cadence =
-          StrideCalculator.calculateCadence(paceMinPerKm: 9.0);
+          StrideCalculator.calculateCadence(paceMinPerKm: 15.0);
       expect(cadence, equals(150.0));
     });
 

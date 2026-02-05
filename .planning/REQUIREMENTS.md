@@ -30,20 +30,20 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| QUAL-01 | — | Pending |
-| QUAL-02 | — | Pending |
-| QUAL-03 | — | Pending |
-| QUAL-04 | — | Pending |
-| QUAL-05 | — | Pending |
-| QUAL-06 | — | Pending |
-| CURA-01 | — | Pending |
-| CURA-02 | — | Pending |
-| CURA-03 | — | Pending |
-| CURA-04 | — | Pending |
-| UX-01 | — | Pending |
-| UX-02 | — | Pending |
-| UX-03 | — | Pending |
-| UX-04 | — | Pending |
+| QUAL-01 | Phase 16 | Pending |
+| QUAL-02 | Phase 16 | Pending |
+| QUAL-03 | Phase 16 | Pending |
+| QUAL-04 | Phase 16 | Pending |
+| QUAL-05 | Phase 16 | Pending |
+| QUAL-06 | Phase 16 | Pending |
+| CURA-01 | Phase 17 | Pending |
+| CURA-02 | Phase 17 | Pending |
+| CURA-03 | Phase 17 | Pending |
+| CURA-04 | Phase 17 | Pending |
+| UX-01 | Phase 18 | Pending |
+| UX-02 | Phase 18 | Pending |
+| UX-03 | Phase 18 | Pending |
+| UX-04 | Phase 18 | Pending |
 
 ## Future (v1.2+)
 

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality — making playlists genuinely great for running
+**Current focus:** v1.1 Experience Quality -- Phase 16: Scoring Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: --
-Status: Defining requirements
-Last activity: 2026-02-05 -- Milestone v1.1 started
+Phase: 16 of 18 (Scoring Foundation)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-05 -- Roadmap created for v1.1
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases)
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -63,9 +63,10 @@ Full decision log in PROJECT.md Key Decisions table.
 
 - GetSongBPM API rate limits and coverage gaps unknown until runtime validation
 - build_runner code-gen partially broken with Dart 3.10 (monitor package updates)
+- GetSongBPM `/song/` endpoint: confirm danceability field availability before Phase 16 implementation
 
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: v1.0 milestone completed and archived
+Stopped at: v1.1 roadmap created -- ready to plan Phase 16
 Resume file: None

@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:running_playlist_ai/features/auth/providers/auth_providers.dart';
 
-/// Home screen displayed to authenticated users.
-///
-/// Provides navigation to settings and a logout button.
-/// After logout, GoRouter redirect handles navigation
-/// back to the login screen automatically.
+/// Home hub screen with navigation to all app features.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -28,7 +23,10 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Home Screen'),
+            const Text(
+              'What would you like to do?',
+              style: TextStyle(fontSize: 18),
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () => context.push('/stride'),
@@ -42,21 +40,22 @@ class HomeScreen extends ConsumerWidget {
               label: const Text('Plan Run'),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await ref.read(authRepositoryProvider).signOut();
-                } on Exception catch (error) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Logout failed: $error'),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Log out'),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/taste-profile'),
+              icon: const Icon(Icons.music_note),
+              label: const Text('Taste Profile'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/playlist'),
+              icon: const Icon(Icons.queue_music),
+              label: const Text('Generate Playlist'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/playlist-history'),
+              icon: const Icon(Icons.history),
+              label: const Text('Playlist History'),
             ),
           ],
         ),

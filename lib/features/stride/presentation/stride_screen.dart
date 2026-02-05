@@ -18,19 +18,22 @@ class StrideScreen extends ConsumerStatefulWidget {
 }
 
 class _StrideScreenState extends ConsumerState<StrideScreen> {
-  final _paceController = TextEditingController();
   final _stepsController = TextEditingController();
-  final _paceFormKey = GlobalKey<FormState>();
   bool _useHeight = false;
   bool _showCalibration = false;
+
+  /// Pace options from 3:00 to 10:00 in 15-second increments.
+  static final _paceOptions = [
+    for (int min = 3; min <= 9; min++)
+      for (int sec = 0; sec < 60; sec += 15) min + sec / 60.0,
+    10.0,
+  ];
 
   @override
   void initState() {
     super.initState();
-    // Initialize from current state after first frame so ref is available.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final state = ref.read(strideNotifierProvider);
-      _paceController.text = formatPace(state.paceMinPerKm);
       if (state.heightCm != null) {
         setState(() => _useHeight = true);
       }
@@ -42,7 +45,6 @@ class _StrideScreenState extends ConsumerState<StrideScreen> {
 
   @override
   void dispose() {
-    _paceController.dispose();
     _stepsController.dispose();
     super.dispose();
   }
@@ -67,6 +69,7 @@ class _StrideScreenState extends ConsumerState<StrideScreen> {
             _CadenceDisplay(
               cadence: state.cadence,
               isCalibrated: isCalibrated,
+              hasHeight: state.heightCm != null,
               onClearCalibration: () {
                 notifier.clearCalibration();
                 _stepsController.clear();
@@ -90,65 +93,68 @@ class _StrideScreenState extends ConsumerState<StrideScreen> {
     );
   }
 
+  /// Snaps a pace value to the nearest option in the dropdown list.
+  double _snapToNearest(double pace) {
+    return _paceOptions.reduce(
+      (a, b) => (a - pace).abs() < (b - pace).abs() ? a : b,
+    );
+  }
+
   Widget _buildPaceSection(
     StrideState state,
     StrideNotifier notifier,
     bool isCalibrated,
     ThemeData theme,
   ) {
+    final selectedPace = _snapToNearest(state.paceMinPerKm);
+
     return Opacity(
       opacity: isCalibrated ? 0.5 : 1.0,
-      child: Form(
-        key: _paceFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Target Pace', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _paceController,
-              decoration: const InputDecoration(
-                hintText: '5:30',
-                suffixText: 'min/km',
-                border: OutlineInputBorder(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Target Pace', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          InputDecorator(
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 4,
               ),
-              keyboardType: TextInputType.datetime,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[\d:]')),
-              ],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Enter a pace';
-                }
-                final pace = parsePace(value);
-                if (pace == null) {
-                  return 'Use M:SS format (e.g. 5:30)';
-                }
-                if (pace < 3.0 || pace > 10.0) {
-                  return 'Pace must be between 3:00 and 10:00';
-                }
-                return null;
-              },
-              onChanged: (value) {
-                final pace = parsePace(value);
-                if (pace != null && pace >= 3.0 && pace <= 10.0) {
-                  notifier.setPace(pace);
-                }
-              },
             ),
-            if (isCalibrated)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Formula estimate would be '
-                  '${StrideCalculator.calculateCadence(paceMinPerKm: state.paceMinPerKm, heightCm: state.heightCm).round()} spm',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<double>(
+                value: selectedPace,
+                isExpanded: true,
+                items: _paceOptions
+                    .map(
+                      (pace) => DropdownMenuItem(
+                        value: pace,
+                        child: Text('${formatPace(pace)} min/km'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isCalibrated
+                    ? null
+                    : (value) {
+                        if (value != null) notifier.setPace(value);
+                      },
+              ),
+            ),
+          ),
+          if (isCalibrated)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Formula estimate would be '
+                '${StrideCalculator.calculateCadence(paceMinPerKm: state.paceMinPerKm, heightCm: state.heightCm).round()} spm',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -300,11 +306,13 @@ class _CadenceDisplay extends StatelessWidget {
   const _CadenceDisplay({
     required this.cadence,
     required this.isCalibrated,
+    required this.hasHeight,
     this.onClearCalibration,
   });
 
   final double cadence;
   final bool isCalibrated;
+  final bool hasHeight;
   final VoidCallback? onClearCalibration;
 
   @override
@@ -331,7 +339,9 @@ class _CadenceDisplay extends StatelessWidget {
               )
             else
               Text(
-                'Estimated from pace',
+                hasHeight
+                    ? 'Estimated from pace + height'
+                    : 'Estimated from pace',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),

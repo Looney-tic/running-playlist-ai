@@ -17,24 +17,27 @@ class StrideCalculator {
     return heightCm * 0.65 / 100.0;
   }
 
-  /// Estimates stride length from running speed when height is unknown.
+  /// Estimates step length from running speed when height is unknown.
   ///
-  /// Uses linear model: stride = 0.4 * speed + 0.6, clamped to [1.0, 3.0].
+  /// Uses linear model derived from biomechanical cadence data:
+  /// step_length = 0.26 * speed + 0.25, clamped to [0.5, 1.8].
   static double defaultStrideLengthFromSpeed(double speedMs) {
-    final stride = 0.4 * speedMs + 0.6;
-    return stride.clamp(1.0, 3.0);
+    final stepLength = 0.26 * speedMs + 0.25;
+    return stepLength.clamp(0.5, 1.8);
   }
 
-  /// Converts speed and stride length to cadence in steps per minute.
+  /// Converts speed and step length to cadence in steps per minute.
   ///
-  /// Cadence = (speed / stride) * 60 * 2.
-  /// The *2 converts stride frequency to step frequency (one stride = two steps).
+  /// Cadence = (speed / step_length) * 60.
+  /// Both [strideLengthFromHeight] and [defaultStrideLengthFromSpeed] return
+  /// step length (single foot contact distance), so no stride-to-step
+  /// conversion is needed.
   /// Returns 0.0 for zero or negative inputs.
   static double cadenceFromSpeedAndStride(
       double speedMs, double strideLengthM) {
     if (strideLengthM <= 0 || speedMs <= 0) return 0.0;
-    final strideFrequency = speedMs / strideLengthM;
-    return strideFrequency * 60.0 * 2.0;
+    final stepFrequency = speedMs / strideLengthM;
+    return stepFrequency * 60.0;
   }
 
   /// Calculates target cadence from pace and optional height.

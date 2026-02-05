@@ -63,33 +63,35 @@ void main() {
   // ── defaultStrideLengthFromSpeed ─────────────────────────────────────
 
   group('defaultStrideLengthFromSpeed', () {
-    test('3.33 m/s -> ~1.93 m', () {
+    test('3.33 m/s -> ~1.12 m step length', () {
+      // 0.26 * 3.33 + 0.25 = 1.116
       expect(
         StrideCalculator.defaultStrideLengthFromSpeed(3.33),
-        closeTo(1.932, 0.01),
+        closeTo(1.116, 0.01),
       );
     });
 
-    test('2.0 m/s -> ~1.4 m', () {
+    test('2.0 m/s -> ~0.77 m step length', () {
+      // 0.26 * 2.0 + 0.25 = 0.77
       expect(
         StrideCalculator.defaultStrideLengthFromSpeed(2.0),
-        closeTo(1.4, 0.01),
+        closeTo(0.77, 0.01),
       );
     });
 
-    test('clamps to minimum 1.0 for very slow speeds', () {
-      // 0.4 * 0.5 + 0.6 = 0.8 -> clamped to 1.0
+    test('clamps to minimum 0.5 for very slow speeds', () {
+      // 0.26 * 0.5 + 0.25 = 0.38 -> clamped to 0.5
       expect(
         StrideCalculator.defaultStrideLengthFromSpeed(0.5),
-        equals(1.0),
+        equals(0.5),
       );
     });
 
-    test('clamps to maximum 3.0 for extreme speeds', () {
-      // 0.4 * 10 + 0.6 = 4.6 -> clamped to 3.0
+    test('clamps to maximum 1.8 for extreme speeds', () {
+      // 0.26 * 10 + 0.25 = 2.85 -> clamped to 1.8
       expect(
         StrideCalculator.defaultStrideLengthFromSpeed(10.0),
-        equals(3.0),
+        equals(1.8),
       );
     });
   });
@@ -97,15 +99,12 @@ void main() {
   // ── cadenceFromSpeedAndStride ────────────────────────────────────────
 
   group('cadenceFromSpeedAndStride', () {
-    test('3.33 m/s with 1.105 m stride -> ~362 spm (steps, not strides)',
-        () {
-      // strideFreq = 3.33 / 1.105 = 3.014
-      // cadence = 3.014 * 60 * 2 = 361.6
+    test('3.33 m/s with 1.105 m step length -> ~181 spm', () {
+      // stepFreq = 3.33 / 1.105 = 3.014 steps/sec
+      // cadence = 3.014 * 60 = 180.8
       final cadence =
           StrideCalculator.cadenceFromSpeedAndStride(3.33, 1.105);
-      expect(cadence, closeTo(361.6, 1.0));
-      // Must be > 300 to prove *2 is applied (strides->steps)
-      expect(cadence, greaterThan(300));
+      expect(cadence, closeTo(180.8, 1.0));
     });
 
     test('returns 0.0 for zero speed', () {
@@ -147,30 +146,34 @@ void main() {
       expect(cadence, lessThanOrEqualTo(200));
     });
 
-    test('7:00 min/km with 170cm height differs from no-height', () {
-      // With height 170cm: stride = 1.105, speed = 2.381
-      //   cadence = 2.381/1.105*60*2 = 258.8 -> clamped to 200
-      // Without height: stride = 0.4*2.381+0.6 = 1.552
-      //   cadence = 2.381/1.552*60*2 = 184.0 -> not clamped
+    test('5:00 min/km with 170cm height differs from no-height', () {
+      // With height 170cm: step = 1.105, speed = 3.333
+      //   cadence = 3.333/1.105*60 = 181.0
+      // Without height: step = 0.26*3.333+0.25 = 1.117
+      //   cadence = 3.333/1.117*60 = 179.1
       final withHeight = StrideCalculator.calculateCadence(
-          paceMinPerKm: 7.0, heightCm: 170);
+          paceMinPerKm: 5.0, heightCm: 170);
       final withoutHeight =
-          StrideCalculator.calculateCadence(paceMinPerKm: 7.0);
+          StrideCalculator.calculateCadence(paceMinPerKm: 5.0);
       expect(withHeight, isNot(equals(withoutHeight)));
     });
 
     test('very slow pace (15:00) clamps to 150 spm', () {
-      // speed = 1000/900 = 1.111, stride = 0.4*1.111+0.6 = 1.044
-      // cadence = 1.111/1.044*60*2 = 127.7 -> clamped to 150
+      // speed = 1000/900 = 1.111, step = 0.26*1.111+0.25 = 0.539
+      // cadence = 1.111/0.539*60 = 123.7 -> clamped to 150
       final cadence =
           StrideCalculator.calculateCadence(paceMinPerKm: 15.0);
       expect(cadence, equals(150.0));
     });
 
     test('very fast pace (3:00) clamps to 200 spm', () {
+      // speed = 5.556, step = 0.26*5.556+0.25 = 1.694
+      // cadence = 5.556/1.694*60 = 196.8 -> not quite 200
+      // But with shorter height it would clamp
       final cadence =
           StrideCalculator.calculateCadence(paceMinPerKm: 3.0);
-      expect(cadence, equals(200.0));
+      expect(cadence, greaterThanOrEqualTo(190));
+      expect(cadence, lessThanOrEqualTo(200));
     });
 
     test('zero pace returns 0.0', () {

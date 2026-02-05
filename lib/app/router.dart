@@ -57,9 +57,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuthenticated = authNotifier.isAuthenticated;
       final isLoginRoute = state.matchedLocation == '/login';
+      final isPublicRoute = isLoginRoute ||
+          state.matchedLocation == '/stride';
 
-      // Not authenticated and not on login page -> go to login
-      if (!isAuthenticated && !isLoginRoute) return '/login';
+      // Not authenticated and not on a public page -> go to login
+      if (!isAuthenticated && !isPublicRoute) return '/login';
 
       // Authenticated and on login page -> go to home
       if (isAuthenticated && isLoginRoute) return '/';

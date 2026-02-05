@@ -45,9 +45,9 @@
 
 ### Cross-Platform
 
-- [ ] **PLAT-01**: App works on Android
-- [ ] **PLAT-02**: App works on iOS
-- [ ] **PLAT-03**: App works on web
+- [x] **PLAT-01**: App works on Android
+- [x] **PLAT-02**: App works on iOS
+- [x] **PLAT-03**: App works on web
 
 ## v2 Requirements
 
@@ -102,9 +102,9 @@
 | PLAY-02 | Phase 7 | Pending |
 | PLAY-03 | Phase 7 | Pending |
 | PLAY-04 | Phase 9 | Pending |
-| PLAT-01 | Phase 1 | Pending |
-| PLAT-02 | Phase 1 | Pending |
-| PLAT-03 | Phase 1 | Pending |
+| PLAT-01 | Phase 1 | Complete |
+| PLAT-02 | Phase 1 | Complete |
+| PLAT-03 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 23 total

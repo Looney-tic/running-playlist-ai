@@ -30,6 +30,12 @@ class HomeScreen extends ConsumerWidget {
           children: [
             const Text('Home Screen'),
             const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/stride'),
+              icon: const Icon(Icons.directions_run),
+              label: const Text('Stride Calculator'),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
                 try {

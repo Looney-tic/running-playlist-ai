@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 11 complete (Auth Cleanup). Next: Phase 12 (Taste Profile).
+**Current focus:** Phase 12 in progress (Taste Profile). Plan 01 complete, Plan 02 next (UI).
 
 ## Current Position
 
-Phase: 11 of 15 (Auth Cleanup)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 -- Completed 11-01-PLAN.md (Auth Cleanup)
+Phase: 12 of 15 (Taste Profile)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-05 -- Completed 12-01-PLAN.md (Taste Profile domain/persistence/provider)
 
-Progress: [█░░░░░░░░░] 11% (1/9 plans in v1.0)
+Progress: [██░░░░░░░░] 22% (2/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11 (10 from v0.1 + 1 from v1.0)
+- Total plans completed: 12 (10 from v0.1 + 2 from v1.0)
 - Average duration: 7m
 - Total execution time: 1.2 hours
 
@@ -32,8 +32,15 @@ Progress: [█░░░░░░░░░] 11% (1/9 plans in v1.0)
 | 06 | 2/2 | 8m | 4m |
 | 08 | 2/2 | 7m | 4m |
 
+**By Phase (v1.0):**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 11 | 1/1 | 1m | 1m |
+| 12 | 1/2 | 2m | 2m |
+
 **Recent Trend:**
-- Last 5 plans: 06-01 (3m), 06-02 (5m), 08-01 (3m), 08-02 (4m), 11-01 (1m)
+- Last 5 plans: 08-01 (3m), 08-02 (4m), 11-01 (1m), 12-01 (2m)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -50,6 +57,8 @@ Recent decisions affecting current work:
 - **[v1.0 pivot]** SharedPreferences for all local persistence (taste profile, BPM cache, playlist history)
 - **[11-01]** Kept HomeScreen as ConsumerWidget for future taste profile state
 - **[11-01]** Auth files left dormant (not deleted) in lib/features/auth/
+- **[12-01]** RunningGenre enum names align with Spotify genre seeds for future API integration
+- **[12-01]** addArtist returns bool for UI rejection feedback; case-insensitive dedup preserves original casing
 
 ### Pending Todos
 
@@ -64,5 +73,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 11-01-PLAN.md (Auth Cleanup) -- Phase 11 complete, ready for Phase 12
+Stopped at: Completed 12-01-PLAN.md (Taste Profile domain model) -- Ready for 12-02 (UI)
 Resume file: None

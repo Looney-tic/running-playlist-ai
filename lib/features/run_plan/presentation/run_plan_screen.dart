@@ -6,11 +6,19 @@ import 'package:running_playlist_ai/features/run_plan/providers/run_plan_provide
 import 'package:running_playlist_ai/features/stride/domain/stride_calculator.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
 
-/// Run plan screen where users configure distance, pace, and save a steady
+/// Run plan screen where users configure distance, pace, run type, and save a
 /// run plan for playlist generation.
 ///
+/// Supports three run types:
+/// - **Steady:** Single-pace run (original flow)
+/// - **Warm-up/Cool-down:** Three segments with configurable warm-up and
+///   cool-down durations
+/// - **Intervals:** Warm-up, work/rest pairs, and cool-down with configurable
+///   interval count, work duration, and rest duration
+///
 /// Displays real-time duration and target BPM calculations as the user
-/// adjusts distance and pace inputs. Saved plans persist across sessions
+/// adjusts inputs. For structured runs, shows a per-segment BPM breakdown
+/// with a colored timeline bar. Saved plans persist across sessions
 /// via RunPlanPreferences.
 class RunPlanScreen extends ConsumerStatefulWidget {
   const RunPlanScreen({super.key});
@@ -24,6 +32,18 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
   double _selectedPace = 5.5;
   int? _selectedPresetIndex;
   final _customDistanceController = TextEditingController();
+
+  // Run type state
+  RunType _selectedRunType = RunType.steady;
+
+  // Warm-up/Cool-down state
+  int _warmUpMinutes = 5;
+  int _coolDownMinutes = 5;
+
+  // Interval state
+  int _intervalCount = 4;
+  int _workSeconds = 120;
+  int _restSeconds = 60;
 
   /// Pace options from 3:00 to 10:00 in 15-second increments.
   static final _paceOptions = [
@@ -67,7 +87,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── E: Current plan indicator ──────────────────────────
+            // -- E: Current plan indicator --
             if (currentPlan != null) ...[
               Card(
                 color: theme.colorScheme.primaryContainer,
@@ -85,7 +105,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
               const SizedBox(height: 16),
             ],
 
-            // ── A: Distance selection ──────────────────────────────
+            // -- A: Distance selection --
             Text('Distance', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Wrap(
@@ -136,7 +156,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── B: Pace input ──────────────────────────────────────
+            // -- B: Pace input --
             Text('Pace', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             InputDecorator(
@@ -169,13 +189,53 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── C: Run summary card ────────────────────────────────
+            // -- F: Run type selector --
+            Text('Run Type', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<RunType>(
+              segments: const [
+                ButtonSegment(
+                  value: RunType.steady,
+                  label: Text('Steady'),
+                  icon: Icon(Icons.trending_flat),
+                ),
+                ButtonSegment(
+                  value: RunType.warmUpCoolDown,
+                  label: Text('Warm-up'),
+                  icon: Icon(Icons.show_chart),
+                ),
+                ButtonSegment(
+                  value: RunType.interval,
+                  label: Text('Intervals'),
+                  icon: Icon(Icons.stacked_bar_chart),
+                ),
+              ],
+              selected: {_selectedRunType},
+              onSelectionChanged: (selected) {
+                setState(() => _selectedRunType = selected.first);
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // -- G: Warm-Up/Cool-Down config --
+            if (_selectedRunType == RunType.warmUpCoolDown) ...[
+              _buildWarmUpCoolDownConfig(theme),
+              const SizedBox(height: 16),
+            ],
+
+            // -- H: Interval config --
+            if (_selectedRunType == RunType.interval) ...[
+              _buildIntervalConfig(theme),
+              const SizedBox(height: 16),
+            ],
+
+            // -- C: Run summary card --
             if (_selectedDistance > 0) ...[
               _buildSummaryCard(strideState, theme),
               const SizedBox(height: 24),
             ],
 
-            // ── D: Save button ─────────────────────────────────────
+            // -- D: Save button --
             ElevatedButton(
               onPressed: _selectedDistance > 0
                   ? () => _savePlan(strideState)
@@ -190,15 +250,148 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
     );
   }
 
-  Widget _buildSummaryCard(StrideState strideState, ThemeData theme) {
-    final durationSec = RunPlanCalculator.durationSeconds(
-      distanceKm: _selectedDistance,
-      paceMinPerKm: _selectedPace,
+  Widget _buildWarmUpCoolDownConfig(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Warm-up/Cool-down Settings',
+                style: theme.textTheme.titleSmall),
+            const SizedBox(height: 12),
+            _buildSliderRow(
+              label: 'Warm-up Duration',
+              value: '$_warmUpMinutes min',
+              slider: Slider(
+                value: _warmUpMinutes.toDouble(),
+                min: 1,
+                max: 15,
+                divisions: 14,
+                label: '$_warmUpMinutes min',
+                onChanged: (v) =>
+                    setState(() => _warmUpMinutes = v.round()),
+              ),
+            ),
+            _buildSliderRow(
+              label: 'Cool-down Duration',
+              value: '$_coolDownMinutes min',
+              slider: Slider(
+                value: _coolDownMinutes.toDouble(),
+                min: 1,
+                max: 15,
+                divisions: 14,
+                label: '$_coolDownMinutes min',
+                onChanged: (v) =>
+                    setState(() => _coolDownMinutes = v.round()),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildIntervalConfig(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Interval Settings', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 12),
+            _buildSliderRow(
+              label: 'Intervals',
+              value: '$_intervalCount',
+              slider: Slider(
+                value: _intervalCount.toDouble(),
+                min: 2,
+                max: 20,
+                divisions: 18,
+                label: '$_intervalCount',
+                onChanged: (v) =>
+                    setState(() => _intervalCount = v.round()),
+              ),
+            ),
+            _buildSliderRow(
+              label: 'Work Duration',
+              value: _formatSliderDuration(_workSeconds),
+              slider: Slider(
+                value: _workSeconds.toDouble(),
+                min: 30,
+                max: 600,
+                divisions: 19,
+                label: _formatSliderDuration(_workSeconds),
+                onChanged: (v) =>
+                    setState(() => _workSeconds = v.round()),
+              ),
+            ),
+            _buildSliderRow(
+              label: 'Rest Duration',
+              value: _formatSliderDuration(_restSeconds),
+              slider: Slider(
+                value: _restSeconds.toDouble(),
+                min: 15,
+                max: 300,
+                divisions: 19,
+                label: _formatSliderDuration(_restSeconds),
+                onChanged: (v) =>
+                    setState(() => _restSeconds = v.round()),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliderRow({
+    required String label,
+    required String value,
+    required Slider slider,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
+        slider,
+      ],
+    );
+  }
+
+  /// Formats seconds into a human-readable duration string for slider labels.
+  String _formatSliderDuration(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes == 0) return '${seconds}s';
+    if (seconds == 0) return '${minutes}m';
+    return '${minutes}m ${seconds}s';
+  }
+
+  Widget _buildSummaryCard(StrideState strideState, ThemeData theme) {
     final bpm = RunPlanCalculator.targetBpm(
       paceMinPerKm: _selectedPace,
       heightCm: strideState.heightCm,
       calibratedCadence: strideState.calibratedCadence,
+    );
+
+    // For structured run types, generate a preview plan to show segments
+    if (_selectedRunType != RunType.steady) {
+      final previewPlan = _buildPreviewPlan(bpm);
+      return _buildStructuredSummaryCard(previewPlan, theme);
+    }
+
+    // Steady run: original summary card
+    final durationSec = RunPlanCalculator.durationSeconds(
+      distanceKm: _selectedDistance,
+      paceMinPerKm: _selectedPace,
     );
 
     return Card(
@@ -231,6 +424,77 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
     );
   }
 
+  /// Builds a preview [RunPlan] based on the current run type configuration.
+  RunPlan _buildPreviewPlan(double bpm) {
+    if (_selectedRunType == RunType.warmUpCoolDown) {
+      return RunPlanCalculator.createWarmUpCoolDownPlan(
+        distanceKm: _selectedDistance,
+        paceMinPerKm: _selectedPace,
+        targetBpm: bpm,
+        warmUpSeconds: _warmUpMinutes * 60,
+        coolDownSeconds: _coolDownMinutes * 60,
+      );
+    }
+
+    return RunPlanCalculator.createIntervalPlan(
+      distanceKm: _selectedDistance,
+      paceMinPerKm: _selectedPace,
+      targetBpm: bpm,
+      intervalCount: _intervalCount,
+      workSeconds: _workSeconds,
+      restSeconds: _restSeconds,
+    );
+  }
+
+  /// Summary card for structured runs showing segment timeline and BPM
+  /// breakdown.
+  Widget _buildStructuredSummaryCard(RunPlan plan, ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Run Summary', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 12),
+            _SummaryRow(
+              label: 'Distance',
+              value: '$_selectedDistance km',
+            ),
+            _SummaryRow(
+              label: 'Pace',
+              value: '${formatPace(_selectedPace)} /km',
+            ),
+            _SummaryRow(
+              label: 'Total Duration',
+              value: formatDuration(plan.totalDurationSeconds),
+            ),
+            _SummaryRow(
+              label: 'Segments',
+              value: '${plan.segments.length}',
+            ),
+            const SizedBox(height: 16),
+
+            // Segment timeline bar
+            Text('Segment Timeline', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            _SegmentTimeline(segments: plan.segments),
+            const SizedBox(height: 12),
+
+            // Per-segment BPM breakdown
+            ...plan.segments.map(
+              (segment) => _SummaryRow(
+                label: segment.label ?? 'Segment',
+                value: '${formatDuration(segment.durationSeconds)}'
+                    ' - ${segment.targetBpm.round()} bpm',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _savePlan(StrideState strideState) {
     final bpm = RunPlanCalculator.targetBpm(
       paceMinPerKm: _selectedPace,
@@ -238,16 +502,93 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
       calibratedCadence: strideState.calibratedCadence,
     );
 
-    final plan = RunPlanCalculator.createSteadyPlan(
-      distanceKm: _selectedDistance,
-      paceMinPerKm: _selectedPace,
-      targetBpm: bpm,
-    );
+    final RunPlan plan;
+
+    switch (_selectedRunType) {
+      case RunType.steady:
+        plan = RunPlanCalculator.createSteadyPlan(
+          distanceKm: _selectedDistance,
+          paceMinPerKm: _selectedPace,
+          targetBpm: bpm,
+        );
+      case RunType.warmUpCoolDown:
+        plan = RunPlanCalculator.createWarmUpCoolDownPlan(
+          distanceKm: _selectedDistance,
+          paceMinPerKm: _selectedPace,
+          targetBpm: bpm,
+          warmUpSeconds: _warmUpMinutes * 60,
+          coolDownSeconds: _coolDownMinutes * 60,
+        );
+      case RunType.interval:
+        plan = RunPlanCalculator.createIntervalPlan(
+          distanceKm: _selectedDistance,
+          paceMinPerKm: _selectedPace,
+          targetBpm: bpm,
+          intervalCount: _intervalCount,
+          workSeconds: _workSeconds,
+          restSeconds: _restSeconds,
+        );
+    }
 
     ref.read(runPlanNotifierProvider.notifier).setPlan(plan);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Run plan saved!')),
+    );
+  }
+}
+
+/// Colored timeline bar showing the relative duration of each segment.
+///
+/// Uses distinct colors for different segment types:
+/// - Warm-up: amber
+/// - Cool-down: blue
+/// - Work: red/orange
+/// - Rest: green
+/// - Main: primary theme color
+class _SegmentTimeline extends StatelessWidget {
+  const _SegmentTimeline({required this.segments});
+
+  final List<RunSegment> segments;
+
+  Color _colorForSegment(RunSegment segment, ColorScheme colorScheme) {
+    final label = segment.label?.toLowerCase() ?? '';
+    if (label.contains('warm')) return Colors.amber;
+    if (label.contains('cool')) return Colors.blue.shade300;
+    if (label.contains('work')) return Colors.deepOrange;
+    if (label.contains('rest')) return Colors.green.shade400;
+    return colorScheme.primary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalDuration =
+        segments.fold<int>(0, (sum, s) => sum + s.durationSeconds);
+    if (totalDuration == 0) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: SizedBox(
+        height: 24,
+        child: Row(
+          children: segments.map((segment) {
+            final fraction = segment.durationSeconds / totalDuration;
+            return Expanded(
+              flex: (fraction * 1000).round(),
+              child: Tooltip(
+                message: '${segment.label ?? "Segment"}: '
+                    '${formatDuration(segment.durationSeconds)}'
+                    ' - ${segment.targetBpm.round()} bpm',
+                child: Container(
+                  color: _colorForSegment(segment, colorScheme),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 12 in progress (Taste Profile). Plan 01 complete, Plan 02 next (UI).
+**Current focus:** Phase 12 complete (Taste Profile). Ready for Phase 13 (Playlist Generation).
 
 ## Current Position
 
 Phase: 12 of 15 (Taste Profile)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-05 -- Completed 12-01-PLAN.md (Taste Profile domain/persistence/provider)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-05 -- Completed 12-02-PLAN.md (Taste Profile UI screen)
 
-Progress: [██░░░░░░░░] 22% (2/9 plans in v1.0)
+Progress: [███░░░░░░░] 33% (3/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12 (10 from v0.1 + 2 from v1.0)
+- Total plans completed: 13 (10 from v0.1 + 3 from v1.0)
 - Average duration: 7m
 - Total execution time: 1.2 hours
 
@@ -37,10 +37,10 @@ Progress: [██░░░░░░░░] 22% (2/9 plans in v1.0)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 11 | 1/1 | 1m | 1m |
-| 12 | 1/2 | 2m | 2m |
+| 12 | 2/2 | 4m | 2m |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (3m), 08-02 (4m), 11-01 (1m), 12-01 (2m)
+- Last 5 plans: 08-02 (4m), 11-01 (1m), 12-01 (2m), 12-02 (2m)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -59,11 +59,15 @@ Recent decisions affecting current work:
 - **[11-01]** Auth files left dormant (not deleted) in lib/features/auth/
 - **[12-01]** RunningGenre enum names align with Spotify genre seeds for future API integration
 - **[12-01]** addArtist returns bool for UI rejection feedback; case-insensitive dedup preserves original casing
+- **[12-02]** Local UI state pattern for TasteProfileScreen: genres/artists/energy in State class, synced to notifier only on save
+- **[12-02]** FilterChip (not ChoiceChip) for multi-select genre picking; TextField hidden at max artists
 
 ### Pending Todos
 
 - **Manual UI verification:** Phase 8 structured run types (saved to 08-02-MANUAL-TEST.md)
+- **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, persistence)
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
+- **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
 
 ### Blockers/Concerns
 
@@ -73,5 +77,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 12-01-PLAN.md (Taste Profile domain model) -- Ready for 12-02 (UI)
+Stopped at: Completed 12-02-PLAN.md (Taste Profile UI) -- Phase 12 complete, ready for Phase 13
 Resume file: None

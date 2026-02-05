@@ -12,7 +12,7 @@ This roadmap delivers a BPM-matched running playlist generator in 9 phases, prog
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Project Foundation** - Flutter project skeleton running on web, Android, and iOS
+- [x] **Phase 1: Project Foundation** - Flutter project skeleton running on web, Android, and iOS
 - [ ] **Phase 2: Spotify Authentication** - Users can log in via Spotify and maintain sessions
 - [ ] **Phase 3: BPM Data Pipeline** - External BPM lookup and caching validated and operational
 - [ ] **Phase 4: Taste Profile** - Users can import and customize their music preferences
@@ -37,8 +37,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Flutter project creation with dependencies, linting, architecture, and navigation
-- [ ] 01-02-PLAN.md — Supabase connection, platform config, and cross-platform verification
+- [x] 01-01-PLAN.md — Flutter project creation with dependencies, linting, architecture, and navigation
+- [x] 01-02-PLAN.md — Supabase connection, platform config, and cross-platform verification
 
 ### Phase 2: Spotify Authentication
 **Goal**: Users can securely log in with their Spotify account and stay logged in across app restarts
@@ -165,7 +165,7 @@ Note: Phases 3, 4, and 5 can execute in parallel after Phase 2 (or Phase 1 for P
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Foundation | 0/TBD | Not started | - |
+| 1. Project Foundation | 2/2 | Complete | 2026-02-05 |
 | 2. Spotify Authentication | 0/TBD | Not started | - |
 | 3. BPM Data Pipeline | 0/TBD | Not started | - |
 | 4. Taste Profile | 0/TBD | Not started | - |

@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 1 - Project Foundation
+**Current focus:** Phase 1 complete, ready for Phase 2 (Spotify Authentication)
 
 ## Current Position
 
 Phase: 1 of 9 (Project Foundation)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-01 — Completed 01-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-05 — Completed 01-02-PLAN.md
 
-Progress: [█░░░░░░░░░] ~5%
+Progress: [██░░░░░░░░░░░░░░░] ~12% (2/17 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 16m
-- Total execution time: 0.27 hours
+- Total plans completed: 2
+- Average duration: 18m
+- Total execution time: 0.60 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 1/2 | 16m | 16m |
+| 01 | 2/2 | 36m | 18m |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (16m)
-- Trend: baseline
+- Last 5 plans: 01-01 (16m), 01-02 (20m)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -48,6 +48,7 @@ Recent decisions affecting current work:
 - **[01-01]** Used Riverpod 2.x stack (not 3.x) for code-gen compatibility
 - **[01-01]** Manual Riverpod providers (not @riverpod code-gen) due to Dart 3.10 analyzer_plugin incompatibility
 - **[01-01]** riverpod_lint removed due to same Dart 3.10 incompatibility
+- **[01-02]** Used Supabase publishable key format (sb_publishable_xxx) matching current dashboard output
 
 ### Pending Todos
 
@@ -61,6 +62,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-01
-Stopped at: Plan 01-02 checkpoint — waiting for user to verify app on 3 platforms + Supabase
-Resume file: .planning/phases/01-project-foundation/.continue-here.md
+Last session: 2026-02-05
+Stopped at: Completed 01-02-PLAN.md — Phase 1 complete
+Resume file: None

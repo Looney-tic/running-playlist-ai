@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Milestone v1.0 started — defining requirements and roadmap for no-Spotify build
+**Current focus:** Phase 11 - Auth Cleanup (v1.0 milestone)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-05 — Milestone v1.0 started (no-Spotify pivot)
+Phase: 11 of 15 (Auth Cleanup)
+Plan: 0 of 1 in current phase
+Status: Ready to plan
+Last activity: 2026-02-05 -- v1.0 roadmap created, ready to begin Phase 11
 
-Progress: [██████████░░░░░░░] ~59% (10/17 plans from v0.1)
+Progress: [░░░░░░░░░░] 0% (0/9 plans in v1.0)
 
 ## Performance Metrics
 
@@ -28,7 +28,6 @@ Progress: [██████████░░░░░░░] ~59% (10/17 plan
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 2/2 | 36m | 18m |
-| 02 | 1/3 | 4m | 4m |
 | 05 | 2/2 | 9m | 5m |
 | 06 | 2/2 | 8m | 4m |
 | 08 | 2/2 | 7m | 4m |
@@ -46,20 +45,9 @@ Progress: [██████████░░░░░░░] ~59% (10/17 plan
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- **[v1.0 pivot]** Build without Spotify integration — Developer Dashboard blocked, questionnaire taste profile better for running
-- **[v1.0 pivot]** GetSongBPM API for BPM data — Spotify audio-features deprecated Nov 2024
-- **[v1.0 pivot]** `http` package for HTTP client — simple GET requests, Dart team maintained
-- **[v1.0 pivot]** `url_launcher` for external play links — open songs in Spotify/YouTube browser
-- Supabase chosen as backend (research recommendation: relational data fits user-song-playlist model)
-- **[01-01]** Used Riverpod 2.x stack (not 3.x) for code-gen compatibility
-- **[01-01]** Manual Riverpod providers (not @riverpod code-gen) due to Dart 3.10 analyzer_plugin incompatibility
-- **[05-01]** Pure domain logic pattern: zero Flutter imports, static methods on calculator class
-- **[05-02]** Pace input changed from text field to dropdown (3:00-10:00 in 15s increments)
-- **[06-01]** Segment-based RunPlan model: steady run = 1 segment, extends to intervals without restructuring
-- **[06-01]** Calibrated cadence always overrides formula-based BPM in RunPlanCalculator.targetBpm
-- **[06-02]** Single active run plan stored in SharedPreferences (one plan at a time)
-- **[08-01]** Rest after every work interval (including last) before cool-down
-- **[08-02]** SegmentedButton<RunType> for run type selection (Material 3 standard)
+- **[v1.0 pivot]** Build without Spotify integration -- questionnaire taste profile, GetSongBPM for BPM data
+- **[v1.0 pivot]** `http` package for HTTP client, `url_launcher` for external play links
+- **[v1.0 pivot]** SharedPreferences for all local persistence (taste profile, BPM cache, playlist history)
 
 ### Pending Todos
 
@@ -68,12 +56,11 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- **RESOLVED:** Spotify Developer Dashboard blocked — pivoted to no-Spotify approach
-- GetSongBPM API rate limits and coverage gaps unknown until BPM pipeline validation
+- GetSongBPM API rate limits and coverage gaps unknown until Phase 13 validation
 - build_runner code-gen partially broken with Dart 3.10 (monitor package updates)
 
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Milestone v1.0 started, defining requirements and roadmap
+Stopped at: v1.0 roadmap created, ready to plan Phase 11
 Resume file: None

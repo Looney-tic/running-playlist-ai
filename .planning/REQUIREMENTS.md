@@ -68,12 +68,12 @@ Deferred to future milestones.
 
 | Feature | Reason |
 |---------|--------|
-| Built-in music player | Use Spotify/YouTube for playback — no engineering cost, better UX |
-| Real-time cadence detection | Pre-generate playlists instead — works with any client |
-| GPS run tracking | Strava/Nike Run Club handle this — not our domain |
+| Built-in music player | Use Spotify/YouTube for playback -- no engineering cost, better UX |
+| Real-time cadence detection | Pre-generate playlists instead -- works with any client |
+| GPS run tracking | Strava/Nike Run Club handle this -- not our domain |
 | Heart rate integration | Cadence/pace is sufficient for BPM matching |
 | Social features | Keep single-player for v1.0 |
-| Audio tempo manipulation | Match native BPM instead — avoid DSP complexity |
+| Audio tempo manipulation | Match native BPM instead -- avoid DSP complexity |
 | Spotify API integration | Deferred to v2; dashboard blocked and questionnaire approach is better for running taste |
 
 ## Traceability
@@ -106,4 +106,4 @@ Deferred to future milestones.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after milestone v1.0 roadmap creation*
+*Last updated: 2026-02-05 after v1.0 roadmap creation*

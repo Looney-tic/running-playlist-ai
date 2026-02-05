@@ -9,6 +9,7 @@ import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/providers/bpm_lookup_providers.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist_generator.dart';
+import 'package:running_playlist_ai/features/playlist/providers/playlist_history_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
@@ -97,6 +98,11 @@ class PlaylistGenerationNotifier
 
       if (!mounted) return;
       state = PlaylistGenerationState.loaded(playlist);
+
+      // Auto-save to history
+      unawaited(
+        ref.read(playlistHistoryProvider.notifier).addPlaylist(playlist),
+      );
     } on SocketException {
       if (!mounted) return;
       state = const PlaylistGenerationState.error(

@@ -113,10 +113,11 @@ Plans:
   1. User enters distance and pace for a steady run
   2. App calculates run duration and target BPM from cadence
   3. Run plan is saved and available for playlist generation
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — TDD: Run plan domain model and calculator with unit tests (data classes, duration/BPM computation)
+- [ ] 06-02-PLAN.md — Persistence, providers, UI screen, router integration, and home navigation
 
 ### Phase 7: Playlist Generation
 **Goal**: Users get a complete BPM-matched playlist for their run, exported directly to their Spotify account
@@ -192,7 +193,7 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | 3. BPM Data Pipeline | 0/TBD | Not started | - |
 | 4. Taste Profile | 0/TBD | Not started | - |
 | 5. Stride & Cadence | 2/2 | Complete | 2026-02-05 |
-| 6. Steady Run Planning | 0/TBD | Not started | - |
+| 6. Steady Run Planning | 0/2 | Not started | - |
 | 7. Playlist Generation | 0/TBD | Not started | - |
 | 8. Structured Run Types | 0/TBD | Not started | - |
 | 9. Playlist History | 0/TBD | Not started | - |

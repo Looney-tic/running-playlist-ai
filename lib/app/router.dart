@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/home/presentation/home_screen.dart';
+import 'package:running_playlist_ai/features/playlist/presentation/playlist_history_detail_screen.dart';
+import 'package:running_playlist_ai/features/playlist/presentation/playlist_history_screen.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_screen.dart';
 import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
@@ -41,24 +42,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/playlist-history',
-        builder: (context, state) =>
-            const _ComingSoonScreen(title: 'Playlist History'),
+        builder: (context, state) => const PlaylistHistoryScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return PlaylistHistoryDetailScreen(playlistId: id);
+            },
+          ),
+        ],
       ),
     ],
   );
 });
-
-class _ComingSoonScreen extends StatelessWidget {
-  const _ComingSoonScreen({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: const Center(
-        child: Text('Coming soon', style: TextStyle(fontSize: 18)),
-      ),
-    );
-  }
-}

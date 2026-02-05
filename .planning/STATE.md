@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 13 in progress (BPM Data Pipeline). Plan 01 complete, Plan 02 next.
+**Current focus:** Phase 13 complete (BPM Data Pipeline). Ready for Phase 14 (Playlist Generation).
 
 ## Current Position
 
 Phase: 13 of 15 (BPM Data Pipeline)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-05 -- Completed 13-01-PLAN.md (BPM domain models, API client, tests)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-05 -- Completed 13-02-PLAN.md (BPM cache, lookup notifier, providers)
 
-Progress: [████░░░░░░] 44% (4/9 plans in v1.0)
+Progress: [█████░░░░░] 56% (5/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14 (10 from v0.1 + 4 from v1.0)
+- Total plans completed: 15 (10 from v0.1 + 5 from v1.0)
 - Average duration: 7m
-- Total execution time: 1.3 hours
+- Total execution time: 1.35 hours
 
 **By Phase (v0.1):**
 
@@ -38,11 +38,11 @@ Progress: [████░░░░░░] 44% (4/9 plans in v1.0)
 |-------|-------|-------|----------|
 | 11 | 1/1 | 1m | 1m |
 | 12 | 2/2 | 4m | 2m |
-| 13 | 1/2 | 4m | 4m |
+| 13 | 2/2 | 7m | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 11-01 (1m), 12-01 (2m), 12-02 (2m), 13-01 (4m)
-- Trend: stable (13-01 slightly longer due to 33 unit tests)
+- Last 5 plans: 12-01 (2m), 12-02 (2m), 13-01 (4m), 13-02 (3m)
+- Trend: stable at 2-4m per plan
 
 *Updated after each plan completion*
 
@@ -65,6 +65,9 @@ Recent decisions affecting current work:
 - **[13-01]** toJson excludes matchType to avoid cache key collisions (assigned at load time by notifier)
 - **[13-01]** BpmMatcher bounds: minQueryBpm=40, maxQueryBpm=300 for practical API coverage
 - **[13-01]** http.Client constructor injection pattern for testability with MockClient
+- **[13-02]** Cache keyed by queried BPM (not target BPM) for reuse across different target lookups
+- **[13-02]** getSongBpmClientProvider reads API key from dotenv with empty string fallback
+- **[13-02]** Catch-all in BpmLookupNotifier produces generic user-facing error message
 
 ### Pending Todos
 
@@ -72,15 +75,15 @@ Recent decisions affecting current work:
 - **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, persistence)
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
-- **User setup:** Add GETSONGBPM_API_KEY to .env before Phase 13-02 integration testing
+- **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
 
 ### Blockers/Concerns
 
-- GetSongBPM API rate limits and coverage gaps unknown until Phase 13 validation
+- GetSongBPM API rate limits and coverage gaps unknown until runtime validation
 - build_runner code-gen partially broken with Dart 3.10 (monitor package updates)
 
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 13-01-PLAN.md (BPM domain models, API client, tests) -- ready for 13-02
+Stopped at: Completed 13-02-PLAN.md (BPM cache, lookup notifier, providers) -- Phase 13 complete, ready for Phase 14
 Resume file: None

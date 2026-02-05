@@ -33,8 +33,8 @@
 ### Run Planning
 
 - [ ] **RUN-01**: Create steady-pace run (distance + pace → single BPM target)
-- [ ] **RUN-02**: Create warm-up/cool-down run (ramping BPM at start/end)
-- [ ] **RUN-03**: Create interval training run (alternating fast/slow BPM segments)
+- [x] **RUN-02**: Create warm-up/cool-down run (ramping BPM at start/end)
+- [x] **RUN-03**: Create interval training run (alternating fast/slow BPM segments)
 
 ### Playlist Generation
 
@@ -96,8 +96,8 @@
 | BPM-02 | Phase 3 | Pending |
 | BPM-03 | Phase 7 | Pending |
 | RUN-01 | Phase 6 | Pending |
-| RUN-02 | Phase 8 | Pending |
-| RUN-03 | Phase 8 | Pending |
+| RUN-02 | Phase 8 | Complete |
+| RUN-03 | Phase 8 | Complete |
 | PLAY-01 | Phase 7 | Pending |
 | PLAY-02 | Phase 7 | Pending |
 | PLAY-03 | Phase 7 | Pending |

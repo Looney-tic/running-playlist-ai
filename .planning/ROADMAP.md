@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Stride & Cadence** - Users can determine their target cadence from pace and body metrics
 - [x] **Phase 6: Steady Run Planning** - Users can define a steady-pace run with calculated BPM target
 - [ ] **Phase 7: Playlist Generation** - Users get a BPM-matched playlist pushed to their Spotify account
-- [ ] **Phase 8: Structured Run Types** - Users can plan warm-up/cool-down and interval runs
+- [x] **Phase 8: Structured Run Types** - Users can plan warm-up/cool-down and interval runs
 - [ ] **Phase 9: Playlist History** - Users can view and reuse previously generated playlists
 - [ ] **Phase 10: Mobile Hardening** - App verified and polished on iOS and Android
 
@@ -147,8 +147,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — TDD: Calculator factory methods for warm-up/cool-down and interval plans
-- [ ] 08-02-PLAN.md — Run type selector UI, type-specific config forms, segment timeline, save logic
+- [x] 08-01-PLAN.md — TDD: Calculator factory methods for warm-up/cool-down and interval plans
+- [x] 08-02-PLAN.md — Run type selector UI, type-specific config forms, segment timeline, save logic
 
 ### Phase 9: Playlist History
 **Goal**: Users can revisit and reuse playlists they have previously generated
@@ -195,6 +195,6 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | 5. Stride & Cadence | 2/2 | Complete | 2026-02-05 |
 | 6. Steady Run Planning | 2/2 | Complete | 2026-02-05 |
 | 7. Playlist Generation | 0/TBD | Not started | - |
-| 8. Structured Run Types | 0/2 | Not started | - |
+| 8. Structured Run Types | 2/2 | Complete | 2026-02-05 |
 | 9. Playlist History | 0/TBD | Not started | - |
 | 10. Mobile Hardening | 0/TBD | Not started | - |

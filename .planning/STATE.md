@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 8 in progress (Structured Run Types). Plan 01 (domain) complete. Plan 02 (UI) next.
+**Current focus:** Phase 8 complete (Structured Run Types). Next: blocked phases (2→3→4→7) or done for now.
 
 ## Current Position
 
-Phase: 8 of 10 (Structured Run Types) -- IN PROGRESS
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-05 -- Completed 08-01-PLAN.md (warm-up/cool-down + interval plan factories)
+Phase: 8 of 10 (Structured Run Types) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: Complete
+Last activity: 2026-02-05 -- Completed 08-02-PLAN.md (structured run types UI)
 
-Progress: [█████████░░░░░░░░] ~53% (9/17 plans)
+Progress: [██████████░░░░░░░] ~59% (10/17 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 7m
-- Total execution time: 1.1 hours
+- Total execution time: 1.2 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [█████████░░░░░░░░] ~53% (9/17 plans
 | 02 | 1/3 | 4m | 4m |
 | 05 | 2/2 | 9m | 5m |
 | 06 | 2/2 | 8m | 4m |
-| 08 | 1/2 | 3m | 3m |
+| 08 | 2/2 | 7m | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (3m), 05-02 (6m), 06-01 (3m), 06-02 (5m), 08-01 (3m)
+- Last 5 plans: 05-02 (6m), 06-01 (3m), 06-02 (5m), 08-01 (3m), 08-02 (4m)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 - **[06-02]** Auth guard disabled entirely (return null) while Spotify Dashboard blocked
 - **[08-01]** Rest after every work interval (including last) before cool-down -- avoids BPM jump
 - **[08-01]** roundToDouble() for all derived BPMs (warm-up, cool-down, rest fractions)
+- **[08-02]** SegmentedButton<RunType> for run type selection (Material 3 standard)
+- **[08-02]** Colored segment timeline bar for structured run visualization
+- **[08-02]** Manual UI verification deferred (checklist saved to 08-02-MANUAL-TEST.md)
 
 ### Pending Todos
 
@@ -85,5 +88,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 08-01-PLAN.md. Next: 08-02 (structured run type UI).
+Stopped at: Phase 8 complete (both plans). Manual UI test pending (08-02-MANUAL-TEST.md).
 Resume file: None

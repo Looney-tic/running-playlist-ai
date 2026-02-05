@@ -56,7 +56,7 @@ Plans:
 - Integer phases (11, 12, 13, ...): Planned milestone work
 - Decimal phases (12.1, 12.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 11: Auth Cleanup** - Remove Spotify login, establish home hub navigation
+- [x] **Phase 11: Auth Cleanup** - Remove Spotify login, establish home hub navigation
 - [ ] **Phase 12: Taste Profile** - Users can define their running music preferences
 - [ ] **Phase 13: BPM Data Pipeline** - Discover songs by BPM via GetSongBPM API with caching
 - [ ] **Phase 14: Playlist Generation** - Users get a BPM-matched playlist for their run
@@ -75,7 +75,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 11-01: Remove Spotify auth UI, build home hub screen with feature navigation
+- [x] 11-01-PLAN.md -- Remove Spotify auth UI, build home hub screen with feature navigation
 
 ### Phase 12: Taste Profile
 **Goal**: Users can describe their running music taste through a questionnaire so the playlist generator knows what music to find
@@ -145,7 +145,7 @@ Note: Phases 11, 12, and 13 have no cross-dependencies. Phase 14 requires both 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 11. Auth Cleanup | 0/1 | Not started | - |
+| 11. Auth Cleanup | 1/1 | Complete | 2026-02-05 |
 | 12. Taste Profile | 0/2 | Not started | - |
 | 13. BPM Data Pipeline | 0/2 | Not started | - |
 | 14. Playlist Generation | 0/3 | Not started | - |

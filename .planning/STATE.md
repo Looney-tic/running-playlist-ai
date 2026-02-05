@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 11 - Auth Cleanup (v1.0 milestone)
+**Current focus:** Phase 11 complete (Auth Cleanup). Next: Phase 12 (Taste Profile).
 
 ## Current Position
 

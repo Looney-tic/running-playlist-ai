@@ -9,8 +9,8 @@ Requirements for milestone v1.0: Standalone Playlist Generator (no Spotify depen
 
 ### Auth Cleanup
 
-- [ ] **AUTH-10**: Spotify login removed from UI; app launches directly to home hub
-- [ ] **AUTH-11**: Home screen provides navigation to all features (stride, run plan, taste profile, playlist)
+- [x] **AUTH-10**: Spotify login removed from UI; app launches directly to home hub
+- [x] **AUTH-11**: Home screen provides navigation to all features (stride, run plan, taste profile, playlist)
 
 ### Taste Profile
 
@@ -80,8 +80,8 @@ Deferred to future milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-10 | Phase 11 | Pending |
-| AUTH-11 | Phase 11 | Pending |
+| AUTH-10 | Phase 11 | Complete |
+| AUTH-11 | Phase 11 | Complete |
 | TASTE-10 | Phase 12 | Pending |
 | TASTE-11 | Phase 12 | Pending |
 | TASTE-12 | Phase 12 | Pending |

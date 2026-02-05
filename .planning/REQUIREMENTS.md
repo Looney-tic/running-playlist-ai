@@ -21,10 +21,10 @@ Requirements for milestone v1.0: Standalone Playlist Generator (no Spotify depen
 
 ### BPM Data
 
-- [ ] **BPM-10**: App can discover songs by BPM value via GetSongBPM API
-- [ ] **BPM-11**: Previously looked-up BPM results load from local cache without API call
-- [ ] **BPM-12**: Songs at half or double target BPM are correctly identified as matches (85 BPM = 170 cadence)
-- [ ] **BPM-13**: BPM lookup handles API errors gracefully (shows message, doesn't crash)
+- [x] **BPM-10**: App can discover songs by BPM value via GetSongBPM API
+- [x] **BPM-11**: Previously looked-up BPM results load from local cache without API call
+- [x] **BPM-12**: Songs at half or double target BPM are correctly identified as matches (85 BPM = 170 cadence)
+- [x] **BPM-13**: BPM lookup handles API errors gracefully (shows message, doesn't crash)
 
 ### Playlist Generation
 
@@ -86,10 +86,10 @@ Deferred to future milestones.
 | TASTE-11 | Phase 12 | Complete |
 | TASTE-12 | Phase 12 | Complete |
 | TASTE-13 | Phase 12 | Complete |
-| BPM-10 | Phase 13 | Pending |
-| BPM-11 | Phase 13 | Pending |
-| BPM-12 | Phase 13 | Pending |
-| BPM-13 | Phase 13 | Pending |
+| BPM-10 | Phase 13 | Complete |
+| BPM-11 | Phase 13 | Complete |
+| BPM-12 | Phase 13 | Complete |
+| BPM-13 | Phase 13 | Complete |
 | PLAY-10 | Phase 14 | Pending |
 | PLAY-11 | Phase 14 | Pending |
 | PLAY-12 | Phase 14 | Pending |
@@ -106,4 +106,4 @@ Deferred to future milestones.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after v1.0 roadmap creation*
+*Last updated: 2026-02-05 after Phase 13 completion*

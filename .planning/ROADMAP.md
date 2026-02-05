@@ -78,11 +78,11 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
   3. No two consecutive songs in a generated playlist are by the same artist
   4. Warm-up segments contain lower-energy songs and sprint segments contain higher-energy songs without manual user intervention
   5. A user with "chill" energy preference gets noticeably different song rankings than a user with "intense" preference
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
+- [ ] 16-01-PLAN.md -- TDD: SongQualityScorer with composite scoring (danceability, energy, genre, artist diversity, BPM)
+- [ ] 16-02-PLAN.md -- Integration: wire scorer into PlaylistGenerator, extend BpmSong/PlaylistSong models
 
 #### Phase 17: Curated Running Songs
 **Goal**: App includes a curated dataset of verified-good running songs that boosts playlist quality while still including non-curated discoveries

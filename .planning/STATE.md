@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 14 in progress (Playlist Generation). Plan 14-01 complete, ready for 14-02.
+**Current focus:** Phase 14 in progress (Playlist Generation). Plans 14-01 and 14-02 complete, ready for 14-03.
 
 ## Current Position
 
 Phase: 14 of 15 (Playlist Generation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-05 -- Completed 14-01-PLAN.md (playlist domain models + algorithm + tests)
+Last activity: 2026-02-05 -- Completed 14-02-PLAN.md (providers + platform config)
 
-Progress: [██████░░░░] 67% (6/9 plans in v1.0)
+Progress: [███████░░░] 78% (7/9 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16 (10 from v0.1 + 6 from v1.0)
+- Total plans completed: 17 (10 from v0.1 + 7 from v1.0)
 - Average duration: 7m
-- Total execution time: 1.47 hours
+- Total execution time: 1.57 hours
 
 **By Phase (v0.1):**
 
@@ -39,10 +39,10 @@ Progress: [██████░░░░] 67% (6/9 plans in v1.0)
 | 11 | 1/1 | 1m | 1m |
 | 12 | 2/2 | 4m | 2m |
 | 13 | 2/2 | 7m | 4m |
-| 14 | 1/3 | 7m | 7m |
+| 14 | 2/3 | 13m | 7m |
 
 **Recent Trend:**
-- Last 5 plans: 12-02 (2m), 13-01 (4m), 13-02 (3m), 14-01 (7m)
+- Last 5 plans: 13-01 (4m), 13-02 (3m), 14-01 (7m), 14-02 (6m)
 - Trend: stable at 3-7m per plan
 
 *Updated after each plan completion*
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - **[14-01]** PlaylistSong.toJson includes matchType (unlike BpmSong) -- display attribute in playlist context
 - **[14-01]** PlaylistGenerator.generate() param order: required (runPlan, songsByBpm) before optional (tasteProfile, random)
 - **[14-01]** Generator skips empty segments instead of crashing on clamp(1, 0)
+- **[14-02]** PlaylistGenerationNotifier uses GetSongBpmClient + BpmCachePreferences directly (not BpmLookupNotifier) for batch multi-BPM fetching
+- **[14-02]** Pre-populate SharedPreferences mock values in tests for reliable notifier loading
+- **[14-02]** on Exception catch-all instead of bare catch for very_good_analysis compliance
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-05T18:22:18Z
-Stopped at: Completed 14-01-PLAN.md (playlist domain models + algorithm + tests) -- Ready for 14-02
+Last session: 2026-02-05T18:31:00Z
+Stopped at: Completed 14-02-PLAN.md (providers + platform config) -- Ready for 14-03
 Resume file: None

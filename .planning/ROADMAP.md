@@ -120,9 +120,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 14-01: Playlist generation algorithm (BPM matching + taste filtering + segment assignment + duration fitting)
-- [ ] 14-02: Playlist generation UI (trigger from run plan, loading state, playlist display with song details)
-- [ ] 14-03: External play links (url_launcher for Spotify/YouTube) and clipboard copy
+- [ ] 14-01-PLAN.md -- Domain models (Playlist, PlaylistSong, SongLinkBuilder), playlist generation algorithm, and unit tests
+- [ ] 14-02-PLAN.md -- url_launcher dependency, Android manifest, PlaylistGenerationNotifier with batch BPM fetching, providers, and unit tests
+- [ ] 14-03-PLAN.md -- PlaylistScreen UI (generation trigger, segment-grouped display, external links, clipboard copy) and router update
 
 ### Phase 15: Playlist History
 **Goal**: Users can save generated playlists and come back to view or manage them later

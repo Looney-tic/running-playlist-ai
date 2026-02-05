@@ -31,6 +31,7 @@ class BpmSong {
     this.artistUri,
     this.albumTitle,
     this.matchType = BpmMatchType.exact,
+    this.danceability,
   });
 
   /// Deserializes from our local JSON format (cache / persistence).
@@ -46,6 +47,7 @@ class BpmSong {
       matchType: json['matchType'] != null
           ? BpmMatchType.fromJson(json['matchType'] as String)
           : BpmMatchType.exact,
+      danceability: (json['danceability'] as num?)?.toInt(),
     );
   }
 
@@ -68,6 +70,8 @@ class BpmSong {
       artistUri: artist['uri'] as String?,
       albumTitle: album?['title'] as String?,
       matchType: matchType,
+      danceability:
+          int.tryParse(json['danceability']?.toString() ?? ''),
     );
   }
 
@@ -79,6 +83,12 @@ class BpmSong {
   final String? artistUri;
   final String? albumTitle;
   final BpmMatchType matchType;
+
+  /// Optional danceability score (0-100) from the API.
+  ///
+  /// May be null if the API endpoint does not include this field.
+  /// Used by SongQualityScorer for composite quality scoring.
+  final int? danceability;
 
   /// Serializes to our local JSON format for cache / persistence.
   ///
@@ -95,6 +105,7 @@ class BpmSong {
         'songUri': songUri,
         'artistUri': artistUri,
         'albumTitle': albumTitle,
+        if (danceability != null) 'danceability': danceability,
       };
 
   /// Creates a copy with a different [matchType].
@@ -107,5 +118,6 @@ class BpmSong {
         artistUri: artistUri,
         albumTitle: albumTitle,
         matchType: type,
+        danceability: danceability,
       );
 }

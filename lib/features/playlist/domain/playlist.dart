@@ -19,6 +19,8 @@ class PlaylistSong {
     this.songUri,
     this.spotifyUrl,
     this.youtubeUrl,
+    this.runningQuality,
+    this.isEnriched = false,
   });
 
   factory PlaylistSong.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,8 @@ class PlaylistSong {
       songUri: json['songUri'] as String?,
       spotifyUrl: json['spotifyUrl'] as String?,
       youtubeUrl: json['youtubeUrl'] as String?,
+      runningQuality: (json['runningQuality'] as num?)?.toInt(),
+      isEnriched: json['isEnriched'] as bool? ?? false,
     );
   }
 
@@ -45,6 +49,17 @@ class PlaylistSong {
   final String? spotifyUrl;
   final String? youtubeUrl;
 
+  /// Composite running quality score (1-31 range) from SongQualityScorer.
+  ///
+  /// Null for playlists generated before quality scoring was introduced.
+  final int? runningQuality;
+
+  /// Whether danceability data was available during quality scoring.
+  ///
+  /// True means the score includes real danceability data; false means
+  /// the score used neutral defaults.
+  final bool isEnriched;
+
   Map<String, dynamic> toJson() => {
         'title': title,
         'artistName': artistName,
@@ -55,6 +70,8 @@ class PlaylistSong {
         'songUri': songUri,
         'spotifyUrl': spotifyUrl,
         'youtubeUrl': youtubeUrl,
+        if (runningQuality != null) 'runningQuality': runningQuality,
+        if (isEnriched) 'isEnriched': isEnriched,
       };
 }
 

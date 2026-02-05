@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 2 in progress (Spotify Authentication) -- Dart auth layer complete, platform config next
+**Current focus:** Phase 2 blocked (Spotify Developer Dashboard unavailable) -- skipping to Phase 5 (Stride & Cadence)
 
 ## Current Position
 
 Phase: 2 of 10 (Spotify Authentication)
-Plan: 1 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-05 -- Completed 02-01-PLAN.md
+Plan: 2 of 2 in current phase (02-02 blocked at checkpoint)
+Status: Blocked -- external dependency
+Last activity: 2026-02-05 -- 02-02 Task 1 complete, checkpoint blocked by Spotify Dashboard
 
 Progress: [███░░░░░░░░░░░░░░] ~18% (3/17 plans)
 
@@ -58,10 +58,11 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- **Phase 2 checkpoint:** Verify Spotify OAuth end-to-end (02-02 Task 2) when Spotify Developer Dashboard becomes available again. All code is written and committed — only needs dashboard config + human verification.
 
 ### Blockers/Concerns
 
+- **BLOCKER:** Spotify Developer Dashboard not accepting new app integrations (as of 2026-02-05). Phase 2 OAuth verification blocked. Retry periodically.
 - Spotify extended access requires 250K MAU + registered business. App limited to 25 users in dev mode. Apply early.
 - GetSongBPM API rate limits and coverage gaps unknown until Phase 3 validation.
 - build_runner code-gen partially broken with Dart 3.10 (riverpod_generator fails, freezed untested). Monitor package updates.
@@ -69,5 +70,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 02-01-PLAN.md -- Plan 1 of Phase 2 done
+Stopped at: Phase 2 blocked at 02-02 checkpoint (Spotify Dashboard unavailable). Skipping to Phase 5.
 Resume file: None

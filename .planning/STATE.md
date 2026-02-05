@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 12 complete (Taste Profile). Ready for Phase 13 (Playlist Generation).
+**Current focus:** Phase 12 complete (Taste Profile). Next: Phase 13 (BPM Data Pipeline).
 
 ## Current Position
 

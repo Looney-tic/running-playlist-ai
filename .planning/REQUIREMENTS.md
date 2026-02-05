@@ -14,10 +14,10 @@ Requirements for milestone v1.0: Standalone Playlist Generator (no Spotify depen
 
 ### Taste Profile
 
-- [ ] **TASTE-10**: User can select 1-5 preferred running genres from a curated list
-- [ ] **TASTE-11**: User can add up to 10 favorite artists for running music
-- [ ] **TASTE-12**: User can set energy level preference (chill, balanced, intense)
-- [ ] **TASTE-13**: Taste profile persists across app restarts
+- [x] **TASTE-10**: User can select 1-5 preferred running genres from a curated list
+- [x] **TASTE-11**: User can add up to 10 favorite artists for running music
+- [x] **TASTE-12**: User can set energy level preference (chill, balanced, intense)
+- [x] **TASTE-13**: Taste profile persists across app restarts
 
 ### BPM Data
 
@@ -82,10 +82,10 @@ Deferred to future milestones.
 |-------------|-------|--------|
 | AUTH-10 | Phase 11 | Complete |
 | AUTH-11 | Phase 11 | Complete |
-| TASTE-10 | Phase 12 | Pending |
-| TASTE-11 | Phase 12 | Pending |
-| TASTE-12 | Phase 12 | Pending |
-| TASTE-13 | Phase 12 | Pending |
+| TASTE-10 | Phase 12 | Complete |
+| TASTE-11 | Phase 12 | Complete |
+| TASTE-12 | Phase 12 | Complete |
+| TASTE-13 | Phase 12 | Complete |
 | BPM-10 | Phase 13 | Pending |
 | BPM-11 | Phase 13 | Pending |
 | BPM-12 | Phase 13 | Pending |

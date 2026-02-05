@@ -135,7 +135,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md -- Domain model extensions (id, distanceKm, paceMinPerKm), persistence, history provider, auto-save hook, and unit tests
+- [x] 15-01-PLAN.md -- Domain model extensions (id, distanceKm, paceMinPerKm), persistence, history provider, auto-save hook, and unit tests
 - [ ] 15-02-PLAN.md -- History list screen, detail screen, shared widget extraction (SegmentHeader, SongTile), and router update
 
 ## Progress
@@ -150,4 +150,4 @@ Note: Phases 11, 12, and 13 have no cross-dependencies. Phase 14 requires both 1
 | 12. Taste Profile | 2/2 | Complete | 2026-02-05 |
 | 13. BPM Data Pipeline | 2/2 | Complete | 2026-02-05 |
 | 14. Playlist Generation | 3/3 | Complete | 2026-02-05 |
-| 15. Playlist History | 0/2 | Not started | - |
+| 15. Playlist History | 1/2 | In progress | - |

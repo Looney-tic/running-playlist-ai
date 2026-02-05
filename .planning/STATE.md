@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 14 complete (Playlist Generation). All 3 plans delivered. Ready for Phase 15 (Playlist History).
+**Current focus:** Phase 15 in progress (Playlist History). Plan 15-01 complete, 15-02 remaining.
 
 ## Current Position
 
-Phase: 14 of 15 (Playlist Generation)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 -- Completed 14-03-PLAN.md (PlaylistScreen UI + router)
+Phase: 15 of 15 (Playlist History)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-05 -- Completed 15-01-PLAN.md (playlist history data layer)
 
-Progress: [████████░░] 89% (8/9 plans in v1.0)
+Progress: [█████████░] 90% (9/10 plans in v1.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18 (10 from v0.1 + 8 from v1.0)
+- Total plans completed: 19 (10 from v0.1 + 9 from v1.0)
 - Average duration: 6m
-- Total execution time: 1.60 hours
+- Total execution time: 1.65 hours
 
 **By Phase (v0.1):**
 
@@ -40,9 +40,10 @@ Progress: [████████░░] 89% (8/9 plans in v1.0)
 | 12 | 2/2 | 4m | 2m |
 | 13 | 2/2 | 7m | 4m |
 | 14 | 3/3 | 15m | 5m |
+| 15 | 1/2 | 3m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 13-02 (3m), 14-01 (7m), 14-02 (6m), 14-03 (2m)
+- Last 5 plans: 14-01 (7m), 14-02 (6m), 14-03 (2m), 15-01 (3m)
 - Trend: stable at 2-7m per plan
 
 *Updated after each plan completion*
@@ -79,6 +80,10 @@ Recent decisions affecting current work:
 - **[14-03]** Bottom sheet for song tap gives user choice of Spotify or YouTube (not direct link)
 - **[14-03]** No canLaunchUrl pre-check -- just call launchUrl and handle failure
 - **[14-03]** _ComingSoonScreen retained for /playlist-history (Phase 15)
+- **[15-01]** Playlist.id is nullable String? for backward compat with old JSON
+- **[15-01]** Auto-save uses unawaited() -- fire-and-forget after UI state is set
+- **[15-01]** Single-key JSON list pattern for bounded playlist history (not prefix-per-entry)
+- **[15-01]** History capped at 50 playlists, oldest trimmed on save
 
 ### Pending Todos
 
@@ -96,6 +101,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-05T18:35:00Z
-Stopped at: Completed 14-03-PLAN.md (PlaylistScreen UI + router) -- Phase 14 complete
+Last session: 2026-02-05T18:57:00Z
+Stopped at: Completed 15-01-PLAN.md (playlist history data layer)
 Resume file: None

@@ -126,10 +126,13 @@ class PlaylistGenerator {
     }
 
     return Playlist(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       songs: allPlaylistSongs,
       runPlanName: runPlan.name,
       totalDurationSeconds: runPlan.totalDurationSeconds,
       createdAt: DateTime.now(),
+      distanceKm: runPlan.distanceKm,
+      paceMinPerKm: runPlan.paceMinPerKm,
     );
   }
 

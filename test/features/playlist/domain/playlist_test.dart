@@ -122,6 +122,59 @@ void main() {
     });
   });
 
+  group('Playlist serialization with history fields', () {
+    test(
+        'toJson -> fromJson round-trip preserves id, distanceKm, paceMinPerKm',
+        () {
+      final original = Playlist(
+        id: '1738765200000',
+        songs: const [],
+        totalDurationSeconds: 1800,
+        createdAt: DateTime.utc(2026, 2, 5, 14, 30),
+        runPlanName: 'My 5K',
+        distanceKm: 5.0,
+        paceMinPerKm: 6.0,
+      );
+
+      final json = original.toJson();
+      final restored = Playlist.fromJson(json);
+
+      expect(restored.id, equals('1738765200000'));
+      expect(restored.distanceKm, equals(5.0));
+      expect(restored.paceMinPerKm, equals(6.0));
+    });
+
+    test(
+        'fromJson handles missing id, distanceKm, paceMinPerKm (backward compat)',
+        () {
+      final json = {
+        'songs': <dynamic>[],
+        'totalDurationSeconds': 600,
+        'createdAt': '2026-01-01T00:00:00.000Z',
+        'runPlanName': 'Old Playlist',
+      };
+
+      final playlist = Playlist.fromJson(json);
+      expect(playlist.id, isNull);
+      expect(playlist.distanceKm, isNull);
+      expect(playlist.paceMinPerKm, isNull);
+      expect(playlist.runPlanName, equals('Old Playlist'));
+    });
+
+    test('toJson omits null id, distanceKm, paceMinPerKm', () {
+      final playlist = Playlist(
+        songs: const [],
+        totalDurationSeconds: 600,
+        createdAt: DateTime.utc(2026),
+      );
+
+      final json = playlist.toJson();
+      expect(json.containsKey('id'), isFalse);
+      expect(json.containsKey('distanceKm'), isFalse);
+      expect(json.containsKey('paceMinPerKm'), isFalse);
+    });
+  });
+
   // -- Playlist.toClipboardText ---------------------------------------------
 
   group('Playlist.toClipboardText', () {

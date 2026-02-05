@@ -64,30 +64,42 @@ class Playlist {
     required this.songs,
     required this.totalDurationSeconds,
     required this.createdAt,
+    this.id,
     this.runPlanName,
+    this.distanceKm,
+    this.paceMinPerKm,
   });
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
     return Playlist(
+      id: json['id'] as String?,
       songs: (json['songs'] as List<dynamic>)
           .map((s) => PlaylistSong.fromJson(s as Map<String, dynamic>))
           .toList(),
       totalDurationSeconds: (json['totalDurationSeconds'] as num).toInt(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       runPlanName: json['runPlanName'] as String?,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      paceMinPerKm: (json['paceMinPerKm'] as num?)?.toDouble(),
     );
   }
 
+  final String? id;
   final List<PlaylistSong> songs;
   final String? runPlanName;
   final int totalDurationSeconds;
   final DateTime createdAt;
+  final double? distanceKm;
+  final double? paceMinPerKm;
 
   Map<String, dynamic> toJson() => {
+        if (id != null) 'id': id,
         'songs': songs.map((s) => s.toJson()).toList(),
         'totalDurationSeconds': totalDurationSeconds,
         'createdAt': createdAt.toIso8601String(),
         'runPlanName': runPlanName,
+        if (distanceKm != null) 'distanceKm': distanceKm,
+        if (paceMinPerKm != null) 'paceMinPerKm': paceMinPerKm,
       };
 
   /// Formats the playlist as copyable text for clipboard (PLAY-14).

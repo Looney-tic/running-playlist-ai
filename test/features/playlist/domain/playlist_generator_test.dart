@@ -188,6 +188,36 @@ void main() {
       },
     );
 
+    test('assigns id, distanceKm, and paceMinPerKm from run plan', () {
+      const plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 210,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      final songsByBpm = {
+        170: [_song()],
+      };
+
+      final playlist = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        random: Random(42),
+      );
+
+      expect(playlist.id, isNotNull);
+      expect(playlist.id, isNotEmpty);
+      expect(playlist.distanceKm, equals(5.0));
+      expect(playlist.paceMinPerKm, equals(6.0));
+    });
+
     test('preserves run plan name in playlist', () {
       const plan = RunPlan(
         type: RunType.steady,

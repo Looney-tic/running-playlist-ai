@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 1 complete, ready for Phase 2 (Spotify Authentication)
+**Current focus:** Phase 2 in progress (Spotify Authentication) -- Dart auth layer complete, platform config next
 
 ## Current Position
 
-Phase: 1 of 10 (Project Foundation)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 — Completed 01-02-PLAN.md
+Phase: 2 of 10 (Spotify Authentication)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-05 -- Completed 02-01-PLAN.md
 
-Progress: [██░░░░░░░░░░░░░░░] ~12% (2/17 plans)
+Progress: [███░░░░░░░░░░░░░░] ~18% (3/17 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 18m
-- Total execution time: 0.60 hours
+- Total plans completed: 3
+- Average duration: 13m
+- Total execution time: 0.67 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 2/2 | 36m | 18m |
+| 02 | 1/3 | 4m | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (16m), 01-02 (20m)
-- Trend: stable
+- Last 5 plans: 01-01 (16m), 01-02 (20m), 02-01 (4m)
+- Trend: accelerating
 
 *Updated after each plan completion*
 
@@ -44,12 +45,16 @@ Recent decisions affecting current work:
 
 - Supabase chosen as backend (research recommendation: relational data fits user-song-playlist model)
 - GetSongBPM as primary BPM source (Spotify Audio Features API deprecated Nov 2024)
-- BPM data pipeline is existential risk — validate in Phase 3 before building generation logic
+- BPM data pipeline is existential risk -- validate in Phase 3 before building generation logic
 - **[01-01]** Used Riverpod 2.x stack (not 3.x) for code-gen compatibility
 - **[01-01]** Manual Riverpod providers (not @riverpod code-gen) due to Dart 3.10 analyzer_plugin incompatibility
 - **[01-01]** riverpod_lint removed due to same Dart 3.10 incompatibility
 - **[01-02]** Used Supabase publishable key format (sb_publishable_xxx) matching current dashboard output
 - **[post-01]** Web-first development strategy: phases 3-9 test on Chrome only, Phase 10 added for mobile hardening. Exception: Phase 2 (OAuth) tests mobile too.
+- **[02-01]** AuthNotifier (ChangeNotifier) + GoRouter refreshListenable for reactive auth-guarded routing
+- **[02-01]** LaunchMode.externalApplication on mobile (never inAppWebView) per iOS redirect failure research
+- **[02-01]** All 6 Spotify scopes requested upfront to avoid re-authentication
+- **[02-01]** Zero manual navigation after login/logout -- GoRouter redirect handles all routing reactively
 
 ### Pending Todos
 
@@ -64,5 +69,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 01-02-PLAN.md — Phase 1 complete
+Stopped at: Completed 02-01-PLAN.md -- Plan 1 of Phase 2 done
 Resume file: None

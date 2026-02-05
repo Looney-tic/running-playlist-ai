@@ -64,7 +64,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 **Milestone Goal:** Make generated playlists genuinely great for running -- not just BPM-matched, but songs that are proven good running songs, matched to the user's taste, with frictionless stride adjustment and repeat generation.
 
-- [ ] **Phase 16: Scoring Foundation** - Composite quality scoring using danceability, genre, energy, and artist diversity
+- [x] **Phase 16: Scoring Foundation** - Composite quality scoring using danceability, genre, energy, and artist diversity
 - [ ] **Phase 17: Curated Running Songs** - Bundled dataset of verified running songs with remote update capability
 - [ ] **Phase 18: UX Refinements** - Cadence nudge, one-tap regeneration, quality indicators, and extended taste preferences
 
@@ -81,8 +81,8 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md -- TDD: SongQualityScorer with composite scoring (danceability, energy, genre, artist diversity, BPM)
-- [ ] 16-02-PLAN.md -- Integration: wire scorer into PlaylistGenerator, extend BpmSong/PlaylistSong models
+- [x] 16-01-PLAN.md -- TDD: SongQualityScorer with composite scoring (danceability, energy, genre, artist diversity, BPM)
+- [x] 16-02-PLAN.md -- Integration: wire scorer into PlaylistGenerator, extend BpmSong/PlaylistSong models
 
 #### Phase 17: Curated Running Songs
 **Goal**: App includes a curated dataset of verified-good running songs that boosts playlist quality while still including non-curated discoveries
@@ -129,6 +129,6 @@ Plans:
 | 13. BPM Pipeline | v1.0 | 2/2 | Complete | 2026-02-05 |
 | 14. Playlist Gen | v1.0 | 3/3 | Complete | 2026-02-05 |
 | 15. History | v1.0 | 2/2 | Complete | 2026-02-05 |
-| 16. Scoring Foundation | v1.1 | 0/? | Not started | - |
+| 16. Scoring Foundation | v1.1 | 2/2 | Complete | 2026-02-05 |
 | 17. Curated Songs | v1.1 | 0/? | Not started | - |
 | 18. UX Refinements | v1.1 | 0/? | Not started | - |

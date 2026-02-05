@@ -5,12 +5,12 @@
 
 ## Song Quality & Scoring
 
-- [ ] **QUAL-01**: App computes a runnability score for each song based on danceability, beat strength, and rhythm qualities from GetSongBPM data
-- [ ] **QUAL-02**: App parses danceability and acousticness from GetSongBPM `/song/` endpoint and caches results with existing TTL strategy
-- [ ] **QUAL-03**: Generated playlist ranks songs using composite score combining runnability, taste match (genre, artist, energy), and BPM accuracy as separate dimensions
-- [ ] **QUAL-04**: No artist appears in consecutive positions within a generated playlist
-- [ ] **QUAL-05**: Warm-up segments prefer lower-energy songs, sprint segments prefer highest-energy, cool-down segments prefer calmer songs — auto-mapped from segment type
-- [ ] **QUAL-06**: User's energy level preference (chill/balanced/intense) maps to preferred danceability ranges in song selection
+- [x] **QUAL-01**: App computes a runnability score for each song based on danceability, beat strength, and rhythm qualities from GetSongBPM data
+- [x] **QUAL-02**: App parses danceability and acousticness from GetSongBPM `/song/` endpoint and caches results with existing TTL strategy
+- [x] **QUAL-03**: Generated playlist ranks songs using composite score combining runnability, taste match (genre, artist, energy), and BPM accuracy as separate dimensions
+- [x] **QUAL-04**: No artist appears in consecutive positions within a generated playlist
+- [x] **QUAL-05**: Warm-up segments prefer lower-energy songs, sprint segments prefer highest-energy, cool-down segments prefer calmer songs — auto-mapped from segment type
+- [x] **QUAL-06**: User's energy level preference (chill/balanced/intense) maps to preferred danceability ranges in song selection
 
 ## Curated Running Songs
 
@@ -30,12 +30,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| QUAL-01 | Phase 16 | Pending |
-| QUAL-02 | Phase 16 | Pending |
-| QUAL-03 | Phase 16 | Pending |
-| QUAL-04 | Phase 16 | Pending |
-| QUAL-05 | Phase 16 | Pending |
-| QUAL-06 | Phase 16 | Pending |
+| QUAL-01 | Phase 16 | Complete |
+| QUAL-02 | Phase 16 | Complete |
+| QUAL-03 | Phase 16 | Complete |
+| QUAL-04 | Phase 16 | Complete |
+| QUAL-05 | Phase 16 | Complete |
+| QUAL-06 | Phase 16 | Complete |
 | CURA-01 | Phase 17 | Pending |
 | CURA-02 | Phase 17 | Pending |
 | CURA-03 | Phase 17 | Pending |

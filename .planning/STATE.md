@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality -- Phase 17: Taste Enhancement
+**Current focus:** v1.1 Experience Quality -- Phase 17: Curated Running Songs
 
 ## Current Position
 
-Phase: 16 of 18 (Scoring Foundation)
+Phase: 16 of 18 (Scoring Foundation) -- COMPLETE
 Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 -- Completed 16-02-PLAN.md (Scorer Integration)
+Status: Phase complete, verified (12/12 must-haves)
+Last activity: 2026-02-05 -- Phase 16 verified and complete
 
 Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████░░░░░░] 2/6
 
@@ -81,5 +81,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 16-02-PLAN.md -- Phase 16 Scoring Foundation complete
+Stopped at: Phase 16 Scoring Foundation complete and verified -- ready for Phase 17
 Resume file: None

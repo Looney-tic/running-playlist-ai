@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
+import 'package:running_playlist_ai/features/playlist/presentation/widgets/segment_header.dart';
+import 'package:running_playlist_ai/features/playlist/presentation/widgets/song_tile.dart';
 import 'package:running_playlist_ai/features/playlist/providers/playlist_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Screen for generating and displaying a BPM-matched playlist.
 ///
@@ -331,8 +331,8 @@ class _PlaylistView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (showSegmentHeader)
-                    _SegmentHeader(label: song.segmentLabel),
-                  _SongTile(song: song),
+                    SegmentHeader(label: song.segmentLabel),
+                  SongTile(song: song),
                 ],
               );
             },
@@ -340,126 +340,5 @@ class _PlaylistView extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Segment header row in the playlist list.
-class _SegmentHeader extends StatelessWidget {
-  const _SegmentHeader({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-}
-
-/// Individual song tile with tap-to-open external link.
-class _SongTile extends StatelessWidget {
-  const _SongTile({required this.song});
-
-  final PlaylistSong song;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        '${song.artistName}  ${_matchLabel(song.matchType)}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Text(
-        '${song.bpm} BPM',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      onTap: () => _showPlayOptions(context),
-    );
-  }
-
-  String _matchLabel(BpmMatchType type) {
-    switch (type) {
-      case BpmMatchType.exact:
-        return '';
-      case BpmMatchType.halfTime:
-        return '(half-time)';
-      case BpmMatchType.doubleTime:
-        return '(double-time)';
-    }
-  }
-
-  void _showPlayOptions(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                '${song.title} - ${song.artistName}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const Divider(height: 1),
-            if (song.spotifyUrl != null)
-              ListTile(
-                leading: const Icon(Icons.music_note),
-                title: const Text('Open in Spotify'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _launchUrl(context, song.spotifyUrl!);
-                },
-              ),
-            if (song.youtubeUrl != null)
-              ListTile(
-                leading: const Icon(Icons.play_circle_outline),
-                title: const Text('Open in YouTube Music'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _launchUrl(context, song.youtubeUrl!);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _launchUrl(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open link')),
-        );
-      }
-    }
   }
 }

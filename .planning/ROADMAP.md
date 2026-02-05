@@ -54,11 +54,11 @@ Plans:
   2. User closes and reopens the app and remains logged in
   3. User can log out and is returned to a logged-out state
   4. OAuth flow works correctly on web and at least one mobile platform (iOS or Android)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Auth repository, providers, auth-guarded router, login screen, and logout
+- [ ] 02-02-PLAN.md — Platform deep link configuration and end-to-end OAuth verification
 
 ### Phase 3: BPM Data Pipeline
 **Goal**: The app can reliably look up BPM for any song and cache results for fast future access
@@ -188,7 +188,7 @@ Phases 3-9 target web only (web-first strategy). Phase 10 verifies iOS/Android.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete | 2026-02-05 |
-| 2. Spotify Authentication | 0/TBD | Not started | - |
+| 2. Spotify Authentication | 0/2 | Not started | - |
 | 3. BPM Data Pipeline | 0/TBD | Not started | - |
 | 4. Taste Profile | 0/TBD | Not started | - |
 | 5. Stride & Cadence | 0/TBD | Not started | - |

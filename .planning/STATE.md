@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 15 complete (Playlist History). All v1.0 plans delivered. Ready for milestone completion.
+**Current focus:** v1.0 shipped. Ready for next milestone.
 
 ## Current Position
 
-Phase: 15 of 15 (Playlist History)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-05 -- Completed 15-02-PLAN.md (history UI screens + router)
+Phase: --
+Plan: --
+Status: Between milestones (v1.0 shipped, next milestone not started)
+Last activity: 2026-02-05 -- v1.0 Standalone Playlist Generator shipped
 
-Progress: [██████████] 100% (10/10 plans in v1.0)
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases)
 
 ## Performance Metrics
 
 **Velocity:**
 - Total plans completed: 20 (10 from v0.1 + 10 from v1.0)
 - Average duration: 6m
-- Total execution time: 1.75 hours
+- Total execution time: ~1.75 hours
 
 **By Phase (v0.1):**
 
@@ -42,39 +42,22 @@ Progress: [██████████] 100% (10/10 plans in v1.0)
 | 14 | 3/3 | 15m | 5m |
 | 15 | 2/2 | 6m | 3m |
 
-**Recent Trend:**
-- Last 5 plans: 14-02 (6m), 14-03 (2m), 15-01 (3m), 15-02 (3m)
-- Trend: stable at 2-7m per plan
-
-*Updated after each plan completion*
-
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- **[v1.0 pivot]** Build without Spotify integration -- questionnaire taste profile, GetSongBPM for BPM data
-- **[v1.0 pivot]** `http` package for HTTP client, `url_launcher` for external play links
-- **[v1.0 pivot]** SharedPreferences for all local persistence (taste profile, BPM cache, playlist history)
-- **[15-01]** Playlist.id is nullable String? for backward compat with old JSON
-- **[15-01]** Auto-save uses unawaited() -- fire-and-forget after UI state is set
-- **[15-01]** Single-key JSON list pattern for bounded playlist history (not prefix-per-entry)
-- **[15-01]** History capped at 50 playlists, oldest trimmed on save
-- **[15-02]** Extracted SegmentHeader and SongTile as shared widgets (not duplicated)
-- **[15-02]** Dismissible with confirmDismiss AlertDialog for delete (not undo SnackBar)
-- **[15-02]** Nested GoRoute /playlist-history/:id for detail navigation (not extra parameter)
+Full decision log in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-- **Manual UI verification:** Phase 8 structured run types (saved to 08-02-MANUAL-TEST.md)
+- **Manual UI verification:** Phase 8 structured run types
 - **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, persistence)
 - **Manual UI verification:** Playlist generation screen (all 5 states, song tap, clipboard copy)
 - **Manual UI verification:** Playlist history (list, detail, delete, auto-save)
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
+- **Documentation gap:** Phase 14 missing VERIFICATION.md
 
 ### Blockers/Concerns
 
@@ -83,6 +66,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-05T19:05:00Z
-Stopped at: Completed 15-02-PLAN.md (history UI screens + router) -- Phase 15 complete
+Last session: 2026-02-05
+Stopped at: v1.0 milestone completed and archived
 Resume file: None

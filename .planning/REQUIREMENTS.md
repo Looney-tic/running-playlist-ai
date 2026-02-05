@@ -1,116 +1,109 @@
 # Requirements: Running Playlist AI
 
-**Defined:** 2026-02-01
+**Defined:** 2026-02-05
 **Core Value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
 
-## v1 Requirements
+## v1.0 Requirements
 
-### Authentication
+Requirements for milestone v1.0: Standalone Playlist Generator (no Spotify dependency).
 
-- [ ] **AUTH-01**: User can log in via Spotify OAuth (PKCE flow)
-- [ ] **AUTH-02**: User session persists across app restarts
-- [ ] **AUTH-03**: User can log out
+### Auth Cleanup
+
+- [ ] **AUTH-10**: Spotify login removed from UI; app launches directly to home hub
+- [ ] **AUTH-11**: Home screen provides navigation to all features (stride, run plan, taste profile, playlist)
 
 ### Taste Profile
 
-- [ ] **TASTE-01**: Auto-import taste from Spotify top tracks and saved tracks
-- [ ] **TASTE-02**: User can select preferred running genres
-- [ ] **TASTE-03**: User can boost or exclude specific artists
-- [ ] **TASTE-04**: User can set energy level preference for running music
-
-### Stride & Cadence
-
-- [ ] **STRIDE-01**: Calculate cadence from target pace (min/km)
-- [ ] **STRIDE-02**: Improve stride estimate using user's height
-- [ ] **STRIDE-03**: Optional real-world calibration (count actual strides)
+- [ ] **TASTE-10**: User can select 1-5 preferred running genres from a curated list
+- [ ] **TASTE-11**: User can add up to 10 favorite artists for running music
+- [ ] **TASTE-12**: User can set energy level preference (chill, balanced, intense)
+- [ ] **TASTE-13**: Taste profile persists across app restarts
 
 ### BPM Data
 
-- [ ] **BPM-01**: Look up song BPM via external API (GetSongBPM/ReccoBeats)
-- [ ] **BPM-02**: Cache BPM data to avoid repeated lookups
-- [ ] **BPM-03**: Support half/double tempo matching (85 BPM song = 170 cadence)
-
-### Run Planning
-
-- [ ] **RUN-01**: Create steady-pace run (distance + pace → single BPM target)
-- [x] **RUN-02**: Create warm-up/cool-down run (ramping BPM at start/end)
-- [x] **RUN-03**: Create interval training run (alternating fast/slow BPM segments)
+- [ ] **BPM-10**: App can discover songs by BPM value via GetSongBPM API
+- [ ] **BPM-11**: Previously looked-up BPM results load from local cache without API call
+- [ ] **BPM-12**: Songs at half or double target BPM are correctly identified as matches (85 BPM = 170 cadence)
+- [ ] **BPM-13**: BPM lookup handles API errors gracefully (shows message, doesn't crash)
 
 ### Playlist Generation
 
-- [ ] **PLAY-01**: Auto-generate playlist matching BPM to cadence for full run duration
-- [ ] **PLAY-02**: User can swap individual songs with BPM-matched alternatives
-- [ ] **PLAY-03**: Create generated playlist on user's Spotify account
-- [ ] **PLAY-04**: Save and view previously generated playlists
+- [ ] **PLAY-10**: User triggers generation and receives a playlist covering full run duration with BPM-matched songs
+- [ ] **PLAY-11**: Generated playlist respects user's taste profile (genre and artist preferences)
+- [ ] **PLAY-12**: Each song shows title, artist, BPM, and segment assignment
+- [ ] **PLAY-13**: User can open any song via external link (Spotify or YouTube)
+- [ ] **PLAY-14**: User can copy the full playlist as text to clipboard
 
-### Cross-Platform
+### Playlist History
 
-- [x] **PLAT-01**: App works on Android
-- [x] **PLAT-02**: App works on iOS
-- [x] **PLAT-03**: App works on web
+- [ ] **HIST-01**: User can view a list of previously generated playlists
+- [ ] **HIST-02**: User can open a past playlist and see its tracks
+- [ ] **HIST-03**: User can delete a past playlist
 
 ## v2 Requirements
 
-### Music Services
+Deferred to future milestones.
 
-- **MUSIC-01**: Support Apple Music as alternative to Spotify
-- **MUSIC-02**: Support other streaming services
+### Spotify Integration
 
-### Social
+- **SPOT-01**: User can log in via Spotify OAuth (PKCE flow)
+- **SPOT-02**: User session persists across app restarts
+- **SPOT-03**: User can log out
+- **SPOT-04**: Auto-import taste from Spotify top tracks and saved tracks
+- **SPOT-05**: Export generated playlist to user's Spotify account
 
-- **SOCL-01**: Share playlists with other users in-app
-- **SOCL-02**: Community-curated running playlists
+### Advanced Features
 
-### Advanced Training
+- **ADV-01**: User can swap individual songs with BPM-matched alternatives
+- **ADV-02**: Song swap shows alternatives filtered by taste profile
+- **ADV-03**: Progressive overload (gradually increase cadence over weeks)
 
-- **TRAIN-01**: Import training plans from Strava/Garmin
-- **TRAIN-02**: Progressive overload (gradually increase cadence over weeks)
+### Mobile
+
+- **MOB-01**: All features verified on iOS
+- **MOB-02**: All features verified on Android
+- **MOB-03**: Platform-specific UI issues fixed (safe areas, status bar, back navigation)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Built-in music player | Use Spotify for playback — no engineering cost, better UX |
-| Real-time cadence detection | Pre-generate playlists instead — works with any Spotify client |
+| Built-in music player | Use Spotify/YouTube for playback — no engineering cost, better UX |
+| Real-time cadence detection | Pre-generate playlists instead — works with any client |
 | GPS run tracking | Strava/Nike Run Club handle this — not our domain |
 | Heart rate integration | Cadence/pace is sufficient for BPM matching |
-| Social features | Keep single-player for v1, use Spotify's built-in sharing |
-| Apple Music / other services | Spotify-only for v1, architecture allows future expansion |
-| Audio tempo manipulation | Match native BPM instead — avoid DSP complexity and patents |
+| Social features | Keep single-player for v1.0 |
+| Audio tempo manipulation | Match native BPM instead — avoid DSP complexity |
+| Spotify API integration | Deferred to v2; dashboard blocked and questionnaire approach is better for running taste |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| TASTE-01 | Phase 4 | Pending |
-| TASTE-02 | Phase 4 | Pending |
-| TASTE-03 | Phase 4 | Pending |
-| TASTE-04 | Phase 4 | Pending |
-| STRIDE-01 | Phase 5 | Pending |
-| STRIDE-02 | Phase 5 | Pending |
-| STRIDE-03 | Phase 5 | Pending |
-| BPM-01 | Phase 3 | Pending |
-| BPM-02 | Phase 3 | Pending |
-| BPM-03 | Phase 7 | Pending |
-| RUN-01 | Phase 6 | Pending |
-| RUN-02 | Phase 8 | Complete |
-| RUN-03 | Phase 8 | Complete |
-| PLAY-01 | Phase 7 | Pending |
-| PLAY-02 | Phase 7 | Pending |
-| PLAY-03 | Phase 7 | Pending |
-| PLAY-04 | Phase 9 | Pending |
-| PLAT-01 | Phase 1 | Complete |
-| PLAT-02 | Phase 1 | Complete |
-| PLAT-03 | Phase 1 | Complete |
+| AUTH-10 | Phase 11 | Pending |
+| AUTH-11 | Phase 11 | Pending |
+| TASTE-10 | Phase 12 | Pending |
+| TASTE-11 | Phase 12 | Pending |
+| TASTE-12 | Phase 12 | Pending |
+| TASTE-13 | Phase 12 | Pending |
+| BPM-10 | Phase 13 | Pending |
+| BPM-11 | Phase 13 | Pending |
+| BPM-12 | Phase 13 | Pending |
+| BPM-13 | Phase 13 | Pending |
+| PLAY-10 | Phase 14 | Pending |
+| PLAY-11 | Phase 14 | Pending |
+| PLAY-12 | Phase 14 | Pending |
+| PLAY-13 | Phase 14 | Pending |
+| PLAY-14 | Phase 14 | Pending |
+| HIST-01 | Phase 15 | Pending |
+| HIST-02 | Phase 15 | Pending |
+| HIST-03 | Phase 15 | Pending |
 
 **Coverage:**
-- v1 requirements: 23 total
-- Mapped to phases: 23
+- v1.0 requirements: 18 total
+- Mapped to phases: 18
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after roadmap creation*
+*Requirements defined: 2026-02-05*
+*Last updated: 2026-02-05 after milestone v1.0 roadmap creation*

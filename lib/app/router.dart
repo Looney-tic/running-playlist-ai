@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/home/presentation/home_screen.dart';
+import 'package:running_playlist_ai/features/playlist/presentation/playlist_screen.dart';
 import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
 import 'package:running_playlist_ai/features/stride/presentation/stride_screen.dart';
@@ -36,8 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/playlist',
-        builder: (context, state) =>
-            const _ComingSoonScreen(title: 'Generate Playlist'),
+        builder: (context, state) => const PlaylistScreen(),
       ),
       GoRoute(
         path: '/playlist-history',

@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 ## Current Position
 
-Phase: 16 of 18 (Scoring Foundation) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase complete, verified (12/12 must-haves)
-Last activity: 2026-02-05 -- Phase 16 verified and complete
+Phase: 17 of 18 (Curated Running Songs)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 17-01-PLAN.md (curated songs domain layer)
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████░░░░░░] 2/6
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [█████░░░░░] 3/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22 (10 from v0.1 + 10 from v1.0 + 2 from v1.1)
+- Total plans completed: 23 (10 from v0.1 + 10 from v1.0 + 3 from v1.1)
 - Average duration: 6m
-- Total execution time: ~1.9 hours
+- Total execution time: ~2.0 hours
 
 **By Phase (v0.1):**
 
@@ -47,6 +47,7 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████�
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 16 | 2/2 | 8m | 4m |
+| 17 | 1/2 | 3m | 3m |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ Full decision log in PROJECT.md Key Decisions table.
 - **Danceability parsed as int? from API:** Handles both string and int values, forward-compatible with endpoint availability
 - **Quality metadata on PlaylistSong:** runningQuality + isEnriched for future UI quality indicators
 - **Provider layer unchanged for scoring:** SongQualityScorer invoked inside PlaylistGenerator, not injected externally
+- **Curated bonus weight is +5:** Meaningful but not dominant vs artist match (+10); user taste still controls ranking
+- **Generator receives Set<String> not List<CuratedSong>:** Keeps PlaylistGenerator pure and decoupled from curated domain
+- **Lookup key format artist|title lowercase trimmed:** O(1) Set membership checks for cross-source matching
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-02-05
-Stopped at: Phase 16 Scoring Foundation complete and verified -- ready for Phase 17
+Last session: 2026-02-06
+Stopped at: Completed 17-01-PLAN.md -- ready for 17-02 (curated data layer)
 Resume file: None

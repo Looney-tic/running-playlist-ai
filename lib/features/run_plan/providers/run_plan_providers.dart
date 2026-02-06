@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/run_plan/data/run_plan_preferences.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
@@ -27,10 +29,20 @@ class RunPlanLibraryNotifier extends StateNotifier<RunPlanLibraryState> {
     _load();
   }
 
+  final Completer<void> _loadCompleter = Completer<void>();
+
+  /// Waits until the initial async load from preferences is complete.
+  /// Safe to call multiple times -- returns immediately if already loaded.
+  Future<void> ensureLoaded() => _loadCompleter.future;
+
   Future<void> _load() async {
-    final plans = await RunPlanPreferences.loadAll();
-    final selectedId = await RunPlanPreferences.loadSelectedId();
-    state = RunPlanLibraryState(plans: plans, selectedId: selectedId);
+    try {
+      final plans = await RunPlanPreferences.loadAll();
+      final selectedId = await RunPlanPreferences.loadSelectedId();
+      state = RunPlanLibraryState(plans: plans, selectedId: selectedId);
+    } finally {
+      if (!_loadCompleter.isCompleted) _loadCompleter.complete();
+    }
   }
 
   /// Adds a new plan and selects it.

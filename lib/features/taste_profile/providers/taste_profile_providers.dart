@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/taste_profile/data/taste_profile_preferences.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
@@ -31,13 +33,23 @@ class TasteProfileLibraryNotifier
     _load();
   }
 
+  final Completer<void> _loadCompleter = Completer<void>();
+
+  /// Waits until the initial async load from preferences is complete.
+  /// Safe to call multiple times -- returns immediately if already loaded.
+  Future<void> ensureLoaded() => _loadCompleter.future;
+
   Future<void> _load() async {
-    final profiles = await TasteProfilePreferences.loadAll();
-    final selectedId = await TasteProfilePreferences.loadSelectedId();
-    state = TasteProfileLibraryState(
-      profiles: profiles,
-      selectedId: selectedId,
-    );
+    try {
+      final profiles = await TasteProfilePreferences.loadAll();
+      final selectedId = await TasteProfilePreferences.loadSelectedId();
+      state = TasteProfileLibraryState(
+        profiles: profiles,
+        selectedId: selectedId,
+      );
+    } finally {
+      if (!_loadCompleter.isCompleted) _loadCompleter.complete();
+    }
   }
 
   /// Adds a new profile and selects it.

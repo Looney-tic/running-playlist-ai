@@ -98,7 +98,17 @@ class PlaylistGenerationNotifier
   /// Reads RunPlan from [runPlanNotifierProvider] and TasteProfile from
   /// [tasteProfileNotifierProvider]. If no run plan is saved, produces an
   /// error state.
+  ///
+  /// Awaits [ensureLoaded] on library notifiers before reading state,
+  /// fixing the cold-start race condition where fire-and-forget _load()
+  /// hasn't completed yet.
   Future<void> generatePlaylist() async {
+    state = const PlaylistGenerationState.loading();
+
+    // Ensure library notifiers have finished loading from preferences.
+    await ref.read(runPlanLibraryProvider.notifier).ensureLoaded();
+    await ref.read(tasteProfileLibraryProvider.notifier).ensureLoaded();
+
     final runPlan = ref.read(runPlanNotifierProvider);
     if (runPlan == null) {
       state = const PlaylistGenerationState.error(
@@ -108,8 +118,6 @@ class PlaylistGenerationNotifier
     }
 
     final tasteProfile = ref.read(tasteProfileNotifierProvider);
-
-    state = const PlaylistGenerationState.loading();
 
     try {
       // Try API first, fall back to curated songs on any failure.
@@ -162,9 +170,54 @@ class PlaylistGenerationNotifier
     }
   }
 
-  /// Regenerates the playlist using the stored run plan and taste profile.
+  /// Regenerates the playlist using the stored song pool with a new random seed.
   ///
-  /// Falls back to [generatePlaylist] if no prior generation state exists.
+  /// This is instant -- no API call, no loading spinner. Reuses [state.songPool]
+  /// and reads the CURRENT run plan and taste profile from providers.
+  /// Falls back to [generatePlaylist] if no song pool exists.
+  void shufflePlaylist() {
+    if (state.songPool.isEmpty || state.runPlan == null) {
+      generatePlaylist();
+      return;
+    }
+
+    final runPlan = ref.read(runPlanNotifierProvider) ?? state.runPlan!;
+    final tasteProfile =
+        ref.read(tasteProfileNotifierProvider) ?? state.tasteProfile;
+
+    var curatedRunnability = <String, int>{};
+    try {
+      final cached = ref.read(curatedRunnabilityProvider).valueOrNull;
+      if (cached != null) curatedRunnability = cached;
+    } catch (_) {
+      // Graceful degradation
+    }
+
+    final playlist = PlaylistGenerator.generate(
+      runPlan: runPlan,
+      tasteProfile: tasteProfile,
+      songsByBpm: state.songPool,
+      curatedRunnability:
+          curatedRunnability.isNotEmpty ? curatedRunnability : null,
+    );
+
+    state = PlaylistGenerationState.loaded(
+      playlist,
+      songPool: state.songPool,
+      runPlan: runPlan,
+      tasteProfile: tasteProfile,
+    );
+
+    unawaited(
+      ref.read(playlistHistoryProvider.notifier).addPlaylist(playlist),
+    );
+  }
+
+  /// Regenerates the playlist by re-fetching songs from the API.
+  ///
+  /// This performs a full re-fetch, unlike [shufflePlaylist] which reuses
+  /// the stored song pool. Falls back to [generatePlaylist] if no prior
+  /// generation state exists.
   Future<void> regeneratePlaylist() async {
     final storedPlan = state.runPlan;
     if (storedPlan == null) {

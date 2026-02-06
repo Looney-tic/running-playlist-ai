@@ -832,4 +832,92 @@ void main() {
       },
     );
   });
+
+  // -- Curated song ranking ---------------------------------------------------
+
+  group('PlaylistGenerator curated ranking', () {
+    test('curated songs rank higher than equivalent non-curated songs', () {
+      const plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 420,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      // Two songs with identical attributes except one is curated
+      final songsByBpm = {
+        170: [
+          _song(
+            id: 'normal',
+            title: 'Normal Song',
+            artist: 'Artist A',
+          ),
+          _song(
+            id: 'curated',
+            title: 'Curated Song',
+            artist: 'Artist B',
+          ),
+        ],
+      };
+
+      // Mark 'Artist B|Curated Song' as curated via lookupKey
+      final curatedLookupKeys = {'artist b|curated song'};
+
+      final playlist = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        curatedLookupKeys: curatedLookupKeys,
+        random: Random(42),
+      );
+
+      // Both songs selected (420/210=2). Curated song should rank first.
+      expect(playlist.songs.length, equals(2));
+      expect(playlist.songs.first.title, equals('Curated Song'));
+    });
+
+    test('empty curatedLookupKeys produces same results as null', () {
+      const plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 210,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      final songsByBpm = {
+        170: [
+          _song(id: 'a', title: 'Song A', artist: 'Artist A'),
+          _song(id: 'b', title: 'Song B', artist: 'Artist B'),
+        ],
+      };
+
+      final withEmpty = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        curatedLookupKeys: const {},
+        random: Random(42),
+      );
+
+      final withNull = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        curatedLookupKeys: null,
+        random: Random(42),
+      );
+
+      // Same song selected in both cases
+      expect(withEmpty.songs.first.title, equals(withNull.songs.first.title));
+    });
+  });
 }

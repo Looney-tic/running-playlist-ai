@@ -55,6 +55,7 @@ class PlaylistGenerator {
     required Map<int, List<BpmSong>> songsByBpm,
     TasteProfile? tasteProfile,
     Random? random,
+    Set<String>? curatedLookupKeys,
   }) {
     final rng = random ?? Random();
     final usedSongIds = <String>{};
@@ -82,6 +83,7 @@ class PlaylistGenerator {
         rng: rng,
         tasteProfile: tasteProfile,
         segmentLabel: segmentLabel,
+        curatedLookupKeys: curatedLookupKeys,
       );
 
       // Skip segment when no candidates available
@@ -183,18 +185,25 @@ class PlaylistGenerator {
     required Random rng,
     TasteProfile? tasteProfile,
     String? segmentLabel,
+    Set<String>? curatedLookupKeys,
   }) {
     String? previousArtist;
 
     // Shuffle first for randomness within same-score tiers,
     // then stable-sort by score descending.
     final scored = candidates.map((song) {
+      final isCurated = curatedLookupKeys != null &&
+          curatedLookupKeys.contains(
+            '${song.artistName.toLowerCase().trim()}|${song.title.toLowerCase().trim()}',
+          );
+
       final score = SongQualityScorer.score(
         song: song,
         tasteProfile: tasteProfile,
         danceability: song.danceability,
         segmentLabel: segmentLabel,
         previousArtist: previousArtist,
+        isCurated: isCurated,
       );
 
       previousArtist = song.artistName;

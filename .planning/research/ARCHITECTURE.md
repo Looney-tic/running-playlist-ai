@@ -1,520 +1,718 @@
-# Architecture Patterns: v1.2 Polish & Profiles
+# Architecture Patterns: v1.3 Song Feedback & Freshness
 
-**Domain:** Multi taste profiles, onboarding flow, regeneration fix
+**Domain:** Song feedback loop, taste learning from feedback, playlist freshness tracking
 **Researched:** 2026-02-06
-**Overall confidence:** HIGH (based on direct codebase analysis of all relevant files)
+**Overall confidence:** HIGH (based on direct codebase analysis of all integration points)
 
 ---
 
-## Current Architecture Snapshot
+## Current Architecture Snapshot (v1.2 Baseline)
 
 ### Application Structure
 
 ```
-lib/
-  app/
-    app.dart           -- MaterialApp.router with Riverpod
-    router.dart        -- GoRouter, flat routes, no auth guard
-  features/
-    {feature}/
-      data/            -- SharedPreferences static wrappers
-      domain/          -- Pure Dart models, enums, calculators
-      presentation/    -- Flutter screens and widgets
-      providers/       -- Riverpod StateNotifier + state classes
+lib/features/
+  {feature}/
+    data/            -- SharedPreferences static wrappers
+    domain/          -- Pure Dart models, enums, calculators
+    presentation/    -- Flutter screens and widgets
+    providers/       -- Riverpod StateNotifier + state classes
 ```
 
-**State management:** Riverpod 2.x manual providers (no code-gen). StateNotifier pattern throughout. Async load in constructor, sync mutations that fire-and-forget persistence.
+### Key Components Being Extended
 
-**Persistence:** SharedPreferences via static wrapper classes. JSON serialization with `toJson()`/`fromJson()`. No database, no ORM.
+| Component | File | Current Role |
+|-----------|------|-------------|
+| `SongQualityScorer` | `song_quality/domain/song_quality_scorer.dart` | Static scorer: 8 dimensions, max ~46 points. All methods pure and static. |
+| `PlaylistGenerator` | `playlist/domain/playlist_generator.dart` | Pure synchronous generator: scores candidates, fills segments, enforces diversity. |
+| `PlaylistGenerationNotifier` | `playlist/providers/playlist_providers.dart` | Orchestrator: fetches songs, reads providers, calls generator, saves to history. |
+| `PlaylistSong` | `playlist/domain/playlist.dart` | Song-in-playlist model with title, artist, BPM, matchType, quality score. |
+| `BpmSong` | `bpm_lookup/domain/bpm_song.dart` | Candidate song model with songId, genre, decade, danceability, runnability. |
+| `TasteProfile` | `taste_profile/domain/taste_profile.dart` | User preferences: genres, artists, energyLevel, decades, dislikedArtists. |
+| `SongTile` | `playlist/presentation/widgets/song_tile.dart` | Song card UI: shows title, artist, BPM chip, star badge, tap-for-play-links. |
+| `PlaylistHistoryPreferences` | `playlist/data/playlist_history_preferences.dart` | Stores up to 50 playlists as single JSON blob. |
 
-**Navigation:** GoRouter with flat routes at `/`. Query parameters for route behavior (`?auto=true`, `?id=xxx`). No shell routes, no auth guard.
+### Current Scoring Dimensions (SongQualityScorer)
 
-**Provider wiring:** `PlaylistGenerationNotifier` reads other providers via `ref.read()` at generation time. No cross-provider invalidation chains. Convenience alias providers wrap library providers (e.g., `tasteProfileNotifierProvider` -> `selectedProfile`).
+```
+Dimension              Weight   Source
+---------              ------   ------
+Artist match           +10      TasteProfile.artists
+Runnability            0-15     CuratedSong runnability score
+Danceability           0-8      Song danceability (neutral=3 if null)
+Genre match            +6       TasteProfile.genres
+Decade match           +4       TasteProfile.decades
+BPM match              +3/+1    BpmMatchType (exact/variant)
+Artist diversity       -5       Previous song in sequence
+Disliked artist        -15      TasteProfile.dislikedArtists
+```
 
-### Provider Dependency Graph (Relevant to v1.2)
+### Current Provider Dependency Graph
 
 ```
 playlistGenerationProvider
-  |-- reads runPlanNotifierProvider (convenience -> runPlanLibraryProvider.selectedPlan)
-  |-- reads tasteProfileNotifierProvider (convenience -> tasteProfileLibraryProvider.selectedProfile)
+  |-- reads runPlanNotifierProvider
+  |-- reads tasteProfileNotifierProvider
   |-- reads getSongBpmClientProvider
   |-- reads curatedRunnabilityProvider
-  |-- reads playlistHistoryProvider (for auto-save)
+  |-- writes playlistHistoryProvider (auto-save)
 
-runPlanLibraryProvider
-  |-- RunPlanLibraryNotifier (self-loading from RunPlanPreferences)
-
-tasteProfileLibraryProvider
-  |-- TasteProfileLibraryNotifier (self-loading from TasteProfilePreferences)
-
-strideNotifierProvider
-  |-- StrideNotifier (self-loading from StridePreferences)
+tasteProfileLibraryProvider (self-loading)
+playlistHistoryProvider (self-loading)
 ```
+
+### Current Persistence Pattern
+
+All features use static wrapper classes around SharedPreferences:
+- Single key per data collection (e.g., `taste_profile_library`, `playlist_history`)
+- Entire collection serialized as one JSON string
+- Load-all / save-all pattern (no partial updates)
+- Some use TTL (BpmCachePreferences: 7 days, CuratedSongRepository: 24 hours)
 
 ---
 
-## Critical Discovery: Multi Taste Profile Library Already Exists
+## New Data Models
 
-Direct code examination reveals the taste profile library pattern is **already fully implemented**. This was shipped as part of v1.1 UX refinements.
+### 1. SongFeedback
 
-### Existing Components (Already Built)
-
-| Component | File | Status |
-|-----------|------|--------|
-| `TasteProfile` domain model | `taste_profile.dart` | Has `id`, `name`, all fields, `copyWith`, JSON serialization |
-| `TasteProfileLibraryState` | `taste_profile_providers.dart` | `List<TasteProfile> profiles` + `String? selectedId` + `selectedProfile` getter |
-| `TasteProfileLibraryNotifier` | `taste_profile_providers.dart` | `addProfile`, `updateProfile`, `selectProfile`, `deleteProfile` |
-| `TasteProfilePreferences` | `taste_profile_preferences.dart` | Library persistence (`taste_profile_library` key) + legacy migration from single `taste_profile` key |
-| `TasteProfileLibraryScreen` | `taste_profile_library_screen.dart` | ListView with select, edit (via `?id=`), delete, FAB to create |
-| `TasteProfileScreen` | `taste_profile_screen.dart` | Create/edit mode with `profileId` parameter, profile name field |
-| `_TasteProfileSelector` | `playlist_screen.dart` (private widget) | Bottom sheet picker integrated in playlist generation screen |
-| Backward-compat provider | `taste_profile_providers.dart` | `tasteProfileNotifierProvider` -> `tasteProfileLibraryProvider.selectedProfile` |
-
-### What This Means for v1.2 Scope
-
-The "Multi Taste Profiles" feature is **architecturally complete**. The v1.2 work should focus on:
-1. Verifying the flow works correctly end-to-end (create -> select -> generate -> shuffle)
-2. Adding test coverage for the library notifier and preferences
-3. Polishing any UX gaps
-
-This significantly reduces the v1.2 scope.
-
----
-
-## Feature Analysis: Regeneration Fix
-
-### Current Behavior (Two Distinct Methods)
-
-**`generatePlaylist()` -- "Generate":**
-```dart
-// Reads CURRENT selections from providers
-final runPlan = ref.read(runPlanNotifierProvider);        // live selection
-final tasteProfile = ref.read(tasteProfileNotifierProvider); // live selection
-
-// Fetches songs from API/cache
-var songsByBpm = await _fetchAllSongs(runPlan);
-
-// Generates and stores everything
-state = PlaylistGenerationState.loaded(
-  playlist,
-  songPool: songsByBpm,     // stored for replacements
-  runPlan: runPlan,          // stored for regeneration
-  tasteProfile: tasteProfile, // stored for regeneration
-);
-```
-
-**`regeneratePlaylist()` -- "Shuffle":**
-```dart
-// Uses STORED state from last generation, NOT current selections
-final storedPlan = state.runPlan;
-final tasteProfile = state.tasteProfile;
-
-// RE-FETCHES songs (expensive, 300ms per unique BPM)
-var songsByBpm = await _fetchAllSongs(storedPlan);
-
-// Regenerates
-state = PlaylistGenerationState.loaded(playlist, ...);
-```
-
-### Identified Issues
-
-**Issue 1: Shuffle re-fetches songs unnecessarily.** The `state.songPool` is already stored from the previous generation. Shuffling should reuse this pool with a new Random seed, making it near-instant instead of waiting for API calls.
-
-**Issue 2: Shuffle ignores provider changes.** If the user changes the selected taste profile or run plan via the inline selectors on the playlist screen, then taps "Shuffle," the old stored plan/profile are used. This is likely the "bug" -- the UX lets users change selections, but Shuffle does not respect those changes.
-
-**Issue 3: The `songPool` is already stored in state.** `PlaylistGenerationState.loaded` already carries `songPool`, `runPlan`, and `tasteProfile`. The infrastructure for pool-reuse exists but `regeneratePlaylist()` does not use it.
-
-### Recommended Architecture: Two Distinct Actions
-
-**`shufflePlaylist()` (new method) -- Fast, reuses pool:**
-```
-Uses state.songPool (no API calls)
-Uses state.runPlan (stored from generation)
-Uses state.tasteProfile (stored from generation)
-Calls PlaylistGenerator.generate() with new Random seed
-Result: Different song selection from same pool, instant
-```
-
-**`generatePlaylist()` (existing) -- Fresh fetch, reads live providers:**
-```
-Reads runPlanNotifierProvider (current selection)
-Reads tasteProfileNotifierProvider (current selection)
-Fetches songs via API/cache
-Calls PlaylistGenerator.generate()
-Result: Fresh songs based on current selections
-```
-
-**UI mapping:**
-- "Shuffle" button (on loaded playlist view) -> `shufflePlaylist()`
-- "Generate Playlist" button (on idle view, or after changing selections) -> `generatePlaylist()`
-- Home screen quick-regenerate card -> `generatePlaylist()` (respects current selections)
-
-### Components Modified
-
-| Component | Change | Lines Affected |
-|-----------|--------|---------------|
-| `PlaylistGenerationNotifier` | Add `shufflePlaylist()` method | New ~25-line method |
-| `playlist_screen.dart` | Wire "Shuffle" to `shufflePlaylist()` | ~2 lines in `_PlaylistView` |
-
-### Components NOT Modified
-
-| Component | Why Unchanged |
-|-----------|--------------|
-| `PlaylistGenerationState` | Already stores `songPool`, `runPlan`, `tasteProfile` |
-| `PlaylistGenerator` | Already accepts `Random? random` parameter for deterministic testing |
-| `generatePlaylist()` | Existing behavior is correct for fresh generation |
-
----
-
-## Feature Analysis: Onboarding Flow
-
-### Current State
-
-No onboarding exists. App launches directly to `HomeScreen` at `/`. New users see navigation buttons with no guidance. The `PlaylistScreen` handles missing data gracefully (shows "No Run Plan" with redirect to `/my-runs`).
-
-### Architecture Decision: GoRouter Redirect
-
-**Chosen approach: GoRouter redirect guard with pre-loaded flag.**
-
-**Why this approach:**
-- Fits existing GoRouter setup without restructuring
-- Onboarding is a standalone route, testable independently
-- Redirect cost is negligible (one boolean check per navigation)
-- Pre-loading in `main.dart` avoids async complexity in redirect
-
-**Rejected alternatives:**
-
-| Alternative | Why Not |
-|-------------|---------|
-| Conditional widget in HomeScreen | Couples onboarding to home screen, harder to test independently |
-| Initial route override | GoRouter `initialLocation` is set at provider creation; requires async await before router construction |
-| FutureProvider for flag | GoRouter redirect is synchronous; FutureProvider introduces flash of wrong content |
-
-### Onboarding Flow Design
-
-The onboarding guides new users through the minimum steps to reach their first playlist:
-
-```
-App launch -> GoRouter redirect -> /onboarding
-
-/onboarding (welcome screen)
-  "Let's set up your first running playlist"
-  [Get Started]
-       |
-       v
-Navigate to /taste-profile (existing screen, create mode)
-  User creates first taste profile
-  Pops back to onboarding on save
-       |
-       v
-Navigate to /run-plan (existing screen)
-  User creates first run plan
-  Pops back to onboarding on save
-       |
-       v
-Navigate to /playlist?auto=true (existing screen, auto-generate)
-  First playlist generates automatically
-       |
-       v
-Set onboarding_complete = true
-Navigate to / (home screen)
-```
-
-**Key design principle: Reuse existing screens.** The taste profile screen, run plan screen, and playlist screen already have full UX. The onboarding shell controls navigation between them. No simplified "onboarding versions" of these screens are needed.
-
-### Async Challenge: Pre-loading the Flag
-
-GoRouter's redirect is synchronous, but SharedPreferences is async. Solution:
+Represents a single user feedback entry for a song.
 
 ```dart
-// main.dart
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
-  await Supabase.initialize(...);
+/// A user's like/dislike feedback for a specific song.
+class SongFeedback {
+  const SongFeedback({
+    required this.songKey,      // 'artist|title' normalized lookup key
+    required this.artistName,   // original casing for display
+    required this.title,        // original casing for display
+    required this.isLiked,      // true = liked, false = disliked
+    required this.feedbackAt,   // when feedback was given
+    this.genre,                 // from song metadata at feedback time
+    this.bpm,                   // from song metadata at feedback time
+    this.decade,                // from song metadata at feedback time
+  });
 
-  // NEW: Pre-load onboarding flag
-  final prefs = await SharedPreferences.getInstance();
-  final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-
-  runApp(
-    ProviderScope(
-      overrides: [
-        // Pass pre-loaded flag to router
-        onboardingCompleteProvider.overrideWithValue(onboardingComplete),
-      ],
-      child: const App(),
-    ),
-  );
+  final String songKey;         // primary identifier
+  final String artistName;
+  final String title;
+  final bool isLiked;
+  final DateTime feedbackAt;
+  final String? genre;          // captured for taste learning
+  final int? bpm;               // captured for taste learning
+  final String? decade;         // captured for taste learning
 }
 ```
 
-This approach is clean because:
-- `SharedPreferences.getInstance()` is already implicitly awaited by other providers loading in constructors
-- No new async patterns introduced
-- The override makes the flag synchronously available to the router
+**Why capture metadata at feedback time:** Taste learning needs to analyze patterns across liked/disliked songs (e.g., "user likes 80% hip-hop"). Storing genre/bpm/decade at feedback time means the taste learner can operate on feedback data alone without joining against the song pool or curated dataset.
 
-### New Components
+**Key format:** Same `artist.toLowerCase().trim()|title.toLowerCase().trim()` format already used throughout the codebase (CuratedSong.lookupKey, BpmSong matching, replacement filtering).
 
-| Component | Layer | Location | Purpose |
-|-----------|-------|----------|---------|
-| `OnboardingPreferences` | data | `lib/features/onboarding/data/` | Read/write `onboarding_complete` boolean |
-| `onboardingCompleteProvider` | providers | `lib/features/onboarding/providers/` | Expose flag to router + UI |
-| `OnboardingWelcomeScreen` | presentation | `lib/features/onboarding/presentation/` | Welcome page with "Get Started" |
-| `OnboardingFlowScreen` | presentation | `lib/features/onboarding/presentation/` | Step tracker + navigation coordinator |
+### 2. SongPlayRecord
 
-### Modified Components
-
-| Component | Modification | Reason |
-|-----------|-------------|--------|
-| `router.dart` | Add redirect guard + `/onboarding` route | Gate new users |
-| `main.dart` | Pre-load onboarding flag, pass as provider override | Sync redirect check |
-
-### Router Changes
+Represents a song's appearance in a generated playlist.
 
 ```dart
-// router.dart
-final routerProvider = Provider<GoRouter>((ref) {
-  final onboardingComplete = ref.watch(onboardingCompleteProvider);
+/// Records that a song appeared in a generated playlist.
+class SongPlayRecord {
+  const SongPlayRecord({
+    required this.songKey,      // 'artist|title' normalized lookup key
+    required this.playedAt,     // when the playlist was generated
+  });
 
-  return GoRouter(
-    initialLocation: '/',
-    redirect: (context, state) {
-      if (!onboardingComplete && state.matchedLocation == '/') {
-        return '/onboarding';
-      }
-      // Allow navigation to onboarding sub-routes
-      if (!onboardingComplete && state.matchedLocation.startsWith('/onboarding')) {
-        return null;
-      }
-      // Allow navigation to screens used during onboarding
-      if (!onboardingComplete) {
-        final allowedDuringOnboarding = [
-          '/taste-profile', '/run-plan', '/playlist', '/stride',
-        ];
-        if (allowedDuringOnboarding.any(
-          (r) => state.matchedLocation.startsWith(r)
-        )) {
-          return null;
-        }
-        return '/onboarding';
-      }
-      return null;
-    },
-    routes: [
-      // ... existing routes ...
-      GoRoute(
-        path: '/onboarding',
-        builder: (context, state) => const OnboardingFlowScreen(),
-      ),
-    ],
-  );
-});
+  final String songKey;
+  final DateTime playedAt;
+}
 ```
 
-**Note:** The redirect guard needs to allow navigation to screens used during onboarding (`/taste-profile`, `/run-plan`, `/playlist`). Otherwise the onboarding flow cannot navigate to existing screens.
+**Why "played" means "appeared in generated playlist":** Users do not listen within the app -- they open Spotify/YouTube via external links. The app cannot know which songs were actually listened to. The closest proxy is "appeared in a playlist the user generated," which is the event this model tracks.
 
-### Onboarding Completion Tracking
-
-The onboarding tracks step completion implicitly by checking whether the required data exists:
+### 3. FreshnessPreference (Enum or Toggle)
 
 ```dart
-// Can proceed past taste profile step?
-final hasProfile = ref.watch(tasteProfileLibraryProvider).profiles.isNotEmpty;
+/// User preference for playlist freshness vs taste optimization.
+enum FreshnessMode {
+  /// Deprioritize recently generated songs. Favors variety.
+  keepFresh,
 
-// Can proceed past run plan step?
-final hasPlan = ref.watch(runPlanLibraryProvider).plans.isNotEmpty;
-
-// Auto-advance: if user already has both, skip to playlist generation
+  /// Ignore play history. Optimize purely for taste match.
+  optimizeForTaste,
+}
 ```
-
-This is more robust than tracking a step counter because:
-- If the user creates a profile/plan via any route, onboarding advances
-- If the user kills the app mid-onboarding and returns, progress is preserved
-- No separate "onboarding step" state to get out of sync with actual data
 
 ---
 
-## Integration Points Summary
+## Persistence Strategy
 
-### Existing Components Modified
+### Feedback Storage: SharedPreferences (Recommended)
 
-| Component | File | Modification |
-|-----------|------|-------------|
-| `PlaylistGenerationNotifier` | `playlist_providers.dart` | Add `shufflePlaylist()` method |
-| `_PlaylistView` | `playlist_screen.dart` | Wire Shuffle button to `shufflePlaylist()` |
-| `router.dart` | `router.dart` | Add redirect guard + onboarding route |
-| `main.dart` | `main.dart` | Pre-load onboarding flag |
+**Decision: Stay with SharedPreferences for feedback data.**
 
-### New Components
+**Rationale:**
+- Feedback volume is bounded by user interaction rate. A very active user might provide 5-15 feedback entries per generated playlist, with 2-3 playlists per week. After a year: ~1,500 entries. Power users might reach 3,000-5,000 over the app's lifetime.
+- Each `SongFeedback` JSON entry is roughly 150-200 bytes. At 5,000 entries: ~1 MB. SharedPreferences handles this comfortably (practical limit ~1.4 MB per entry on Android, with the full store being much larger).
+- The existing codebase uses SharedPreferences exclusively. Introducing sqflite/Hive would add a dependency, a new persistence pattern, and migration complexity for a dataset that fits within SharedPreferences' capabilities.
+- Access pattern is always "load all, filter in memory" (no complex queries). No pagination needed at this scale.
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| `OnboardingPreferences` | `lib/features/onboarding/data/onboarding_preferences.dart` | Persist completion flag |
-| `onboarding_providers.dart` | `lib/features/onboarding/providers/onboarding_providers.dart` | Provider for completion state |
-| `OnboardingWelcomeScreen` | `lib/features/onboarding/presentation/onboarding_welcome_screen.dart` | Welcome/intro page |
-| `OnboardingFlowScreen` | `lib/features/onboarding/presentation/onboarding_flow_screen.dart` | Step coordinator |
+**Key:** `song_feedback` -- single JSON blob with all feedback entries.
 
-### Components NOT Modified
+**Structure:**
+
+```json
+{
+  "feedbacks": [
+    {
+      "songKey": "eminem|lose yourself",
+      "artistName": "Eminem",
+      "title": "Lose Yourself",
+      "isLiked": true,
+      "feedbackAt": "2026-02-06T14:30:00.000Z",
+      "genre": "hipHop",
+      "bpm": 171,
+      "decade": "2000s"
+    }
+  ]
+}
+```
+
+### Play History Storage: SharedPreferences with Rolling Window
+
+**Decision: Store play records with a 90-day rolling window, trimmed on save.**
+
+Play history grows faster than feedback (every song in every generated playlist gets a record). A playlist has ~10-20 songs. At 3 playlists/week: ~45-60 records/week, ~2,500/year.
+
+Rolling window approach:
+- On save, trim records older than 90 days
+- 90 days at 3 playlists/week = ~780 records = ~50 KB. Well within SharedPreferences limits.
+- The freshness system only needs to know "was this song generated recently?" -- 90 days is more than sufficient.
+
+**Key:** `song_play_history` -- single JSON blob.
+
+**Structure:**
+
+```json
+{
+  "records": [
+    {
+      "songKey": "eminem|lose yourself",
+      "playedAt": "2026-02-06T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+### Freshness Preference Storage
+
+**Decision: Store as part of an app-level settings preferences key.**
+
+The Settings screen is currently a placeholder. `FreshnessMode` is the first real setting. Store under a `settings` key:
+
+```json
+{
+  "freshnessMode": "keepFresh"
+}
+```
+
+**Alternative considered:** Storing on TasteProfile. Rejected because freshness mode is a playlist generation preference, not a musical taste attribute. Users expect one freshness setting across all taste profiles.
+
+---
+
+## Integration Points: Detailed Analysis
+
+### Integration Point 1: SongQualityScorer -- New Feedback Dimension
+
+**What changes:** Add a `feedbackScore` parameter and scoring dimension.
+
+**Current signature:**
+
+```dart
+static int score({
+  required BpmSong song,
+  TasteProfile? tasteProfile,
+  String? previousArtist,
+  List<RunningGenre>? songGenres,
+  int? runnability,
+})
+```
+
+**Proposed signature:**
+
+```dart
+static int score({
+  required BpmSong song,
+  TasteProfile? tasteProfile,
+  String? previousArtist,
+  List<RunningGenre>? songGenres,
+  int? runnability,
+  bool? isLiked,        // NEW: null = no feedback, true = liked, false = disliked
+})
+```
+
+**New dimension weights:**
+
+```dart
+/// Score bonus for songs the user explicitly liked.
+static const likedSongWeight = 12;
+
+/// Score penalty for songs the user explicitly disliked.
+static const dislikedSongWeight = -20;
+```
+
+**Why these weights:**
+- `likedSongWeight = 12`: Slightly stronger than artist match (+10) but weaker than runnability max (+15). A liked song should rank high but not override terrible BPM fit. This makes explicit feedback the second-strongest positive signal.
+- `dislikedSongWeight = -20`: Stronger than disliked artist (-15). An explicit dislike on a specific song is a stronger signal than disliking an artist in general. This effectively buries disliked songs to the bottom of rankings but does not hard-filter them (they can still appear if the pool is very small).
+
+**Why `bool? isLiked` not a separate method:**
+- Keeps scoring unified in one method. The caller already passes multiple optional parameters.
+- `null` = no feedback (neutral, no score impact). Clean three-state representation.
+- Follows the existing pattern where null values degrade gracefully (see `danceability`, `runnability`).
+
+**New scoring helper:**
+
+```dart
+static int _feedbackScore(bool? isLiked) {
+  if (isLiked == null) return 0;
+  return isLiked ? likedSongWeight : dislikedSongWeight;
+}
+```
+
+**Updated max score:** Current max is ~46 (artist:10 + runnability:15 + danceability:8 + genre:6 + decade:4 + BPM:3). With feedback: ~58 (adds liked:12). Minimum drops further with disliked: -40 possible (disliked:-20, dislikedArtist:-15, diversity:-5).
+
+**Confidence:** HIGH. Direct analysis of SongQualityScorer shows this is a clean extension. All dimensions are additive. No architectural change needed.
+
+### Integration Point 2: PlaylistGenerator -- Feedback Lookup During Scoring
+
+**What changes:** `_scoreAndRank` needs access to a feedback lookup map.
+
+**Current `_scoreAndRank` flow:**
+1. For each candidate song, compute lookup key
+2. Look up runnability from `curatedRunnability` map
+3. Call `SongQualityScorer.score()`
+
+**Proposed extension:**
+1. For each candidate song, compute lookup key (already done)
+2. Look up runnability from `curatedRunnability` map (existing)
+3. **Look up feedback from `feedbackMap`** (NEW)
+4. Call `SongQualityScorer.score()` with new `isLiked` parameter
+
+**New parameter on `PlaylistGenerator.generate()`:**
+
+```dart
+static Playlist generate({
+  required RunPlan runPlan,
+  required Map<int, List<BpmSong>> songsByBpm,
+  TasteProfile? tasteProfile,
+  Random? random,
+  Map<String, int>? curatedRunnability,
+  Map<String, bool>? songFeedback,     // NEW: songKey -> isLiked
+})
+```
+
+**Why `Map<String, bool>` not `Map<String, SongFeedback>`:**
+- The generator only needs the boolean signal per song key. No need to pass the full feedback model into the pure domain layer.
+- Same pattern as `curatedRunnability: Map<String, int>` -- a simple lookup map.
+
+**Lookup inside `_scoreAndRank`:**
+
+```dart
+final isLiked = songFeedback?[lookupKey]; // null if no feedback
+```
+
+The `lookupKey` is already computed on the line above for runnability lookup. Zero additional computation.
+
+**Confidence:** HIGH. The lookup key infrastructure exists. This is a one-line addition to the scoring loop.
+
+### Integration Point 3: PlaylistGenerationNotifier -- Loading Feedback and Play History
+
+**What changes:** The notifier needs to load feedback data and record play history.
+
+**Loading feedback (in `generatePlaylist()` and `shufflePlaylist()`):**
+
+```dart
+// Load feedback map for scoring
+var feedbackMap = <String, bool>{};
+try {
+  feedbackMap = await ref.read(songFeedbackProvider.notifier).getFeedbackMap();
+} catch (_) {
+  // Graceful degradation: generate without feedback data
+}
+```
+
+This follows the exact same pattern as the existing `curatedRunnability` loading.
+
+**Recording play history (after generation):**
+
+```dart
+// Record songs as "played" for freshness tracking
+unawaited(
+  ref.read(playHistoryProvider.notifier).recordPlaylistSongs(playlist),
+);
+```
+
+This follows the exact same pattern as the existing `playlistHistoryProvider` auto-save.
+
+**Where freshness plugs in:** Before scoring, the notifier can optionally filter or annotate songs with a freshness penalty based on play history. See Integration Point 5 below.
+
+**Confidence:** HIGH. The notifier already demonstrates all these patterns with curatedRunnability and playlistHistory.
+
+### Integration Point 4: SongTile -- Feedback Buttons in UI
+
+**What changes:** Add like/dislike buttons to the song tile or its bottom sheet.
+
+**Current SongTile interaction:** Tap opens a bottom sheet with "Open in Spotify" and "Open in YouTube Music" options.
+
+**Proposed UI extension -- two approaches:**
+
+**Option A: Inline buttons on the song tile (Recommended)**
+
+Add small like/dislike icon buttons at the trailing edge of the SongTile, before the BPM chip. This keeps feedback one-tap -- no extra navigation.
+
+```
+[1] [star] Song Title                [thumbs-up] [thumbs-down] [170]
+         Artist Name
+```
+
+**Pros:** Immediate, discoverable, low friction.
+**Cons:** Adds visual complexity to every tile. Need to handle feedback state display (already liked? already disliked?).
+
+**Option B: Buttons in the bottom sheet**
+
+Add like/dislike as additional ListTile entries in the existing `_showPlayOptions` bottom sheet.
+
+**Pros:** Cleaner song tile. Consistent with existing interaction pattern.
+**Cons:** Requires two taps (tap song, then tap like/dislike). Higher friction.
+
+**Recommendation: Option A (inline).** The whole point of feedback is to make it effortless. Two taps is too much friction for a feature that needs high engagement to be useful. The visual complexity concern is mitigable with subtle icons and color states.
+
+**SongTile needs to become a ConsumerWidget** (or accept a callback) to read/write feedback state. Currently it is a plain StatelessWidget. Options:
+1. Pass an `onLike`/`onDislike` callback from the parent (keeps SongTile stateless)
+2. Make SongTile a ConsumerWidget that reads `songFeedbackProvider`
+
+**Recommendation: Pass callbacks.** SongTile is used in both PlaylistScreen and PlaylistHistoryDetailScreen. Callbacks let each parent decide whether feedback is available. The history detail screen can choose to show feedback buttons or not.
+
+**Confidence:** HIGH. SongTile is a simple stateless widget; extending it is straightforward.
+
+### Integration Point 5: Freshness -- Scoring Penalty for Recently Generated Songs
+
+**What changes:** Add a freshness dimension to scoring, controlled by user preference.
+
+**Design decision: Freshness as a scoring penalty, not a hard filter.**
+
+Freshness should deprioritize recent songs, not exclude them. In a small song pool (narrow BPM range, few API results), excluding recent songs could leave too few candidates. A scoring penalty naturally degrades -- when the pool is small, recent songs still appear; when the pool is large, fresh songs win.
+
+**New scoring dimension:**
+
+```dart
+/// Penalty for songs that appeared in recent playlists.
+static const freshnessPenalty = -8;
+```
+
+**Why -8:** Strong enough to push recently-played songs below fresh alternatives of similar quality, but not so strong that a great-matching recent song loses to a poor-matching fresh one. For context: a fresh song with no feedback vs. a recent song with no feedback -- the fresh song wins by 8 points (roughly equivalent to max danceability bonus).
+
+**Implementation in PlaylistGenerator (not SongQualityScorer):**
+
+The freshness penalty should be applied in `PlaylistGenerator._scoreAndRank`, not in `SongQualityScorer`, because:
+1. Freshness depends on user preference (`FreshnessMode`) which is a generation-time setting, not a song attribute
+2. Freshness depends on play history which is a time-varying data source, not a static song property
+3. `SongQualityScorer` is designed to be pure and deterministic -- adding time-varying state breaks its contract
+
+**Implementation:**
+
+```dart
+// In _scoreAndRank:
+var score = SongQualityScorer.score(
+  song: song,
+  tasteProfile: tasteProfile,
+  previousArtist: previousArtist,
+  songGenres: songGenres,
+  runnability: runnability,
+  isLiked: feedbackMap?[lookupKey],
+);
+
+// Apply freshness penalty if enabled
+if (freshnessMode == FreshnessMode.keepFresh) {
+  final isRecent = recentSongKeys?.contains(lookupKey) ?? false;
+  if (isRecent) score += freshnessPenalty;  // -8
+}
+```
+
+**How `recentSongKeys` is built:** Before generation, load play history records from last N days (configurable, default 14 days) and build a `Set<String>` of song keys. This is a one-time cost per generation, O(n) in play history size.
+
+**Confidence:** HIGH. This mirrors the existing `curatedRunnability` pattern -- a pre-built lookup passed into the generator.
+
+### Integration Point 6: Taste Learning -- Statistical Analysis of Feedback
+
+**What changes:** New pure-domain analyzer that reads feedback data and produces implicit preference signals.
+
+**Design: Taste learning is a read-only analyzer, not a modifier.**
+
+Taste learning does NOT mutate the TasteProfile. Instead, it produces a separate `LearnedPreferences` model that supplements explicit taste profile preferences during scoring. This is important because:
+1. Users explicitly set their taste profile. Auto-modifying it would be surprising and annoying.
+2. Learned preferences should be transparent ("We noticed you like 70% hip-hop") not silently applied.
+3. If learning produces bad recommendations, the user can reset learned data without losing their explicit profile.
+
+**LearnedPreferences model:**
+
+```dart
+/// Implicit preferences discovered from feedback patterns.
+class LearnedPreferences {
+  const LearnedPreferences({
+    this.genreAffinities = const {},    // genre -> affinity (-1.0 to 1.0)
+    this.artistAffinities = const {},   // artist -> affinity (-1.0 to 1.0)
+    this.bpmCenter,                     // preferred BPM center (null if insufficient data)
+    this.decadeAffinities = const {},   // decade -> affinity (-1.0 to 1.0)
+  });
+
+  final Map<String, double> genreAffinities;
+  final Map<String, double> artistAffinities;
+  final int? bpmCenter;
+  final Map<String, double> decadeAffinities;
+}
+```
+
+**Affinity calculation (simple, effective):**
+
+```dart
+// For each genre:
+//   liked_count = songs liked with this genre
+//   disliked_count = songs disliked with this genre
+//   total = liked_count + disliked_count
+//   affinity = (liked_count - disliked_count) / total
+//   Ranges from -1.0 (all disliked) to +1.0 (all liked)
+//   Only include genres with >= 3 total feedback entries (minimum sample)
+```
+
+**How learned preferences integrate with scoring:**
+
+Option A: Add learned preference weights as additional scoring dimensions.
+Option B: Modify existing dimension weights based on learned data.
+
+**Recommendation: Option A -- additional scoring dimensions.** This is cleaner because:
+- Does not modify existing dimension behavior
+- Learned preferences have their own weight budget
+- Easy to A/B test or disable without touching existing scoring
+
+**New scoring integration (in PlaylistGenerator, not SongQualityScorer):**
+
+```dart
+// After SongQualityScorer.score(), apply learned preference bonus
+if (learnedPreferences != null && song.genre != null) {
+  final genreAffinity = learnedPreferences.genreAffinities[song.genre] ?? 0.0;
+  score += (genreAffinity * learnedGenreWeight).round();  // e.g., weight = 4
+}
+```
+
+**Why low weight (4 max):** Learned preferences are implicit signals. They should nudge scoring, not dominate it. If a user explicitly picks "Pop" in their taste profile (+6 for genre match), the learned signal adds at most +4 more. But if a user does not pick Pop but consistently likes Pop songs, learned preferences start boosting Pop songs modestly.
+
+**Minimum feedback threshold:** Taste learning should not run until the user has provided at least 10 feedback entries. Below that, statistical patterns are unreliable.
+
+**Confidence:** MEDIUM. The affinity calculation is straightforward, but the optimal weights for learned preferences need tuning through real usage. The architecture is sound; the numbers may need adjustment.
+
+---
+
+## New Feature Directory Structure
+
+```
+lib/features/
+  song_feedback/                          # NEW FEATURE
+    data/
+      song_feedback_preferences.dart      # SharedPreferences wrapper for feedback
+    domain/
+      song_feedback.dart                  # SongFeedback model
+      taste_learner.dart                  # Pure Dart analyzer: feedback -> LearnedPreferences
+      learned_preferences.dart            # LearnedPreferences model
+    presentation/
+      feedback_library_screen.dart        # Browse/edit all feedback
+      widgets/
+        feedback_buttons.dart             # Like/dislike button widget (optional extraction)
+    providers/
+      song_feedback_providers.dart        # SongFeedbackNotifier + state
+
+  freshness/                              # NEW FEATURE
+    data/
+      play_history_preferences.dart       # SharedPreferences wrapper for play records
+      freshness_preferences.dart          # FreshnessMode setting persistence
+    domain/
+      play_history.dart                   # SongPlayRecord model
+      freshness_mode.dart                 # FreshnessMode enum
+    providers/
+      freshness_providers.dart            # PlayHistoryNotifier + FreshnessMode provider
+```
+
+**Why two features, not one:** Feedback and freshness have distinct data models, distinct persistence, and can be built and tested independently. Feedback is about learning user preferences; freshness is about playlist variety. They converge only at the scoring stage.
+
+---
+
+## New Components
+
+| Component | Layer | Feature | Purpose |
+|-----------|-------|---------|---------|
+| `SongFeedback` | domain | song_feedback | Feedback entry model with metadata |
+| `SongFeedbackPreferences` | data | song_feedback | Load/save all feedback entries |
+| `SongFeedbackNotifier` | provider | song_feedback | CRUD operations on feedback, exposes `feedbackMap` |
+| `TasteLearner` | domain | song_feedback | Static analyzer: `List<SongFeedback>` -> `LearnedPreferences` |
+| `LearnedPreferences` | domain | song_feedback | Implicit preference model (affinities) |
+| `FeedbackLibraryScreen` | presentation | song_feedback | Browse/edit all liked/disliked songs |
+| `SongPlayRecord` | domain | freshness | Play history record model |
+| `PlayHistoryPreferences` | data | freshness | Load/save play records with rolling trim |
+| `FreshnessPreferences` | data | freshness | Load/save FreshnessMode setting |
+| `FreshnessMode` | domain | freshness | Enum: keepFresh vs optimizeForTaste |
+| `PlayHistoryNotifier` | provider | freshness | Record plays, expose recent song keys |
+| `FreshnessSettingNotifier` | provider | freshness | Expose freshness mode preference |
+
+## Modified Components
+
+| Component | File | Modification | Reason |
+|-----------|------|-------------|--------|
+| `SongQualityScorer` | `song_quality_scorer.dart` | Add `isLiked` parameter + `_feedbackScore` helper + weight constants | Feedback scoring dimension |
+| `PlaylistGenerator` | `playlist_generator.dart` | Add `songFeedback` map parameter, pass to scorer, apply freshness penalty | Integrate feedback + freshness into generation |
+| `PlaylistGenerationNotifier` | `playlist_providers.dart` | Load feedback map + learned preferences + record play history + read freshness mode | Orchestrate new data sources |
+| `SongTile` | `song_tile.dart` | Add like/dislike callback parameters + visual state (liked/disliked/none) | Feedback UI on each song |
+| `PlaylistScreen` | `playlist_screen.dart` | Pass feedback callbacks to SongTile, read feedback provider | Wire feedback UI |
+| `SettingsScreen` | `settings_screen.dart` | Add freshness mode toggle | User preference UI |
+
+## Components NOT Modified
 
 | Component | Why Unchanged |
 |-----------|--------------|
-| `TasteProfileLibraryNotifier` | Already fully implements CRUD + selection |
-| `TasteProfilePreferences` | Already supports library with legacy migration |
-| `TasteProfileLibraryScreen` | Already has list/select/edit/delete/create |
-| `TasteProfileScreen` | Already supports create + edit via profileId |
-| `RunPlanLibraryNotifier` | No changes needed |
-| `RunPlanPreferences` | No changes needed |
-| `PlaylistGenerator` | Pure domain logic, already accepts Random parameter |
-| `PlaylistGenerationState` | Already stores songPool, runPlan, tasteProfile |
-| `SongQualityScorer` | Unchanged |
+| `TasteProfile` | Learned preferences are separate from explicit profile |
+| `TasteProfilePreferences` | No change to taste profile persistence |
+| `TasteProfileLibraryNotifier` | No change to taste profile CRUD |
+| `BpmSong` | Song model does not carry feedback state |
+| `PlaylistSong` | Feedback is looked up by key, not stored on the playlist model |
+| `Playlist` | Playlist structure unchanged |
+| `PlaylistHistoryPreferences` | Play history is a separate concern from playlist history |
+| `CuratedSongRepository` | Curated data is independent of feedback |
+| `RunPlan` / run plan infrastructure | Completely unrelated |
 
 ---
 
-## Data Flow Changes
-
-### Current: Generate Playlist
+## Data Flow: Feedback Collection
 
 ```
-User taps "Generate"
-  -> PlaylistGenerationNotifier.generatePlaylist()
-  -> ref.read(runPlanNotifierProvider)         -- reads CURRENT selection
-  -> ref.read(tasteProfileNotifierProvider)    -- reads CURRENT selection
-  -> _fetchAllSongs(runPlan)                   -- API + cache (slow)
-  -> PlaylistGenerator.generate(...)           -- pure domain
-  -> state = loaded(playlist, songPool, runPlan, tasteProfile)
-  -> auto-save to history
-```
-**No change.** This flow is correct.
-
-### Current: Shuffle (PROBLEMATIC)
-
-```
-User taps "Shuffle"
-  -> PlaylistGenerationNotifier.regeneratePlaylist()
-  -> uses state.runPlan (stored)              -- IGNORES current selection
-  -> uses state.tasteProfile (stored)          -- IGNORES current selection
-  -> _fetchAllSongs(storedPlan)                -- RE-FETCHES (wasteful)
-  -> PlaylistGenerator.generate(...)
-  -> state = loaded(...)
-```
-
-### Proposed: Shuffle (FIXED)
-
-```
-User taps "Shuffle"
-  -> PlaylistGenerationNotifier.shufflePlaylist()
-  -> uses state.songPool (REUSES -- no API calls, instant)
-  -> uses state.runPlan (stored from generation)
-  -> uses state.tasteProfile (stored from generation)
-  -> PlaylistGenerator.generate(..., random: Random())  -- new seed
-  -> state = loaded(...)
-  -> auto-save to history
+User sees playlist with songs (PlaylistScreen)
+  |
+  v
+User taps like/dislike on SongTile
+  |
+  v
+PlaylistScreen calls SongFeedbackNotifier.setFeedback(
+  songKey: lookupKey,
+  artistName: song.artistName,
+  title: song.title,
+  isLiked: true/false,
+  genre: song.genre,       // captured from PlaylistSong metadata if available
+  bpm: song.bpm,
+  decade: song.decade,     // may be null for API-sourced songs
+)
+  |
+  v
+SongFeedbackNotifier updates in-memory state + persists to SharedPreferences
+  |
+  v
+SongTile rebuilds with updated visual state (filled thumb icon, color change)
 ```
 
-### Proposed: Onboarding
+**Note on genre/decade availability:** `PlaylistSong` currently stores `title`, `artistName`, `bpm`, `matchType`, `segmentLabel`, `segmentIndex`, `songUri`, `spotifyUrl`, `youtubeUrl`, `runningQuality`, `durationSeconds`. It does NOT store `genre` or `decade`. Two options:
+
+**Option A (Recommended):** When constructing `PlaylistSong` in the generator, also store genre and decade from the `BpmSong` source. This requires adding two nullable fields to `PlaylistSong`.
+
+**Option B:** Look up genre/decade from the curated dataset or song pool when feedback is given. This is fragile because the song pool is only available while a playlist is loaded.
+
+**Recommendation: Option A.** Add `genre` and `decade` to `PlaylistSong`. The fields are nullable and only add a few bytes per song in the JSON. This also enables future UI enhancements (showing genre/decade on song tiles).
+
+## Data Flow: Feedback Reading During Generation
 
 ```
-App launch
-  -> main.dart: prefs.getBool('onboarding_complete') ?? false
-  -> ProviderScope override: onboardingCompleteProvider = false
-  -> GoRouter redirect: / -> /onboarding
-
-/onboarding
-  -> OnboardingFlowScreen checks:
-     profiles.isEmpty? -> "Create Taste Profile" step
-     plans.isEmpty?    -> "Create Run Plan" step
-     both exist?       -> Navigate to /playlist?auto=true
-
-After first playlist generates:
-  -> OnboardingPreferences.setComplete(true)
-  -> Update onboardingCompleteProvider state
-  -> Navigate to / (home)
-  -> Future redirects: onboarding check passes, no redirect
+User taps "Generate Playlist"
+  |
+  v
+PlaylistGenerationNotifier.generatePlaylist()
+  |
+  +-> ref.read(songFeedbackProvider) -> feedbackMap: Map<String, bool>
+  +-> ref.read(freshnessSettingProvider) -> FreshnessMode
+  +-> ref.read(playHistoryProvider) -> recentSongKeys: Set<String>
+  +-> (existing) ref.read(curatedRunnabilityProvider)
+  +-> (existing) ref.read(runPlanNotifierProvider)
+  +-> (existing) ref.read(tasteProfileNotifierProvider)
+  |
+  v
+PlaylistGenerator.generate(
+  runPlan: ...,
+  songsByBpm: ...,
+  tasteProfile: ...,
+  curatedRunnability: ...,
+  songFeedback: feedbackMap,           // NEW
+  recentSongKeys: recentSongKeys,      // NEW (only if keepFresh mode)
+  learnedPreferences: learnedPrefs,    // NEW (only if enough feedback)
+)
+  |
+  v
+For each candidate in _scoreAndRank:
+  1. Compute lookupKey (existing)
+  2. Look up runnability (existing)
+  3. Look up feedback: feedbackMap[lookupKey] -> isLiked (NEW)
+  4. Call SongQualityScorer.score(..., isLiked: isLiked) (MODIFIED)
+  5. Apply freshness penalty if recent and keepFresh mode (NEW)
+  6. Apply learned preference bonus (NEW)
+  |
+  v
+Playlist generated with feedback-informed scoring
+  |
+  v
+PlaylistGenerationNotifier records play history:
+  ref.read(playHistoryProvider.notifier).recordPlaylistSongs(playlist)
 ```
+
+## Data Flow: Taste Learning
+
+```
+TasteLearner.analyze(List<SongFeedback> feedbacks) -> LearnedPreferences
+  |
+  (Pure synchronous function, no side effects)
+  |
+  Calculations:
+  1. Group feedbacks by genre
+  2. For each genre with >= 3 entries: compute affinity
+  3. Group feedbacks by artist (normalized)
+  4. For each artist with >= 2 entries: compute affinity
+  5. Compute median BPM of liked songs (if >= 5 liked)
+  6. Group feedbacks by decade
+  7. For each decade with >= 3 entries: compute affinity
+  |
+  Returns LearnedPreferences
+```
+
+**When to run:** TasteLearner runs at the start of `generatePlaylist()`, after loading feedback. It is a synchronous computation on an in-memory list. At 5,000 entries the computation is O(n) -- negligible compared to API fetches.
+
+**Caching:** LearnedPreferences can be cached in the SongFeedbackNotifier and invalidated when feedback changes. But given the small data size and the fact that it only runs at generation time, eager computation is fine.
 
 ---
 
-## Suggested Build Order
+## Updated Provider Dependency Graph
 
-Based on dependency analysis, risk, and the discovery that multi-profiles already exist:
+```
+playlistGenerationProvider
+  |-- reads runPlanNotifierProvider          (existing)
+  |-- reads tasteProfileNotifierProvider     (existing)
+  |-- reads getSongBpmClientProvider         (existing)
+  |-- reads curatedRunnabilityProvider       (existing)
+  |-- reads songFeedbackProvider             (NEW)
+  |-- reads playHistoryProvider              (NEW)
+  |-- reads freshnessSettingProvider         (NEW)
+  |-- writes playlistHistoryProvider         (existing, auto-save)
+  |-- writes playHistoryProvider             (NEW, record plays)
 
-### Phase 1: Regeneration Fix
+songFeedbackProvider
+  |-- SongFeedbackNotifier (self-loading from SongFeedbackPreferences)
+  |-- Exposes: feedbackMap, allFeedbacks, learnedPreferences
 
-**Why first:** Smallest scope (one new method + one UI wire). No dependencies on other features. Immediately improves existing user experience. Good confidence builder.
+playHistoryProvider
+  |-- PlayHistoryNotifier (self-loading from PlayHistoryPreferences)
+  |-- Exposes: recentSongKeys (configurable window)
 
-**Scope:**
-1. Add `shufflePlaylist()` to `PlaylistGenerationNotifier` -- reuses `state.songPool`
-2. Wire "Shuffle" button in `_PlaylistView` to call `shufflePlaylist()`
-3. Verify `generatePlaylist()` correctly reads current provider selections
-4. Test: shuffle produces different results, no API calls, stored state preserved
-
-**Estimated complexity:** Low. ~30 lines of new code + test coverage.
-
-### Phase 2: Multi Taste Profile Verification
-
-**Why second:** The infrastructure exists but needs verification and test coverage. This is quality assurance, not greenfield development.
-
-**Scope:**
-1. Write test coverage for `TasteProfileLibraryNotifier` (add, update, select, delete)
-2. Write test coverage for `TasteProfilePreferences` (library persistence, legacy migration)
-3. Integration test: change selected profile -> generate playlist -> verify correct profile used
-4. Integration test: change profile on playlist screen -> generate -> verify new profile
-5. Verify "Shuffle" uses stored profile (expected), "Generate" uses current selection (expected)
-6. Fix any gaps discovered during testing
-
-**Estimated complexity:** Low-Medium. Mostly test writing, may surface minor bugs.
-
-### Phase 3: Onboarding Flow
-
-**Why last:** Most new code. Depends on taste profile and run plan creation working correctly. Introduces new feature directory, router changes, and async startup modification.
-
-**Scope:**
-1. Create `lib/features/onboarding/` directory structure
-2. Implement `OnboardingPreferences` (SharedPreferences wrapper for flag)
-3. Implement `onboarding_providers.dart` (StateProvider for completion)
-4. Modify `main.dart` to pre-load flag
-5. Modify `router.dart` to add redirect guard + onboarding route
-6. Build `OnboardingWelcomeScreen` (welcome page)
-7. Build `OnboardingFlowScreen` (step coordinator checking provider states)
-8. Test: new user -> onboarding -> first playlist -> home
-9. Test: returning user -> skip onboarding -> home
-
-**Estimated complexity:** Medium. ~150-200 lines of new code across 4-5 files.
-
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Duplicating Screen Logic for Onboarding
-
-**What:** Building simplified versions of TasteProfileScreen, RunPlanScreen for onboarding.
-**Why bad:** Duplicates UI code, creates maintenance burden. The existing screens already have full UX including validation, persistence, and feedback.
-**Instead:** Reuse existing screens. The onboarding shell controls navigation between them. At most, detect "came from onboarding" context to show a slightly different AppBar or hide the back button.
-
-### Anti-Pattern 2: Complex Onboarding State Machine
-
-**What:** Building an `OnboardingStep` enum with transition guards, undo capability, and persistent step tracking.
-**Why bad:** Over-engineering for a linear 2-3 step flow. The actual steps are: have a taste profile? -> have a run plan? -> generate. Each step is a boolean check against existing provider state.
-**Instead:** Check provider state directly. `profiles.isEmpty` -> show taste profile step. `plans.isEmpty` -> show run plan step. Both exist -> navigate to generate. No step counter needed.
-
-### Anti-Pattern 3: Making Shuffle and Generate Identical
-
-**What:** Removing `regeneratePlaylist()` and always calling `generatePlaylist()`.
-**Why bad:** Generate re-fetches from API (300ms per unique BPM, potentially 5-15 BPMs = 1.5-4.5 seconds). Shuffle should be instant -- same pool, different picks. Users expect "Shuffle" to be fast.
-**Instead:** `shufflePlaylist()` reuses stored `songPool` with new Random seed. `generatePlaylist()` fetches fresh. UI labels should communicate the difference.
-
-### Anti-Pattern 4: Async GoRouter Redirect
-
-**What:** Making the redirect handler async, or using a `FutureProvider` that returns a loading state.
-**Why bad:** GoRouter redirect is synchronous. Async approaches cause a flash of the wrong screen or require complex loading states that hurt perceived performance.
-**Instead:** Pre-load the flag in `main.dart` before `runApp()`. Pass it synchronously to the router via provider override.
-
-### Anti-Pattern 5: Onboarding Checks at Every Route
-
-**What:** Adding onboarding completion checks to individual screens.
-**Why bad:** Scatters onboarding logic across the codebase. Each screen would need "am I in onboarding mode?" logic.
-**Instead:** Single redirect guard in the router. Onboarding is contained in one feature directory. Existing screens are unaware of onboarding.
+freshnessSettingProvider
+  |-- FreshnessSettingNotifier (self-loading from FreshnessPreferences)
+  |-- Exposes: FreshnessMode
+```
 
 ---
 
@@ -524,36 +722,144 @@ Based on dependency analysis, risk, and the discovery that multi-profiles alread
 +-------------------------------------------------------------------------+
 |                        PRESENTATION LAYER                               |
 |                                                                         |
-|  HomeScreen  PlaylistScreen  TasteProfileScreen  RunPlanScreen          |
-|              (has selectors  (create/edit mode)   (creates plans)        |
-|               for both)                                                 |
-|  OnboardingWelcomeScreen  OnboardingFlowScreen  <-- NEW                 |
-|  (welcome page)           (step coordinator)                            |
+|  PlaylistScreen -----> SongTile (+ like/dislike callbacks)              |
+|  PlaylistHistoryDetailScreen -> SongTile (+ like/dislike callbacks)     |
+|                                                                         |
+|  FeedbackLibraryScreen   <-- NEW (browse/edit all feedback)             |
+|  SettingsScreen          <-- MODIFIED (freshness toggle)                |
 |                                                                         |
 +----+--------------------+------------------+----------------------------+
      |                    |                  |
 +----+--------------------+------------------+----------------------------+
 |                        PROVIDER LAYER                                   |
 |                                                                         |
-|  playlistGenerationProvider (+ new shufflePlaylist)                      |
-|  tasteProfileLibraryProvider (EXISTING -- already has CRUD)             |
-|  tasteProfileNotifierProvider (convenience -> selectedProfile)          |
-|  runPlanLibraryProvider                                                 |
-|  runPlanNotifierProvider (convenience -> selectedPlan)                   |
-|  onboardingCompleteProvider  <-- NEW                                    |
-|  routerProvider (+ redirect guard)                                      |
+|  playlistGenerationProvider  (MODIFIED: reads new providers)            |
+|                                                                         |
+|  songFeedbackProvider        <-- NEW                                    |
+|  playHistoryProvider         <-- NEW                                    |
+|  freshnessSettingProvider    <-- NEW                                    |
+|                                                                         |
+|  tasteProfileLibraryProvider (unchanged)                                |
+|  runPlanLibraryProvider      (unchanged)                                |
+|                                                                         |
++----+--------------------+------------------+----------------------------+
+     |                    |                  |
++----+--------------------+------------------+----------------------------+
+|                        DOMAIN LAYER                                     |
+|                                                                         |
+|  SongQualityScorer       (MODIFIED: +isLiked parameter)                 |
+|  PlaylistGenerator       (MODIFIED: +feedback/freshness/learned params) |
+|  TasteLearner            <-- NEW (pure analyzer)                        |
+|                                                                         |
+|  SongFeedback            <-- NEW (model)                                |
+|  LearnedPreferences      <-- NEW (model)                                |
+|  SongPlayRecord          <-- NEW (model)                                |
+|  FreshnessMode           <-- NEW (enum)                                 |
 |                                                                         |
 +----+--------------------+------------------+----------------------------+
      |                    |                  |
 +----+--------------------+------------------+----------------------------+
 |                        DATA LAYER                                       |
 |                                                                         |
-|  TasteProfilePreferences (EXISTING -- already has library persistence)  |
-|  RunPlanPreferences (EXISTING)                                          |
-|  OnboardingPreferences  <-- NEW                                         |
+|  SongFeedbackPreferences      <-- NEW                                   |
+|  PlayHistoryPreferences       <-- NEW                                   |
+|  FreshnessPreferences         <-- NEW                                   |
+|                                                                         |
+|  PlaylistHistoryPreferences   (unchanged)                               |
+|  BpmCachePreferences          (unchanged)                               |
 |                                                                         |
 +-------------------------------------------------------------------------+
 ```
+
+---
+
+## Suggested Build Order
+
+Based on dependency analysis -- what must exist before what:
+
+### Phase 1: Feedback Foundation (Data + Domain + Persistence)
+
+**Build:** SongFeedback model, SongFeedbackPreferences, SongFeedbackNotifier.
+
+**Why first:** Everything else depends on having feedback data. The model, persistence, and state management must exist before UI or scoring integration can be built.
+
+**No integration yet** -- just the ability to store and retrieve feedback. Unit test the model, persistence, and notifier in isolation.
+
+**Dependencies:** None. Greenfield feature directory.
+
+### Phase 2: Feedback UI + Scoring Integration
+
+**Build:** SongTile modifications, PlaylistScreen wiring, SongQualityScorer feedback dimension, PlaylistGenerator feedback parameter.
+
+**Why second:** With feedback data available (Phase 1), wire up the full loop: user gives feedback -> feedback stored -> next generation uses feedback in scoring.
+
+**This is the "value delivery" phase** -- after this, the core feedback loop works end-to-end.
+
+**Dependencies:** Phase 1 (feedback data layer).
+
+### Phase 3: Feedback Library Screen
+
+**Build:** FeedbackLibraryScreen with browse/edit/delete.
+
+**Why third:** This is a quality-of-life feature that lets users review their feedback. Not required for the core loop but important for user control and trust.
+
+**Dependencies:** Phase 1 (reads feedback data).
+
+### Phase 4: Freshness Tracking
+
+**Build:** SongPlayRecord model, PlayHistoryPreferences, PlayHistoryNotifier, FreshnessMode, FreshnessPreferences, FreshnessSettingNotifier, SettingsScreen freshness toggle, PlaylistGenerator freshness penalty, PlaylistGenerationNotifier play recording.
+
+**Why fourth:** Freshness is independent of feedback. It could technically be built in parallel with phases 2-3. Placing it after feedback means the scoring system already has the new parameter pattern established, making the freshness penalty addition straightforward.
+
+**Dependencies:** None technically, but benefits from the parameter patterns established in Phase 2.
+
+### Phase 5: Taste Learning
+
+**Build:** TasteLearner, LearnedPreferences, integration into PlaylistGenerator.
+
+**Why last:** Taste learning requires sufficient feedback data to be useful (minimum ~10 entries). By the time this is built, the feedback loop has been running through phases 2-4. Taste learning is also the most experimental feature -- the weights and thresholds may need tuning.
+
+**Dependencies:** Phase 1 (needs feedback data), Phase 2 (scoring integration patterns).
+
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Mutating TasteProfile from Feedback
+
+**What:** Automatically adding liked artists to `TasteProfile.artists` or disliked artists to `TasteProfile.dislikedArtists`.
+**Why bad:** Users explicitly set their taste profile. Silent modifications feel like the app is "going rogue." If a user likes one Metallica song, they do not want Metallica added to their favorite artists list. Feedback preferences and taste profile preferences serve different functions.
+**Instead:** Keep `LearnedPreferences` as a separate, transparent model. The user can see "Based on your feedback, you seem to enjoy Hip-Hop" but the taste profile remains under their control.
+
+### Anti-Pattern 2: Hard-Filtering Disliked Songs
+
+**What:** Removing disliked songs from the candidate pool entirely before scoring.
+**Why bad:** In narrow BPM ranges or small song pools, hard-filtering could leave too few candidates, resulting in short playlists or empty segments. The user experience of "no songs found" is worse than seeing a disliked song at the bottom of a playlist.
+**Instead:** Use strong scoring penalties (-20 for disliked). The song is effectively buried but still available as a last resort.
+
+### Anti-Pattern 3: Storing Feedback on PlaylistSong
+
+**What:** Adding `isLiked` field to `PlaylistSong` and persisting it in playlist history JSON.
+**Why bad:** Feedback applies to a song globally (across all playlists), not per-playlist. If a user likes "Lose Yourself" in playlist A, they expect it to be liked when it appears in playlist B. Storing on PlaylistSong creates redundant, potentially inconsistent state.
+**Instead:** Feedback is stored in its own collection keyed by song lookup key. UI looks up feedback state per-song at render time.
+
+### Anti-Pattern 4: Full-Collection Save on Every Feedback Tap
+
+**What:** Serializing and saving ALL feedback entries to SharedPreferences every time the user taps like/dislike.
+**Why bad:** At 5,000 entries, JSON serialization + write is measurable (10-50ms). During rapid feedback (user scrolling through playlist tapping likes), this could cause jank.
+**Instead:** Debounce persistence. Update in-memory state immediately (instant UI response), then debounce the SharedPreferences write (e.g., 500ms after last change). Use `Timer` or a simple debounce helper.
+
+### Anti-Pattern 5: Complex Recommendation Algorithm for Taste Learning
+
+**What:** Building a collaborative filtering or ML-style recommendation engine.
+**Why bad:** The song pool is pre-filtered by BPM. The taste profile already handles genre/artist matching. Taste learning is a nudge, not a replacement for the existing scoring system. Complex algorithms are hard to debug, tune, and explain to users.
+**Instead:** Simple affinity scores based on feedback ratios. Transparent, debuggable, and effective for the data volume this app handles.
+
+### Anti-Pattern 6: Freshness as a Hard Time Window
+
+**What:** "Never show songs from the last 2 weeks" as a hard filter.
+**Why bad:** Same as hard-filtering disliked songs -- can deplete the pool. Also, the "right" time window varies by user. A runner who generates playlists daily needs a shorter window than one who generates weekly.
+**Instead:** Scoring penalty (-8) for recent songs. The 90-day rolling window on play history determines what "recent" means. The penalty is moderate -- recent songs can still appear if they score well enough on other dimensions.
 
 ---
 
@@ -561,16 +867,20 @@ Based on dependency analysis, risk, and the discovery that multi-profiles alread
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Onboarding redirect interferes with deep links | Low | Medium | Allow-list routes during onboarding |
-| Shuffle produces identical results to previous | Low | Low | New `Random()` seed on each call; verify with test |
-| Provider override in main.dart not reactive | Medium | Low | After completing onboarding, update the provider state directly (not just SharedPreferences) |
-| Existing taste profile library has untested edge cases | Medium | Medium | Write test coverage in Phase 2 before building on it |
-| User kills app during onboarding | Low | Low | Onboarding checks actual data state, not step counter -- resumes correctly |
+| SharedPreferences feedback blob grows too large (>1.4 MB) | Low | Medium | Cap at 5,000 entries with LRU eviction by feedbackAt |
+| Rapid like/dislike tapping causes jank | Medium | Low | Debounce persistence writes (500ms) |
+| Taste learning produces poor recommendations | Medium | Medium | Minimum 10-entry threshold, low weight (max +4), transparent display |
+| Freshness penalty too strong/weak | Medium | Low | Constant is easy to tune; start conservative at -8 |
+| PlaylistSong lacking genre/decade for feedback capture | High | Medium | Add fields to PlaylistSong model (Phase 2) |
+| Adding feedback parameter to SongQualityScorer breaks existing tests | Low | Low | Parameter is optional (null = no effect); existing tests pass unchanged |
+| Play history grows unbounded | Low | Medium | 90-day rolling window trimmed on save |
 
 ---
 
 ## Sources
 
-- Direct codebase analysis: `taste_profile_providers.dart`, `taste_profile_preferences.dart`, `taste_profile_library_screen.dart`, `taste_profile_screen.dart`, `playlist_providers.dart`, `playlist_screen.dart`, `router.dart`, `main.dart`, `home_screen.dart`, `run_plan_providers.dart`, `run_plan_preferences.dart`, `run_plan_library_screen.dart`, `run_plan_screen.dart`, `playlist_generator.dart`, `playlist.dart`, `stride_providers.dart`, `app.dart` -- **HIGH confidence** (primary source, direct examination)
-- GoRouter redirect pattern -- **HIGH confidence** (standard GoRouter pattern, consistent with existing codebase's GoRouter usage)
-- SharedPreferences pre-loading -- **HIGH confidence** (already used implicitly by all existing provider constructors)
+- Direct codebase analysis of all files listed in the Components table above -- **HIGH confidence** (primary source, every file read and analyzed)
+- SharedPreferences size limits: ~1.4 MB practical limit per entry on Android ([Flutter: Finding Optimal Size Limit for shared_preferences](https://copyprogramming.com/howto/how-big-is-too-big-in-flutter-shared-preferences)) -- **MEDIUM confidence** (multiple sources agree, but exact limits depend on platform/device)
+- SharedPreferences vs SQLite for large datasets: SQLite recommended for complex queries; SharedPreferences sufficient for load-all/save-all at <1 MB ([Flutter Data Storage Comparison](https://medium.com/@dobri.kostadinov/flutter-data-storage-sharedpreferences-room-and-datastore-compared-69bb529803de)) -- **MEDIUM confidence** (general guidance, confirmed by multiple sources)
+- Lookup key pattern (`artist|title`) already established in codebase: `CuratedSong.lookupKey`, `PlaylistGenerator._findReplacements`, `PlaylistGenerationNotifier` -- **HIGH confidence** (direct codebase observation)
+- SongQualityScorer additive dimension pattern -- **HIGH confidence** (direct analysis of all 8 existing dimensions)

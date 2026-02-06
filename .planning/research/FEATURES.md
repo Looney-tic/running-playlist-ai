@@ -1,30 +1,34 @@
-# Feature Research: v1.2 Profile Management, Onboarding, and Regeneration Reliability
+# Feature Research: v1.3 Song Feedback, Taste Learning & Playlist Freshness
 
-**Domain:** Multi-profile management, first-time user onboarding, playlist regeneration robustness
+**Domain:** Song-level feedback systems, implicit taste learning from explicit feedback, playlist freshness/variety algorithms
 **Researched:** 2026-02-06
-**Confidence:** MEDIUM-HIGH -- patterns verified against competitor apps and established mobile UX research; Flutter/Riverpod technical patterns verified against official documentation; codebase race conditions identified through direct code inspection
+**Confidence:** MEDIUM-HIGH -- feedback UX patterns well-established across Spotify, Apple Music, Pandora, YouTube Music; taste learning patterns verified through academic research and platform documentation; freshness algorithms documented in Spotify engineering blog and research papers; integration with existing codebase verified through direct code inspection
 
-## Background: Current State and User Journey Gaps
+## Background: Current State and What This Milestone Adds
 
-The app has grown from a single-profile, single-plan prototype to a feature-rich running playlist generator. However, three user journey gaps have emerged:
+### What Exists Today
 
-### Gap 1: Taste Profile Management Is Half-Built
+The app generates BPM-matched running playlists using an 8-dimension scoring system (`SongQualityScorer`). Users configure their preferences through `TasteProfile` objects containing genres, artists, energy level, vocal preference, tempo tolerance, decades, and disliked artists. Playlists are generated from a pool of ~5,066 curated songs plus API results, scored, ranked, and assigned to run segments.
 
-The run plan library pattern is fully implemented: users can create, name, edit, delete, and select from multiple named run plans via a dedicated library screen. The taste profile library has the same backend pattern (`TasteProfileLibraryNotifier` with `addProfile`, `updateProfile`, `selectProfile`, `deleteProfile`) and a library screen, but the user-facing experience is less polished. Both the playlist screen and the home screen already reference the taste profile library, but the flow from "first app launch with no profiles" to "pick a profile for generation" has friction.
+The current feedback mechanism is **crude**: users can swipe-dismiss songs from a generated playlist and pick a replacement from a short suggestion list. There is no persistent memory of what songs the user liked or disliked. Every playlist generation starts fresh from the same scoring weights regardless of accumulated user behavior.
 
-### Gap 2: First-Time Users Hit a Blank Wall
+### What This Milestone Changes
 
-New users launch the app and see 5 navigation buttons with no context about what to do first. There is no onboarding, no guided setup, and no indication of the 3-step dependency chain needed before generating a playlist: (1) set up stride/cadence, (2) create a run plan, (3) create a taste profile. Users must discover this sequence by trial and error.
+This milestone adds three interconnected capabilities:
 
-The playlist screen partially compensates -- it shows "No Run Plan" with a button to create one. But by the time a user reaches that screen and bounces, their first impression is already damaged. Research consistently shows that apps with structured onboarding see 5x better engagement and 80%+ completion rates vs. apps that dump users on a blank home screen.
+1. **Song feedback** -- Users can like/dislike individual songs. Feedback persists and accumulates.
+2. **Taste learning** -- The system analyzes feedback patterns to discover implicit preferences (e.g., user consistently likes songs from the 2010s but never explicitly set a decade preference).
+3. **Freshness** -- The system tracks which songs have appeared in generated playlists and can deprioritize recently-used songs.
 
-### Gap 3: Regeneration Has Silent Failure Modes
+### Key Constraint: Not a Streaming App
 
-The home screen "Regenerate Playlist" card navigates to `/playlist?auto=true`, which triggers `generatePlaylist()` via a `PostFrameCallback` once `runPlan != null`. But the `TasteProfileLibraryNotifier` and `RunPlanLibraryNotifier` both load asynchronously from SharedPreferences in their constructors. If the playlist screen mounts before either notifier finishes `_load()`, the state may be empty, leading to:
-- `runPlan` being null (auto-generate never fires)
-- `tasteProfile` being null (generation runs without taste preferences, falling through to a default empty profile)
+This app does NOT play music. Users generate playlists, review them, then listen externally via Spotify/YouTube links. This means:
+- "Played" = "appeared in a generated playlist," not "was streamed through the app"
+- There are no implicit signals like skip rate, completion rate, or listening duration
+- All feedback must be **explicit** (user taps like/dislike) -- there is no passive signal to harvest
+- Post-session review is different from mid-session feedback (user reviews the full playlist after running, not while running)
 
-This is an async initialization race condition. It manifests inconsistently, making it hard to reproduce but real for users.
+This is fundamentally different from Spotify/Pandora where the recommendation engine has rich implicit signals. Our system must work with sparse, explicit-only feedback.
 
 ---
 
@@ -32,231 +36,350 @@ This is an async initialization race condition. It manifests inconsistently, mak
 
 ### Table Stakes (Users Expect These)
 
-Features that v1.2 must deliver. Without these, the app feels incomplete to anyone who uses it beyond a single session.
+Features that users who have used any music app will expect. Missing these makes the feedback system feel incomplete.
 
 | Feature | Why Expected | Complexity | Dependencies | Notes |
 |---------|--------------|------------|--------------|-------|
-| **Taste profile library screen (polish)** | Users who have the run plan library pattern already expect the same experience for taste profiles. The backend is built; the library screen exists; it needs the same card design, edit/delete affordances, and empty-state guidance as the run plan library. | LOW | Existing `TasteProfileLibraryScreen`, `TasteProfileLibraryNotifier`. | The taste profile library screen already has create/select/edit/delete. The gap is visual polish (match run plan library card style) and the empty state (guide users to create their first profile). Already mostly done from codebase inspection. |
-| **Profile selector on playlist generation screen** | When generating a playlist, users need to pick which run plan AND which taste profile to use. The playlist screen already has `_RunPlanSelector` and `_TasteProfileSelector` widgets with bottom-sheet pickers. | LOW | Existing `_RunPlanSelector`, `_TasteProfileSelector` in playlist_screen.dart. | Already implemented. This is table stakes that is essentially done. Verify it works correctly with the library pattern and that switching profiles triggers regeneration context update. |
-| **Reliable regeneration (fix race condition)** | Users expect "Regenerate Playlist" to work 100% of the time. The current async initialization race means it silently fails when providers have not finished loading. | MEDIUM | `RunPlanLibraryNotifier._load()`, `TasteProfileLibraryNotifier._load()`, `PlaylistGenerationNotifier.generatePlaylist()`, SharedPreferences async loading. | The fix requires ensuring providers are loaded before the playlist screen consumes them. Two approaches: (A) eager initialization at app startup using the Riverpod pattern from codewithandrea.com, or (B) guard the auto-generate with an explicit readiness check. Option A is cleaner. |
-| **Delete confirmation dialog** | Both run plan and taste profile library screens allow delete via a single tap. Accidental deletion of a carefully configured profile is destructive and unrecoverable. Every serious app uses a confirmation dialog for destructive actions. | LOW | Existing delete methods on both notifiers. | Standard Flutter `showDialog` with confirm/cancel. Applied to both run plan library and taste profile library screens. |
-| **Empty state guidance (per screen)** | When any library (run plans, taste profiles, playlist history) is empty, the screen should explain what goes here and provide a clear primary action to create the first item. The run plan library and taste profile library already have empty states, but they lack context about WHY the user should create one. | LOW | Existing empty state widgets in both library screens. | Improve copy from "No saved runs / Create Run" to "Create your first run plan to define your distance, pace, and segments. The app will match songs to your running cadence." Brief, purposeful, not decorative. |
+| **Like/dislike buttons on every song tile** | Every major music app (Spotify, Apple Music, YouTube Music, Pandora) provides inline feedback. Users expect to express preference on individual songs. In a running playlist context, this means "I enjoyed running to this" or "this was wrong for my run." | LOW | `PlaylistSong` model (exists), `SongTile` widget (exists). New: `SongFeedback` model, `SongFeedbackRepository` (SharedPreferences persistence). | The `SongTile` widget currently shows title, artist, BPM, match type, and star badge. Adding a like/dislike toggle is a visual addition plus a new data layer. Icon choice matters: use thumbs up/down (explicit feedback intent) not hearts (hearts imply "save to library" per Spotify convention). |
+| **Visual feedback state on song tiles** | Once a user has liked or disliked a song, they expect to see that state reflected whenever they see that song again -- in the current playlist, in history detail, and in the feedback library. | LOW | `SongFeedback` model, `SongTile` widget. | Thumbs-up icon filled/highlighted for liked songs, thumbs-down for disliked. Neutral state (no feedback) shows outlined/unfilled icons. The visual state must persist across app restarts and appear on the same song in different playlists (matched by artist+title lookup key). |
+| **Liked songs boost scoring** | Spotify, Pandora, and YouTube Music all prioritize songs the user has explicitly liked. A liked song should receive a scoring bonus in `SongQualityScorer` so it ranks higher in future playlists. | LOW | `SongQualityScorer` (exists), `SongFeedback` data. | Add a new scoring dimension: `+8 if song is liked`. This is comparable to the existing `artistMatchWeight` (+10). The bonus should be significant enough to noticeably promote liked songs but not so dominant that it overrides BPM matching or runnability. |
+| **Disliked songs filtered or heavily penalized** | Every platform removes disliked songs from future recommendations. Pandora never plays a thumbed-down song again. Apple Music's "Suggest Less" suppresses the song. Users who dislike a song in a running app expect to never see it in a playlist again. | LOW | `SongQualityScorer` (exists), `SongFeedback` data, `PlaylistGenerator` (exists). | Two options: (A) Hard filter -- disliked songs are removed from the candidate pool before scoring. (B) Heavy penalty -- disliked songs get `-20` in scoring. Recommend option A (hard filter) because the user's intent is unambiguous: "I do not want this song." A penalty still allows the song to appear if the candidate pool is small. Hard filter matches Pandora's behavior and user expectations. |
+| **Feedback library screen** | Users need a place to see all their feedback decisions, correct mistakes (undo a dislike), and review their liked songs. Apple Music has this (Loved Songs playlist), Spotify has Liked Songs. Without it, feedback feels like a black box. | MEDIUM | `SongFeedback` repository, new screen. | Screen shows two tabs or filters: Liked / Disliked. Each entry shows song title, artist, and the date of feedback. Tap to toggle feedback (change like to dislike or clear feedback entirely). Sort by most recent feedback. Search/filter optional but not MVP. |
+| **Undo feedback** | Both Pandora and Apple Music allow undoing feedback. Users make mistakes, change their minds, or accidentally tap. Without undo, users feel locked into decisions. | LOW | `SongFeedback` repository. | Three states: liked, disliked, neutral (no feedback). Tapping the active icon again should clear feedback back to neutral. Tapping the opposite icon should switch (liked -> disliked). This is the standard toggle pattern. Additionally, show a brief snackbar with "Undo" action after any feedback tap (Spotify pattern). |
+| **Feedback accessible from both playlist screen and history detail** | Users generate playlists and may want to give feedback immediately. But they also review past playlists (history detail screen) and want to give feedback retroactively after their run. Both surfaces must support like/dislike. | LOW | `SongTile` widget (shared between playlist screen and history detail screen). | Since `SongTile` is already shared across both screens, adding feedback to the widget automatically makes it available everywhere. The feedback state is stored by song identity (artist+title), not by playlist, so a like given on the history screen applies globally. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that go beyond what running music apps typically offer. These make the app feel genuinely thoughtful.
+Features that go beyond standard music app patterns. These are where the running playlist context creates unique value.
 
 | Feature | Value Proposition | Complexity | Dependencies | Notes |
 |---------|-------------------|------------|--------------|-------|
-| **First-launch onboarding flow** | Guide new users through the 3-step dependency chain (stride -> run plan -> taste profile) with a clear, motivating sequence. Research shows Spotify asks for 3 favorite artists as minimum viable personalization. Our equivalent: pick energy level and 2-3 genres. The "aha moment" is generating their first playlist. | MEDIUM | Stride calculator (exists), run plan creation (exists), taste profile creation (exists). New: an onboarding controller that tracks whether onboarding has been completed, and a multi-step flow that collects minimal input across 2-4 screens. | No competitor in the BPM-matching space (RockMyRun, PaceDJ, Weav) does structured onboarding well. RockMyRun dumps users into a genre browser. PaceDJ requires library scanning with no guidance. Structured onboarding that ends with a generated playlist in under 2 minutes is a standout experience. |
-| **Smart home screen: contextual actions** | Replace the static 5-button grid with context-aware content. (A) No profiles/plans -> show onboarding prompt. (B) Profiles + plan exist but no playlist generated yet -> show prominent "Generate Your First Playlist" card. (C) Previous playlist exists -> show regenerate card with current plan name and cadence (this already exists). Progressive disclosure rather than showing everything at once. | MEDIUM | Onboarding completion flag, run plan library state, taste profile library state, playlist history state. | The home screen currently shows the regenerate card only when a run plan exists, plus 5 static buttons. The improvement: show different content based on what the user has set up. This is the opposite of an anti-feature -- it reduces cognitive load for new users while preserving power for returning users. |
-| **Quick-switch profile from home screen** | A chip or dropdown on the home screen showing the active taste profile + run plan, tappable to switch without navigating away. "Today I want my Hip-Hop mix with my 10K plan." One look, two taps, generate. | LOW | Existing `_TasteProfileSelector` and `_RunPlanSelector` widget patterns from playlist_screen.dart. | The playlist screen already has these selectors. Lifting them to the home screen (or making them available in the regenerate card area) is a natural extension. This shortens the "returning user" flow from 3 taps to 1. |
-| **Profile templates / presets** | Offer 2-3 pre-built taste profile templates that new users can adopt and customize: "High Energy Pop," "Chill Electronic," "Hip-Hop Power." Reduces the cold-start problem where users must configure everything from scratch. | LOW | TasteProfile model (exists), addProfile method (exists). | Templates are just pre-populated TasteProfile instances. The user can edit them after adopting. This bridges the gap between "I don't know what to pick" and "I have a working profile." Spotify uses a similar pattern with starter playlists. |
-| **Onboarding skip with smart defaults** | Users who skip onboarding should still get a working experience. Create a default taste profile (balanced energy, pop + electronic genres) and a default run plan (5K steady, moderate pace) so the user can generate a playlist immediately. | LOW | Existing models and notifiers. | The opposite of forcing completion. If a user is impatient, they get reasonable defaults and can customize later. This respects both exploration-oriented and goal-oriented user types. |
-| **Provider readiness guard pattern** | Implement an `AppStartupWidget` pattern (from Riverpod best practices) that eagerly initializes SharedPreferences-backed providers at app startup and shows a loading indicator until ready. Eliminates the entire class of race conditions where widgets mount before data loads. | MEDIUM | All SharedPreferences-backed notifiers (RunPlanLibrary, TasteProfileLibrary, StrideNotifier, PlaylistHistory). GoRouter initial route. | This is an infrastructure improvement, not a user-facing feature. But it eliminates flaky behavior across the entire app. The pattern from codewithandrea.com is well-documented and fits the existing Riverpod 2.x manual provider architecture. |
+| **Post-run review screen** | No competitor in the BPM-matching space offers a post-run review flow. After completing a run, the user opens the app and sees a "How was your playlist?" screen showing each song with like/dislike buttons and optional "perfect for running" / "not great for running" tags. This captures fresh feedback while the experience is vivid. Spotify has no post-session review. Pandora's feedback is real-time only. This is a novel UX for the running context. | MEDIUM | Playlist history (exists), feedback model, new screen or overlay. | The screen should be triggered when the user opens the app and a recently generated playlist (last 4 hours) has not been reviewed. Show songs in playlist order. Make it skippable ("Skip Review" button). The screen is purely for feedback collection -- it does not regenerate or modify the playlist. Consider: is this a new screen or a modal overlay on the home screen? Recommend: a card on the home screen that says "Rate your last playlist" that opens a dedicated review screen. Less intrusive than a modal. |
+| **Taste learning from feedback patterns** | Analyze accumulated likes/dislikes to discover implicit preferences the user never explicitly set. Example: user consistently likes songs from the electronic genre but their taste profile only has Pop and Hip-Hop. The system detects this pattern and either (A) auto-updates the taste profile, or (B) suggests "We noticed you like Electronic -- add it to your profile?" This goes beyond simple scoring boosts -- it creates a feedback loop that improves the taste profile itself. No running music app does this. | HIGH | `SongFeedback` with genre/artist/decade metadata, `TasteProfile` model (exists), analysis logic. | Two approaches: (A) **Automatic updates** -- system silently adjusts taste profile weights. Risk: user loses control, recommendations shift without explanation. (B) **Suggestion-based** -- system surfaces insights as suggestions the user can accept or dismiss. "You've liked 8 electronic songs -- add Electronic to your genres?" This is more transparent and builds trust. Recommend option B (suggestion-based). Implementation: after N likes (threshold ~10), run pattern analysis on feedback metadata. Compare genre/artist/decade distribution of liked songs against current taste profile. Surface top 1-2 gaps as suggestions. |
+| **Freshness toggle: "Keep it Fresh" vs "Optimize for Taste"** | Users sometimes want familiar favorites, sometimes want discovery. Spotify's approach is algorithmic (Favorites Mix vs Discover Weekly are separate playlists). Our approach can be simpler: a single toggle that controls how aggressively the generator deprioritizes recently-used songs. "Keep it Fresh" = strong recency penalty, more variety. "Optimize for Taste" = standard scoring, best-matching songs regardless of repetition. This is a clear, user-controllable preference that no running app offers. | MEDIUM | Freshness tracking (generation timestamps per song), `PlaylistGenerator` modification, UI toggle. | The toggle belongs on the playlist generation screen (next to the run plan and taste profile selectors). Default to "Optimize for Taste" for new users (they have no history to be fresh from). After the user has generated 5+ playlists, suggest switching to "Keep it Fresh." The toggle is a simple boolean that controls whether the freshness scoring dimension is active. |
+| **Freshness tracking: "last appeared in playlist" timestamps** | Track when each song was last included in a generated playlist. This data powers the freshness scoring dimension. Songs that appeared recently get a penalty; songs that have not appeared in a while (or ever) get a bonus. Spotify does this internally for Discover Weekly and Daily Mix. | MEDIUM | New persistence layer: `SongAppearanceHistory` (SharedPreferences or lightweight local DB). Updated during playlist generation. | Store as a map: `songLookupKey -> DateTime lastGenerated`. Updated every time `PlaylistGenerator.generate()` produces a playlist. The map grows with usage but is bounded by the curated song pool size (~5,066 entries). SharedPreferences can handle this as a JSON blob. Consider periodic cleanup of entries older than 90 days. |
+| **Freshness scoring dimension** | Add a new dimension to `SongQualityScorer` that penalizes recently-generated songs. The penalty decays over time (exponential decay matching human memory models). A song generated yesterday gets a strong penalty. A song generated 2 weeks ago gets a mild penalty. A song generated 2 months ago gets no penalty. | MEDIUM | `SongQualityScorer` (exists), freshness tracking data. | Suggested penalty curve: -8 if generated in last 3 days, -5 if last 7 days, -3 if last 14 days, -1 if last 30 days, 0 if older or never. This uses the same integer scoring system as existing dimensions. Max penalty (-8) equals the danceability max weight, making it significant but not overwhelming. Only active when freshness toggle is on. |
+| **Disliked artist auto-detection** | When a user dislikes 3+ songs by the same artist, surface a suggestion: "You've disliked 3 songs by [Artist]. Add them to your disliked artists?" This bridges the gap between song-level feedback and artist-level preferences. Currently, the `dislikedArtists` list in `TasteProfile` requires manual entry. | LOW | `SongFeedback` with artist metadata, `TasteProfile.dislikedArtists` (exists). | Pattern detection: group disliked songs by artist. If count >= 3, trigger suggestion. This is a specific case of the broader taste learning feature but is called out separately because the existing `dislikedArtistPenalty` (-15) is already the strongest negative signal in the scorer. Auto-detecting disliked artists bridges explicit feedback to the existing scoring system with minimal new logic. |
 
 ### Anti-Features (Deliberately NOT Building)
 
 | Feature | Why It Seems Useful | Why It Is Problematic | What to Do Instead |
 |---------|--------------------|-----------------------|-------------------|
-| **Account system / cloud sync** | "Sync profiles across devices, backup data" | Requires auth infrastructure, backend, GDPR compliance, password resets. The app is intentionally account-free and local-first. Adding accounts changes the app's fundamental character and triples complexity for a feature most solo-device users will never use. | SharedPreferences local persistence is sufficient. If future cloud sync is needed, export/import as JSON file is a simpler bridge. |
-| **Profile import from Spotify** | "Auto-detect genres and artists from Spotify listening history" | Spotify API restrictions (Nov 2024) make this unreliable. Requires OAuth flow, API key management, rate limits. The data returned is increasingly limited. High implementation cost for brittle integration. | Manual artist entry is sufficient. The app already supports 10 favorite artists. Users know their own taste better than an algorithm reading play counts. |
-| **Animated onboarding tutorial screens** | "Lottie animations, page indicators, swipe-through introduction" | Over-engineered for a utility app. The user wants to generate a playlist, not watch an animated walkthrough. Tutorial-style onboarding has lower completion rates than action-oriented onboarding (Spotify model: DO something immediately, not WATCH something). | Action-oriented onboarding: each step collects actual configuration (pick genres, set pace). The user IS setting up their app, not reading about it. |
-| **Complex onboarding analytics** | "Track completion rates per step, A/B test onboarding variations" | Requires analytics SDK integration, event tracking, dashboard. Premature optimization for a v1.2 app. The onboarding flow is simple enough to validate by testing with 3-5 real users. | Manual testing with real users. If the flow takes under 2 minutes and ends with a generated playlist, it is working. |
-| **Multi-user profiles on one device** | "Family sharing -- my spouse uses the same phone for running" | Different from taste profiles. Multi-user means separate data silos for EVERYTHING (run plans, playlist history, stride data). Massive architectural change for an edge case. | Each person installs the app on their own phone. The app is free. |
-| **Profile analytics / comparison** | "Show which taste profile generates better playlists (higher quality scores)" | Encourages profile tweaking over actually running. Adds UI complexity for marginal value. The quality score is an internal optimization signal, not a user-facing metric. | Users naturally discover what works by running with different profiles and regenerating. The feedback is experiential, not numerical. |
-| **Mandatory onboarding (block app until complete)** | "Force users through setup so they get the best experience" | Violates user agency. Some users want to explore first. Forced flows have higher abandonment than optional ones. Research from Nielsen Norman Group and UserPilot consistently shows that progressive disclosure beats forced disclosure. | Onboarding is strongly encouraged (prominent on first launch) but skippable. Smart defaults ensure a functional experience even without completing setup. |
-| **Automatic profile switching based on time/location** | "Morning runs use high-energy profile, evening runs use chill" | Requires location permissions, time-of-day rules engine, edge cases (what about afternoon runs?). Complex for a niche feature. | Manual profile selection is fast enough. The quick-switch chip on the home screen makes it a single tap. |
+| **Star ratings (1-5 scale)** | "More granular feedback gives better signal" | Research consistently shows binary feedback (like/dislike) outperforms rating scales for music. Cornell's Piki research found that binary feedback trained algorithms just as effectively as scaled ratings. Users also rate inconsistently -- a 3-star today might be a 4-star tomorrow. Pandora's entire business was built on binary thumbs. Adding granularity adds cognitive load without improving recommendation quality. In a running context, the user's evaluation is inherently binary: "good for running" or "not good for running." | Binary like/dislike. Two taps, zero cognitive load. |
+| **Feedback on runs rather than songs** | "Rate the whole playlist as good/bad for this run" | A playlist is a collection of songs. Rating the whole playlist loses the granular signal about WHICH songs worked and which did not. A 10-song playlist where 8 songs were great and 2 were terrible gets a "good" rating that teaches the system nothing about the 2 bad songs. | Song-level feedback. The post-run review screen makes it fast to rate all songs individually. |
+| **Skip detection / implicit feedback** | "Track which songs the user skips when listening externally" | The app does not control playback. Users listen on Spotify or YouTube Music. There is no way to detect skips, completion rates, or listening duration. Any attempt to approximate this (e.g., "did they tap the next song link quickly?") would be unreliable guesswork. | Rely exclusively on explicit feedback (like/dislike taps). Be transparent about it. |
+| **Automatic taste profile modification** | "Auto-update the taste profile based on feedback patterns" | Violates user agency. The taste profile is the user's explicit declaration of their preferences. Silently modifying it creates confusion ("I set Pop and Hip-Hop but now I'm getting Electronic -- did I change something?"). Research on music recommendation transparency (2025 Fairness review, Music Tomorrow) emphasizes that users must understand WHY recommendations change. | Suggestion-based learning. Surface insights as cards the user can accept or dismiss. "We noticed you like Electronic songs -- add to your profile?" User stays in control. |
+| **Collaborative filtering** | "Recommend songs that similar users liked" | Requires a multi-user backend, usage analytics, and sufficient user base for meaningful patterns. The app is local-first with no user accounts. Even with a backend, the running music niche is too narrow for reliable collaborative filtering -- a user who likes EDM for running might hate EDM while working. Context-dependent preferences break collaborative filtering assumptions. | Content-based filtering through the existing scoring system + explicit feedback. The 8-dimension scorer already captures what makes a song good for running. Feedback refines this per-user. |
+| **Mood/energy tagging on feedback** | "Let users tag WHY they liked/disliked (too slow, too intense, wrong genre)" | Adds friction to feedback. Every extra tap reduces feedback rates. Pandora found that simple thumbs up/down drives 75 billion data points precisely because it is frictionless. Adding tags turns a 1-tap action into a 3-tap action and dramatically reduces participation. The running context also makes detailed tagging impractical (user is reviewing post-run, tired, wants it fast). | Binary feedback only. If the system needs to know WHY, it can infer from the song's metadata (genre, BPM, energy, decade) and look for patterns across multiple likes/dislikes. This is what taste learning does. |
+| **Social sharing of liked songs** | "Share your running playlist favorites with friends" | Feature creep. Social features require sharing infrastructure, deep links, and social graph. The app is a utility, not a social platform. Running music preferences are highly personal and context-dependent (BPM-matched to YOUR cadence). Sharing a playlist matched to your 170 spm cadence is useless to a friend running at 160 spm. | The clipboard copy feature already exists for sharing full playlists. That is sufficient. |
+| **Real-time feedback during playlist generation** | "As the playlist generates, show each song and let users approve/reject before finalizing" | Generation is fast (subsecond from curated pool). Adding an approval step slows the experience dramatically. Users want a playlist NOW, not an approval workflow. The swipe-to-dismiss + replacement flow already serves the "reject a specific song" use case post-generation. | Post-generation feedback via like/dislike + swipe-to-dismiss (existing). |
+| **Weighted freshness per genre/artist** | "Different freshness decay rates for different genres -- EDM can repeat sooner than singer-songwriter" | Over-engineering. The freshness system is a simple recency penalty. Adding per-genre or per-artist decay rates creates a tuning nightmare with minimal user benefit. Users cannot perceive the difference between "this EDM song was penalized less" and "this singer-songwriter song was penalized more." | Single global freshness decay curve. Simple, predictable, tunable. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-First Launch (new user, no data)
+Song Feedback Data Layer (foundation for everything)
     |
-    |-- [NEW] Onboarding completion flag (SharedPreferences bool)
+    |-- SongFeedback model (songKey, feedbackType, timestamp)
     |       |
-    |       +-- Check on app start ---------> Route to onboarding OR home screen
-    |
-    |-- [NEW] Onboarding flow (2-4 screens)
-    |       |
-    |       +-- Step 1: Welcome + pace input -> Creates stride data (existing StrideNotifier)
-    |       |
-    |       +-- Step 2: Quick taste setup ----> Creates TasteProfile (existing notifier)
+    |       +-- SongFeedbackRepository (SharedPreferences persistence)
     |       |       |
-    |       |       +-- [NEW] Profile templates (optional shortcut)
+    |       |       +-- Load/save/clear feedback
+    |       |       +-- Query by song key
+    |       |       +-- Query all liked / all disliked
     |       |
-    |       +-- Step 3: Run plan quick-setup -> Creates RunPlan (existing notifier)
-    |       |
-    |       +-- Step 4: Generate first playlist -> Navigates to playlist screen with auto=true
+    |       +-- SongFeedbackNotifier (Riverpod provider)
+    |               |
+    |               +-- Exposes feedback state to UI
+    |               +-- Provides like/dislike/clear methods
     |
-    |-- [NEW] Smart defaults (skip handler)
+    |-- Feedback UI on SongTile
+    |       |
+    |       +-- Thumbs up / thumbs down icons on every song tile
+    |       +-- Visual state: filled (active) vs outlined (inactive)
+    |       +-- Available in: playlist screen, history detail, review screen
+    |
+    |-- Scoring Integration
+    |       |
+    |       +-- SongQualityScorer: +8 for liked songs
+    |       +-- PlaylistGenerator: hard filter disliked songs from candidates
+    |
+    |-- Feedback Library Screen
+    |       |
+    |       +-- Lists all liked/disliked songs
+    |       +-- Toggle/clear feedback per song
+    |       +-- Navigation from settings or home screen
+    |
+    |-- Post-Run Review (depends on feedback UI + playlist history)
+    |       |
+    |       +-- Home screen card: "Rate your last playlist"
+    |       +-- Opens review screen showing songs with feedback buttons
+    |       +-- Triggered when recent unreviewed playlist exists
+    |
+    |-- Taste Learning (depends on feedback accumulation)
+    |       |
+    |       +-- Pattern analysis engine
+    |       |       +-- Genre distribution of liked vs profile genres
+    |       |       +-- Artist frequency in liked songs
+    |       |       +-- Decade patterns in liked songs
+    |       |
+    |       +-- Suggestion cards on home screen or feedback library
+    |       |       +-- "Add Electronic to your genres?"
+    |       |       +-- "Add [Artist] to your favorites?"
+    |       |       +-- "Block [Artist]? (3 dislikes)"
+    |       |
+    |       +-- Suggestion acceptance -> TasteProfile.copyWith()
+    |
+    |-- Freshness Tracking (independent of feedback, parallel)
+    |       |
+    |       +-- SongAppearanceHistory (songKey -> lastGeneratedAt)
+    |       +-- Updated during PlaylistGenerator.generate()
+    |       +-- SharedPreferences persistence
+    |
+    |-- Freshness Scoring Dimension (depends on tracking)
+    |       |
+    |       +-- SongQualityScorer: -8 to 0 based on recency
+    |       +-- Only active when freshness toggle is ON
+    |
+    |-- Freshness Toggle UI (depends on freshness scoring)
             |
-            +-- Creates default TasteProfile + RunPlan if skipped
-
-Returning User (data exists)
-    |
-    |-- [NEW] AppStartupWidget (eager initialization)
-    |       |
-    |       +-- Watches all SharedPreferences-backed providers
-    |       +-- Shows loading until ready
-    |       +-- Eliminates race conditions for ALL downstream consumers
-    |
-    |-- [IMPROVED] Home screen (context-aware)
-    |       |
-    |       +-- No profiles -> "Complete your setup" card
-    |       +-- Has profiles + plan -> "Generate" or "Regenerate" card
-    |       +-- [NEW] Quick-switch chips for active profile + plan
-    |
-    |-- [EXISTING] Taste profile library (polish)
-    |       |
-    |       +-- [NEW] Delete confirmation dialogs
-    |       +-- [IMPROVED] Empty state copy
-    |
-    |-- [EXISTING] Run plan library (polish)
-    |       |
-    |       +-- [NEW] Delete confirmation dialogs
-    |       +-- [IMPROVED] Empty state copy
-    |
-    |-- [FIXED] Regeneration reliability
-            |
-            +-- Guaranteed by AppStartupWidget readiness
-            +-- No more silent null-state failures
+            +-- Toggle on playlist generation screen
+            +-- "Keep it Fresh" vs "Optimize for Taste"
+            +-- Default: Optimize for Taste
+            +-- Persisted per taste profile or globally
 ```
 
 ### Dependency Notes
 
-- **AppStartupWidget is the foundation:** It must be implemented before onboarding or home screen improvements, because both depend on knowing whether providers have loaded and what state they contain. Without it, checking "has the user completed onboarding?" is itself subject to the same race condition.
-- **Onboarding depends on existing creation flows:** The onboarding wizard does not replace the stride, run plan, or taste profile screens. It provides a streamlined entry point that delegates to the existing notifiers. No new persistence layer is needed.
-- **Profile templates are independent:** They can be added before or after onboarding. If added before, onboarding can offer them as quick-start options. If added after, they appear in the taste profile library.
-- **Delete confirmations and empty state copy are independent:** Pure UI improvements with no dependencies. Can be done in any order.
-- **Home screen context-awareness depends on onboarding flag:** To show "Complete your setup," the home screen needs to know whether onboarding was completed or skipped. This requires the onboarding completion flag in SharedPreferences.
-- **Quick-switch chips reuse existing selector widgets:** The `_RunPlanSelector` and `_TasteProfileSelector` from playlist_screen.dart can be extracted to shared widgets and placed on the home screen.
+- **SongFeedback data layer is the foundation.** Every other feedback feature depends on it. Build first.
+- **Scoring integration is the immediate payoff.** Once feedback data exists, integrating it into `SongQualityScorer` makes feedback actually DO something. Ship this with the data layer to close the feedback loop immediately.
+- **Feedback library can come after scoring integration.** Users can give feedback and see results (better playlists) before needing a dedicated management screen.
+- **Post-run review depends on feedback UI but is independent of scoring integration.** It is a feedback COLLECTION mechanism, not a feedback APPLICATION mechanism.
+- **Taste learning requires accumulated feedback.** Do not build the analysis engine until there is enough feedback to analyze. Gate behind a minimum threshold (e.g., 10+ liked songs).
+- **Freshness tracking is completely independent of feedback.** It can be built in parallel. It depends only on playlist generation (which already exists).
+- **Freshness toggle is a UI concern that depends on the freshness scoring dimension being implemented.** Ship the scoring dimension first, toggle second.
 
 ---
 
-## Onboarding Design: Action-Oriented, Not Tutorial
+## How Major Platforms Handle Feedback, Learning, and Freshness
 
-Research and competitor analysis converge on one conclusion: the best onboarding gets users to their "aha moment" as fast as possible. For this app, the aha moment is hearing a playlist that matches their running pace and music taste.
+### Spotify
 
-### What Competitors Do
+**Feedback mechanism:** Heart icon (add to Liked Songs) + "Hide this song" in context menu. The 2023 reintroduction of the dislike button provides a more explicit negative signal. Explicit feedback (saves, playlist adds, shares) weighs more than implicit signals (skips, completion rate) because background listening makes implicit signals unreliable.
 
-| App | Onboarding Approach | Time to First Value | Quality |
-|-----|---------------------|---------------------|---------|
-| **Spotify** | Pick 3 artists, then immediately see personalized home | ~30 seconds | Excellent -- minimal input, maximum personalization signal |
-| **RockMyRun** | Choose activity type, browse genres, start streaming | ~45 seconds | Good -- but streaming requires subscription for full experience |
-| **PaceDJ** | Grant music library access, set target BPM, see filtered results | ~60 seconds | Decent -- but requires existing music library |
-| **Nike Run Club** | "What's your experience level?" -> guided run suggestions | ~20 seconds | Good for guided runs, no music-specific onboarding |
-| **MyFitnessPal** | Define health goal, enter metrics, see personalized plan | ~90 seconds | Good -- but longer due to data collection |
+**Taste learning:** Spotify uses collaborative filtering, natural language processing of playlist/track metadata, and audio feature analysis. For explicit feedback, a liked song increases affinity for similar artists, genres, and audio features. The system maintains separate user taste clusters (e.g., "lo-fi beats" cluster vs "contemporary jazz" cluster) to avoid averaging across different listening contexts.
 
-### Recommended Approach: 4-Screen Flow
+**Freshness:** Discover Weekly regenerates weekly with entirely new songs. Daily Mix uses diversity injection -- inserting slightly different songs between similar ones. A "Fewer Repeats" shuffle mode (November 2025) considers previously played tracks when generating randomized playlists. Internally, Spotify scores playlist candidates for "freshness" by analyzing how recently songs were played and whether repeats appear too quickly.
 
-**Screen 1: Welcome + Value Proposition** (5 seconds)
-- "Get the perfect running playlist in under a minute."
-- Single "Let's Go" button. Skip link at bottom.
-- No information collection -- just set expectations.
+**Relevance to our app:** Spotify's approach confirms that binary feedback (like/hide) is sufficient for personalization. Their freshness approach (recency penalty + diversity injection) maps directly to our proposed freshness scoring dimension. However, Spotify has implicit signals we do not -- our system must be more aggressive with explicit feedback weighting to compensate.
 
-**Screen 2: Running Pace** (15 seconds)
-- "How fast do you run?" Simple pace picker (min/km or min/mile).
-- Auto-calculates cadence. Shows "Your cadence: ~170 spm."
-- This replaces the full stride calculator for onboarding purposes.
-- Writes to StrideNotifier.
+### Apple Music
 
-**Screen 3: Music Taste** (20 seconds)
-- "What gets you moving?" Show genre chips + energy level selector.
-- Pre-select 2 popular genres (Pop, Electronic) as defaults.
-- Optional: offer 2-3 templates ("High Energy," "Chill Vibes," "Hip-Hop Power").
-- Minimum: pick 1 genre. Artist entry is optional (can add later).
-- Creates TasteProfile via existing notifier.
+**Feedback mechanism:** "Love" and "Suggest Less Like This" on songs, albums, and artists. Three-tier system: Love (positive), neutral (default), Suggest Less (negative). No hard "dislike" -- the language is deliberately softer ("Suggest Less"). Available via long-press context menu on iOS, ellipsis menu on Mac.
 
-**Screen 4: First Playlist** (auto-generate)
-- "Creating your playlist..." with loading animation.
-- Auto-creates a default 5K steady run plan behind the scenes.
-- Navigates to playlist screen with auto=true.
-- The user sees their first playlist within 40-60 seconds of launching the app.
+**Taste learning:** Apple Music's Listen Now tab shows strong recency bias (last 24-72 hours). The algorithm heavily weights recent explicit signals. One poorly-targeted listen can temporarily skew recommendations (a known user complaint, documented as recently as February 2026 by AppleInsider). Apple's approach is more opaque than Spotify's.
 
-**Total estimated time: 40-60 seconds.** This matches or beats every competitor.
+**Freshness:** Favorites Mix is the "exploitation" surface (familiar songs the user loves). New Music Mix and Discovery Station are the "exploration" surfaces. The final recommendation list is filtered for diversity, freshness, and editorial rules.
 
-### Skip Behavior
+**Relevance to our app:** Apple's "Suggest Less" is softer than our needs. For a running playlist, users want certainty: "Do not put this song in my running playlist again." Hard filter (not soft suppression) is the right approach. Apple's recency sensitivity is a warning: we should not let a single feedback session dramatically swing recommendations.
 
-If the user taps "Skip" at any point:
-- Create default stride (170 spm -- average runner cadence)
-- Create default taste profile ("Running Mix," Pop + Electronic, balanced energy)
-- Create default run plan (5K steady, 5:30/km pace)
-- Navigate to home screen (not playlist screen -- they chose to skip)
+### Pandora
+
+**Feedback mechanism:** Thumbs up / thumbs down. The original and most studied binary feedback system. Built on the Music Genome Project (450+ musical attributes per song). Thumbs up increases frequency of songs with similar attributes. Thumbs down removes the specific song AND reduces frequency of songs with similar attributes. Feedback is station-specific (a thumbs-down on a pop station does not affect a rock station). Undo is available by giving the opposite thumb.
+
+**Taste learning:** Pandora's system explicitly maps feedback to musical attributes. Thumbing up a song with strong bass, syncopated rhythm, and female vocals teaches the system to prefer those attributes. The learning is transparent to the user in the sense that the algorithm tells you "Playing because of [attribute]." Pandora uses ~70 different algorithms: 10 for content analysis, 40 for collective intelligence, 30 for personalized filtering.
+
+**Freshness:** Pandora limits repeat plays within a station. The FCC-inspired "variety rule" prevents the same song from appearing too frequently within a listening period.
+
+**Relevance to our app:** Pandora's attribute-based learning is the closest analog to our system. Our `SongQualityScorer` already uses song attributes (genre, BPM, danceability, runnability, decade). Feedback should reinforce or penalize at the attribute level, not just the song level. Pandora's station-specific feedback does NOT apply -- our users have one playlist context (running), so feedback should be global. Pandora's undo pattern (tap opposite thumb) is the right model.
+
+### YouTube Music
+
+**Feedback mechanism:** Thumbs up / thumbs down on songs. Liking tells the system you enjoy the song, style, and artist. Disliking suppresses the song and reduces similar recommendations. YouTube Music also offers Music Tuner (filters for tempo, popularity, mood) which is a form of explicit preference control beyond feedback.
+
+**Freshness:** YouTube Music uses post-filtering to ensure playlists do not feature multiple songs by the same artist in sequence (we already do this via `enforceArtistDiversity`). Session-based variety ensures songs from different styles appear even within a single playlist.
+
+**Relevance to our app:** YouTube Music's Music Tuner concept (user-controllable filters for tempo, mood) is analogous to our taste profile. Their artist diversity post-filtering validates our existing approach. Their thumbs pattern is standard.
+
+### Running-Specific Apps (RockMyRun, PaceDJ, Weav Run)
+
+**Feedback mechanism:** None of the BPM-matching running music apps have meaningful song feedback systems. RockMyRun lets users favorite workout mixes (not individual songs). PaceDJ lets users include/exclude songs from their library. Weav Run has no feedback mechanism.
+
+**Taste learning:** None. Running music apps rely entirely on upfront configuration (genre picks, BPM targets).
+
+**Freshness:** RockMyRun and Weav Run are streaming services -- freshness comes from their catalog updates, not user-side tracking. PaceDJ scans the user's library, so freshness is inherently limited to what the user has.
+
+**Relevance to our app:** This is the biggest differentiator opportunity. No running music app has a feedback loop. Adding like/dislike, taste learning, and freshness to a BPM-matched running playlist generator is novel in this space.
 
 ---
 
-## Regeneration Reliability: Technical Analysis
+## Feedback UX Patterns: Best Practices
 
-### Current Flow (Has Race Condition)
+### Icon Choice
 
+Use **thumbs up / thumbs down**, not hearts.
+
+- Hearts (Spotify's convention) imply "save to my library." This app has no library concept for external songs.
+- Thumbs (Pandora, YouTube Music convention) imply "I like/dislike this." This matches the intent.
+- Running context reinforces binary: the song was either good for running or not.
+
+### Placement on Song Tile
+
+The existing `SongTile` has this layout:
 ```
-1. User taps "Regenerate Playlist" on home screen
-2. GoRouter navigates to /playlist?auto=true
-3. PlaylistScreen builds, reads runPlanNotifierProvider
-4. runPlanNotifierProvider reads runPlanLibraryProvider
-5. RunPlanLibraryNotifier was created when first watched
-6. RunPlanLibraryNotifier constructor calls _load() (async)
-7. _load() calls RunPlanPreferences.loadAll() + loadSelectedId()
-8. SharedPreferences.getInstance() returns future
-9. Meanwhile, PlaylistScreen.build() sees runPlan == null
-10. autoGenerate guard: runPlan != null is FALSE -> does not trigger
-11. User sees idle "Generate Playlist" button instead of auto-generating
-```
-
-The race: step 9 happens before step 8 completes. The provider's state is still the initial `const RunPlanLibraryState()` (empty plans, null selectedId).
-
-### Same Issue for Taste Profiles
-
-```
-PlaylistGenerationNotifier.generatePlaylist() reads:
-  final tasteProfile = ref.read(tasteProfileNotifierProvider);
-
-If TasteProfileLibraryNotifier hasn't finished _load(),
-tasteProfile is null, and generation runs with no taste filtering.
-The playlist works but ignores user preferences -- a silent quality degradation.
+[Track #] [Title / Artist] [BPM chip]
 ```
 
-### Fix: AppStartupWidget Pattern
-
-The recommended fix from Riverpod documentation and CodeWithAndrea:
-
-1. Create an `appStartupProvider` that awaits all SharedPreferences-backed providers.
-2. Wrap the MaterialApp with an `AppStartupWidget` that shows a loading screen until all providers report ready.
-3. Downstream widgets can safely use `requireValue` or trust that providers have loaded.
-
-This is not speculative -- it is the documented Riverpod pattern for exactly this class of problem. Complexity is MEDIUM because it touches the app's root widget and router setup, but the change is well-contained and eliminates all current and future SharedPreferences race conditions in one shot.
-
-### Alternative: Guard in PlaylistScreen
-
-A lighter fix: add a readiness check in the PlaylistScreen auto-generate logic.
-
+Recommended addition:
 ```
-// Wait for providers to be ready before auto-generating
-final libraryState = ref.watch(runPlanLibraryProvider);
-final runPlan = libraryState.selectedPlan;
-// Only auto-gen when plan is actually loaded (not just "null because loading")
+[Track #] [Title / Artist] [thumbs-down] [thumbs-up] [BPM chip]
 ```
 
-This fixes the symptom but not the root cause. New screens with similar patterns will hit the same issue. The AppStartupWidget approach is recommended.
+Or, to save horizontal space:
+```
+[Track #] [Title / Artist] [BPM chip]
+                            [thumbs-up / thumbs-down]
+```
+
+Consider placing feedback icons on the trailing edge, replacing the BPM chip's position, or below the artist line. The icons must be touch-target sized (minimum 44x44 points iOS, 48x48 dp Android) per mobile UX guidelines.
+
+Alternative: show feedback icons only on long-press or via the existing bottom sheet (when user taps the song tile). This is cleaner visually but adds a tap. Recommend: show icons inline for the post-run review screen (where the purpose is rating), and behind the bottom sheet for the regular playlist view (where the purpose is playback links).
+
+### Feedback Confirmation
+
+- Brief haptic feedback on tap (HapticFeedback.lightImpact)
+- Icon fills/highlights immediately (optimistic UI)
+- Snackbar with "Undo" appears for 3 seconds (Spotify pattern)
+- Animation: icon bounces briefly (under 300ms per UX research)
+
+### Three-State Toggle
+
+Each song has three states:
+1. **Liked** (thumbs up filled, primary color)
+2. **Disliked** (thumbs down filled, error color)
+3. **Neutral** (both icons outlined, no fill)
+
+State transitions:
+- Neutral -> tap thumbs up -> Liked
+- Neutral -> tap thumbs down -> Disliked
+- Liked -> tap thumbs up -> Neutral (toggle off)
+- Liked -> tap thumbs down -> Disliked (switch)
+- Disliked -> tap thumbs down -> Neutral (toggle off)
+- Disliked -> tap thumbs up -> Liked (switch)
+
+This matches Pandora's undo model and is the most intuitive for binary feedback.
+
+---
+
+## Taste Learning: How Pattern Detection Should Work
+
+### Data Available Per Liked/Disliked Song
+
+From the curated song dataset and BPM API, each song has:
+- **Artist** (string)
+- **Genre** (RunningGenre enum)
+- **BPM** (int)
+- **Decade** (string, e.g., "2010s")
+- **Danceability** (int, 0-100)
+- **Runnability** (int, 0-100)
+
+When a user likes or dislikes a song, store all available metadata alongside the feedback. This enables pattern analysis without re-looking up the song later.
+
+### Pattern Analysis Algorithm
+
+After accumulating N liked songs (threshold: 10), analyze:
+
+1. **Genre distribution:** What percentage of liked songs fall in each genre? Compare to taste profile genres. If a genre appears in 30%+ of likes but is not in the profile, suggest adding it.
+
+2. **Artist frequency:** Which artists appear 2+ times in liked songs? If not already in taste profile artists, suggest adding them.
+
+3. **Decade distribution:** Which decades dominate liked songs? If a decade represents 40%+ of likes and is not in the taste profile decades, suggest adding it.
+
+4. **Disliked artist detection:** Which artists appear 3+ times in disliked songs? Suggest adding to disliked artists list.
+
+5. **Energy pattern:** Compute average runnability/danceability of liked vs disliked songs. If liked songs cluster around high danceability (>70) but the user's energy level is "balanced," suggest "intense."
+
+### Suggestion Presentation
+
+Surface as dismissable cards on the home screen or feedback library:
+
+```
+"Based on your likes..."
+[Genre chip] Electronic   [Add to Profile] [Dismiss]
+
+"You've disliked 4 songs by [Artist]"
+[Block this artist]  [Keep allowing]
+```
+
+Suggestions should:
+- Appear at most once per pattern (do not re-suggest dismissed items)
+- Be limited to 1-2 suggestions at a time (avoid overwhelming)
+- Require explicit user acceptance (never auto-apply)
+- Track which suggestions were dismissed (do not re-surface)
+
+---
+
+## Freshness: How Recency Tracking Should Work
+
+### What "Freshness" Means in This App
+
+A song is "fresh" if it has not appeared in a recently generated playlist. The freshness system prevents the "same 15 songs every run" problem that emerges when the scoring algorithm converges on a fixed set of top-scoring songs for a given BPM and taste profile.
+
+### Tracking Mechanism
+
+During `PlaylistGenerator.generate()`, after producing the final `Playlist`:
+1. For each `PlaylistSong` in the output, update `SongAppearanceHistory` with the current timestamp.
+2. Persist the history to SharedPreferences.
+
+Storage format:
+```json
+{
+  "artist|title": "2026-02-06T14:30:00Z",
+  "artist2|title2": "2026-02-05T09:15:00Z"
+}
+```
+
+### Scoring Penalty
+
+The freshness penalty decays over time (stepped decay, matching the integer scoring system):
+
+| Last Appeared | Penalty | Rationale |
+|---------------|---------|-----------|
+| Within 3 days | -8 | User just ran with this song; strong penalty |
+| 4-7 days | -5 | Recent but not immediate; moderate penalty |
+| 8-14 days | -3 | Getting stale in memory; mild penalty |
+| 15-30 days | -1 | Fading; minimal penalty |
+| 31+ days or never | 0 | Fresh or forgotten; no penalty |
+
+This curve is inspired by Spotify's freshness scoring (documented in engineering blog) and memory decay models (ACT-R declarative memory module, used in academic music recommendation research).
+
+### User Control
+
+The freshness toggle controls whether this penalty is active:
+- **"Keep it Fresh"** = freshness penalty active. Playlists will have more variety across sessions.
+- **"Optimize for Taste"** = freshness penalty disabled. The algorithm picks the best-scoring songs regardless of recency.
+
+Default: "Optimize for Taste" for new users (no history to be fresh from). After 5+ playlists generated, the system could suggest switching to "Keep it Fresh."
 
 ---
 
 ## MVP Recommendation
 
-For v1.2 MVP, prioritize in this order:
+For v1.3 MVP, prioritize in this order:
 
-1. **AppStartupWidget / provider readiness** (fixes regeneration reliability -- the only current BUG)
-2. **Delete confirmation dialogs** (quick win, prevents data loss)
-3. **First-launch onboarding flow** (biggest UX improvement for new users)
-4. **Smart home screen** (context-aware content for both new and returning users)
-5. **Profile templates** (reduces cold-start friction during onboarding)
+1. **Song feedback data layer + SongTile integration** (foundation -- everything depends on this)
+2. **Scoring integration: liked boost + disliked filter** (closes the feedback loop -- feedback DOES something)
+3. **Feedback library screen** (users can manage their feedback decisions)
+4. **Freshness tracking + scoring dimension** (prevents playlist staleness)
+5. **Freshness toggle UI** (user control over freshness behavior)
+6. **Post-run review screen** (novel differentiator for running context)
 
-Defer to post-v1.2:
-- **Quick-switch chips on home screen:** Nice UX polish but the playlist screen already has selectors. Not critical.
-- **Export/import profiles:** Only relevant if users ask for it. No evidence of demand yet.
+Defer to post-v1.3:
+- **Taste learning / pattern analysis:** Requires accumulated feedback data. Build the analysis engine after users have had time to generate feedback. The data layer should store song metadata with feedback now so the analysis can run later.
+- **Suggestion cards for taste profile updates:** Depends on taste learning. Defer.
+- **Disliked artist auto-detection:** Simple enough to include in v1.3 if time allows, but not critical path.
 
 ---
 
@@ -264,33 +387,36 @@ Defer to post-v1.2:
 
 | Feature | User Value | Implementation Cost | Priority | Rationale |
 |---------|------------|---------------------|----------|-----------|
-| AppStartupWidget (race condition fix) | HIGH | MEDIUM | P0 | Only actual bug. Silent failures erode trust. |
-| Delete confirmation dialogs | MEDIUM | LOW | P1 | Prevents accidental data loss. 10 minutes of work. |
-| Empty state copy improvements | LOW | LOW | P1 | Quick copy changes, no logic. |
-| Onboarding flow (4 screens) | HIGH | MEDIUM | P1 | Biggest impact on new user retention. |
-| Smart home screen (context-aware) | HIGH | MEDIUM | P1 | Complements onboarding. Returning users benefit too. |
-| Profile templates / presets | MEDIUM | LOW | P2 | Pre-populated profiles, simple implementation. |
-| Quick-switch chips on home screen | MEDIUM | LOW | P2 | Reuses existing selector widgets. Polish feature. |
-| Onboarding skip with smart defaults | MEDIUM | LOW | P2 | Respects user agency. Simple default creation. |
+| Song feedback data layer | HIGH | MEDIUM | P0 | Foundation for all feedback features. Must be built first. |
+| Like/dislike on SongTile | HIGH | LOW | P0 | The user-facing entry point for feedback. Ships with data layer. |
+| Liked song scoring boost (+8) | HIGH | LOW | P0 | Closes the feedback loop immediately. Feedback DOES something. |
+| Disliked song hard filter | HIGH | LOW | P0 | Users expect disliked songs to vanish. Binary intent, binary action. |
+| Feedback state persistence | HIGH | LOW | P0 | Feedback must survive app restarts. SharedPreferences JSON blob. |
+| Undo feedback (snackbar + toggle) | MEDIUM | LOW | P1 | Standard pattern, prevents user frustration from accidental taps. |
+| Feedback library screen | MEDIUM | MEDIUM | P1 | Management screen for all feedback. Two-tab list (liked/disliked). |
+| Freshness tracking (appearance history) | HIGH | MEDIUM | P1 | Prevents "same 15 songs" convergence problem. |
+| Freshness scoring dimension | HIGH | LOW | P1 | Uses tracked data to penalize recent songs. |
+| Freshness toggle UI | MEDIUM | LOW | P2 | User control over freshness. Simple toggle widget. |
+| Post-run review screen | HIGH | MEDIUM | P2 | Novel differentiator. Captures feedback while experience is fresh. |
+| Taste learning / pattern analysis | MEDIUM | HIGH | P3 | Requires accumulated data. Defer until feedback is widely used. |
+| Suggestion cards for profile updates | MEDIUM | MEDIUM | P3 | Depends on taste learning engine. |
+| Disliked artist auto-detection | LOW | LOW | P3 | Nice-to-have. Simple pattern detection on disliked songs. |
 
 ---
 
-## Competitor Feature Analysis: Profile & Onboarding
+## Competitive Positioning After v1.3
 
-| Feature | RockMyRun | PaceDJ | Weav Run | This App (v1.1) | This App (v1.2 target) |
-|---------|-----------|--------|----------|-----------------|----------------------|
-| **Multiple taste profiles** | Single implicit profile (listening history) | No profiles (scans library) | No profiles (curated catalog) | Backend built, library screen exists, selectors on playlist screen | Polished library, templates, quick-switch |
-| **Onboarding flow** | Genre browser on first launch | BPM target picker | Basic genre/mood picker | None (5 buttons on blank screen) | 4-screen action-oriented flow ending with generated playlist |
-| **Time to first playlist** | ~60s (streaming starts) | ~120s (library scan + BPM set) | ~45s (pick genre + go) | ~180s (discover stride -> plan -> profile -> generate) | ~60s (onboarding pace -> genre -> auto-generate) |
-| **Empty state handling** | Not applicable (always has streaming content) | "No songs match" with BPM adjustment | "Browse playlists" catalog | Basic "No saved X" + create button | Contextual guidance explaining WHY and WHAT to do |
-| **Regeneration reliability** | Always streaming (no regeneration concept) | Instant re-filter | Always streaming | Race condition on auto-generate | Guaranteed via eager initialization |
-| **Profile switching** | Not applicable | Not applicable | Not applicable | Bottom-sheet picker on playlist screen | Bottom-sheet + quick-switch chips on home screen |
+| Feature | Spotify | Apple Music | Pandora | YouTube Music | RockMyRun | PaceDJ | This App (v1.3) |
+|---------|---------|-------------|---------|---------------|-----------|--------|-----------------|
+| Song-level feedback | Heart + Hide | Love + Suggest Less | Thumbs up/down | Thumbs up/down | No | No | Thumbs up/down |
+| Feedback affects next playlist | Yes (gradual) | Yes (gradual) | Yes (immediate) | Yes (gradual) | N/A | N/A | Yes (immediate, next generation) |
+| Feedback library / management | Liked Songs playlist | Loved songs (Mac only) | Thumbed tracks per station | Liked songs | No | No | Dedicated library screen |
+| Post-session review | No | No | No | No | No | No | Yes (post-run review) |
+| Freshness / variety control | Algorithmic (Fewer Repeats mode) | Separate Mix surfaces | Variety rules | Post-filtering | Catalog updates | N/A | User toggle + recency penalty |
+| Taste learning from feedback | Yes (deep ML) | Yes (opaque) | Yes (attribute mapping) | Yes (ML) | No | No | Pattern analysis with suggestions |
+| Running-specific context | No | No | No | No | Yes (mixes, not songs) | Yes (BPM filter) | Yes (BPM + taste + feedback + freshness) |
 
-### Competitive Positioning for v1.2
-
-The v1.2 improvements target the app's weakest area: first impressions. Currently, the app has strong generation quality (8-factor scoring, curated song database, segment-aware playlists) but poor discoverability of that quality. A new user might never generate a playlist because they do not understand the setup sequence.
-
-After v1.2: a new user generates their first personalized, BPM-matched playlist within 60 seconds of launching the app. That is competitive with RockMyRun and Weav, and faster than PaceDJ -- while offering a richer personalization system (multiple named taste profiles) that no competitor has.
+This app becomes the only running music tool that combines BPM matching, multi-dimensional scoring, explicit feedback, taste learning, and freshness control. General music apps have deeper recommendation engines but no running context. Running apps have BPM matching but no feedback loop. This app bridges both.
 
 ---
 
@@ -298,43 +424,49 @@ After v1.2: a new user generates their first personalized, BPM-matched playlist 
 
 | Finding | Confidence | Source | Notes |
 |---------|------------|--------|-------|
-| Action-oriented onboarding outperforms tutorial-style | HIGH | VWO, UserPilot, CleverTap research, Spotify pattern analysis | Multiple sources converge |
-| 3-5 genre picks are optimal minimum for taste capture | MEDIUM | Inferred from Spotify's "pick 3 artists" pattern | Spotify validated this with data science; genre equivalent is reasonable |
-| Riverpod eager initialization pattern fixes race conditions | HIGH | Riverpod official docs, CodeWithAndrea article | Documented pattern for exactly this problem class |
-| SharedPreferences async load causes current race condition | HIGH | Direct code inspection of `_load()` in both notifiers | Identified specific code path |
-| Delete confirmation is table stakes for destructive actions | HIGH | Standard mobile UX convention | Universal across iOS and Android design guidelines |
-| Progressive disclosure improves new-user experience | HIGH | Nielsen Norman Group, Carbon Design System | Well-established UX principle |
-| Profile templates reduce cold-start friction | MEDIUM | Inferred from Spotify starter playlists, MyFitnessPal goal templates | Analogous pattern, not directly studied for this domain |
-| 60-second time-to-first-playlist is competitive | MEDIUM | Estimated from competitor flows | Competitor timings are approximate from WebSearch descriptions, not timed |
+| Binary feedback outperforms rating scales for music | HIGH | Cornell Piki research, Pandora's 75B feedback points, Spotify's binary (heart/hide) design | Multiple independent sources converge |
+| Disliked songs should be hard-filtered, not soft-penalized | MEDIUM | Pandora never replays thumbed-down songs; Apple "Suggest Less" is less decisive | Pandora's approach matches user intent better; Apple's softer approach gets complaints |
+| Thumbs up/down icons preferred over hearts for feedback context | MEDIUM | Pandora + YouTube Music convention for "rate this" vs Spotify hearts for "save this" | Convention-based reasoning; user testing would strengthen |
+| Freshness penalty with time decay matches user expectations | MEDIUM | Spotify's "Fewer Repeats" mode, ACT-R memory decay models, Apple's recency filtering | Academic + industry support; specific decay curve is estimated, not proven |
+| Post-run review is a novel differentiator | HIGH | No running app offers this; no general music app offers post-session review | Confirmed via competitor analysis of RockMyRun, PaceDJ, Weav, Spotify, Apple Music, Pandora, YouTube Music |
+| Taste learning should be suggestion-based, not automatic | MEDIUM | Apple Music transparency complaints, Music Tomorrow fairness research (2025), Pandora's transparent attribute mapping | Industry trend toward transparency; automatic modification gets user complaints |
+| No running music app has a song-level feedback loop | HIGH | Direct competitor analysis | Verified: RockMyRun, PaceDJ, Weav Run have no song-level feedback |
+| SharedPreferences adequate for feedback storage at ~5000 songs | MEDIUM | SharedPreferences handles JSON blobs up to a few MB; 5000 entries with timestamps is well under this | Technical assessment from existing codebase patterns; may need migration to Hive/SQLite at scale |
 
 ---
 
 ## Sources
 
-### Onboarding & UX Research
-- [VWO Mobile App Onboarding Guide 2026](https://vwo.com/blog/mobile-app-onboarding-guide/) -- Best practices, engagement metrics, personalization strategies
-- [Plotline App Onboarding Examples 2026](https://www.plotline.so/blog/mobile-app-onboarding-examples) -- Action-oriented vs tutorial onboarding comparison
-- [UserPilot Frictionless Onboarding](https://userpilot.com/blog/mobile-app-onboarding/) -- Progressive disclosure, skip behavior, smart defaults
-- [CleverTap App Onboarding Examples](https://clevertap.com/blog/app-onboarding/) -- Spotify artist-pick pattern, MyFitnessPal goal-first pattern
-- [Nielsen Norman Group Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/) -- Cognitive load reduction, gradual complexity revelation
-- [Carbon Design System Empty States](https://carbondesignsystem.com/patterns/empty-states-pattern/) -- Actionable empty states, contextual guidance
+### Platform Feedback Systems
+- [Spotify Recommendation System Complete Guide (Music Tomorrow, 2025)](https://www.music-tomorrow.com/blog/how-spotify-recommendation-system-works-complete-guide) -- Explicit/implicit feedback weighting, taste clustering, freshness
+- [Cornell Research: Dislike Button Improves Recommendations](https://cis.cornell.edu/dislike-button-would-improve-spotify-recommendations) -- Binary feedback effectiveness, Piki research system
+- [Pandora Thumbs System Explained (SoftHandTech)](https://softhandtech.com/what-are-thumbs-on-pandora/) -- Station-specific feedback, attribute learning, undo patterns
+- [Apple Music Love/Dislike Guide (MacRumors)](https://www.macrumors.com/how-to/customize-apple-music/) -- Three-tier feedback, scope per song/album/artist
+- [YouTube Music Algorithm Guide (BeatsToRapOn)](https://beatstorapon.com/blog/ultimate-youtube-music-algorithm-a-comprehensive-guide/) -- Thumbs up/down, Music Tuner, session-based variety
+- [Spotify DISLIKE BUTTON Community Discussion](https://community.spotify.com/t5/Live-Ideas/All-platforms-Dislike-an-item-and-avoid-it/idi-p/5749554) -- User expectations for dislike functionality
 
-### Flutter & Riverpod Technical
-- [CodeWithAndrea: Robust App Initialization with Riverpod](https://codewithandrea.com/articles/robust-app-initialization-riverpod/) -- AppStartupWidget pattern, eager initialization, requireValue
-- [Riverpod Official: Eager Initialization](https://riverpod.dev/docs/how_to/eager_initialization) -- ConsumerWidget pattern for preloading providers
-- [Vibe Studio: Multi-Step Onboarding in Flutter](https://vibe-studio.ai/insights/how-to-build-a-multi-step-onboarding-flow-in-flutter) -- PageView + PageController pattern, SharedPreferences completion flag
+### Freshness and Variety
+- [Spotify Prompted Playlists (Spotify Newsroom, Dec 2025)](https://newsroom.spotify.com/2025-12-10/spotify-prompted-playlists-algorithm-gustav-soderstrom/) -- User-controlled freshness, daily/weekly refresh
+- [Spotify Fewer Repeats Shuffle (TechBuzz)](https://www.techbuzz.ai/articles/spotify-fixes-shuffle-s-repetition-problem-with-smarter-algorithm) -- Recency-aware shuffle, freshness scoring
+- [Apple Music Algorithm Guide 2026 (BeatsToRapOn)](https://beatstorapon.com/blog/the-apple-music-algorithm-in-2026-a-comprehensive-guide-for-artists-labels-and-data-scientists/) -- Recency bias, diversity filtering, freshness signals
+- [Measuring Recency Bias in Sequential Recommendation (ArXiv, 2024)](https://arxiv.org/html/2409.09722v1) -- Academic analysis of recency bias in recommendation systems
+- [ACT-R Memory Model for Music Recommendation (Springer, 2024)](https://link.springer.com/chapter/10.1007/978-3-031-55109-3_4) -- Time-decayed frequency/recency modeling
 
-### Competitor Analysis
-- [RockMyRun Official](https://www.rockmyrun.com/) -- Body-Driven Music, genre browsing, subscription model
-- [PaceDJ Official](https://www.pacedj.com/) -- Library BPM scanning, manual tempo target
-- [Weav Run (Runner's World)](https://www.runnersworld.com/runners-stories/a32257227/running-app-weav-improves-cadence-stride/) -- Adaptive music, ~500 songs, Match My Stride mode
-- [DRmare Spotify Running Alternatives](https://www.drmare.com/spotify-music/spotify-running-alternative.html) -- Feature comparison across running music apps
+### Feedback UX Design
+- [Mobile Gesture UI Design Tips (ZeePalm)](https://www.zeepalm.com/blog/10-gesture-ui-design-tips-for-ios-and-android-apps) -- Touch targets, haptic feedback, animation timing
+- [Apple Music Suggest Less Complaints (AppleInsider, Feb 2026)](https://appleinsider.com/articles/26/02/06/one-song-can-ruin-your-entire-apple-music-algorithm-there-needs-to-be-a-fix) -- User frustration with opaque recommendation changes
 
-### Empty State & Progressive Disclosure
-- [Toptal Empty State UX](https://www.toptal.com/designers/ux/empty-state-ux-design) -- Empty states as opportunity for guidance
-- [Mobbin Empty State Pattern](https://mobbin.com/glossary/empty-state) -- Best practices with examples from real apps
-- [NNGroup Designing Empty States](https://www.nngroup.com/articles/empty-state-interface-design/) -- Complex application empty state guidelines
+### Taste Learning and Recommendation Research
+- [Implicit vs Explicit Feedback in Music Recommendation (ACM)](https://dl.acm.org/doi/10.1145/1869446.1869453) -- Complementary relationship between feedback types
+- [Negative Feedback for Music Personalization (ArXiv, 2024)](https://arxiv.org/html/2406.04488) -- How negative feedback improves recommendation quality
+- [Fairness and Transparency in Music Streaming Algorithms (Music Tomorrow, 2025)](https://www.music-tomorrow.com/blog/fairness-transparency-music-recommender-systems) -- Transparency, feedback loops, user agency
+- [How Spotify Uses AI to Recommend Music (IABAC)](https://iabac.org/blog/how-spotify-uses-ai-to-recommend-music) -- Pattern detection from explicit signals
+
+### Running and Music
+- [Nike: Picking Music to Power a Run](https://www.nike.com/a/picking-music-to-power-a-run) -- BPM sweet spots for running intensity
+- [RockMyRun App](https://www.rockmyrun.com/) -- Competitor analysis, no song-level feedback
+- [PaceDJ App](https://www.pacedj.com/) -- Competitor analysis, library BPM scanning
 
 ---
-*Feature research for: v1.2 Profile Management, Onboarding, and Regeneration Reliability -- Running Playlist AI*
+*Feature research for: v1.3 Song Feedback, Taste Learning & Playlist Freshness -- Running Playlist AI*
 *Researched: 2026-02-06*

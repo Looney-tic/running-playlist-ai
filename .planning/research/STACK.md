@@ -1,7 +1,7 @@
-# Technology Stack: v1.2 Profile Management & Onboarding
+# Technology Stack: v1.3 Song Feedback, Taste Learning & Playlist Freshness
 
 **Project:** Running Playlist AI
-**Milestone:** v1.2 Profile Management & Onboarding
+**Milestone:** v1.3 Song Feedback & Taste Learning
 **Researched:** 2026-02-06
 **Overall confidence:** HIGH
 
@@ -9,34 +9,75 @@
 
 ## Scope: What This Document Covers
 
-This STACK.md covers **only the additions and changes** needed for v1.2 features. The existing stack (Flutter 3.38, Dart 3.10, Riverpod 2.x manual providers, GoRouter 17.x, SharedPreferences 2.5.4, http, supabase_flutter, url_launcher, GetSongBPM API) is validated and stable. Do not re-evaluate it.
+This STACK.md covers **only the additions and changes** needed for v1.3 features. The existing stack (Flutter 3.38, Dart 3.10, Riverpod 2.x manual providers, GoRouter 17.x, SharedPreferences 2.5.4, http, supabase_flutter, url_launcher, GetSongBPM API) is validated and stable from prior milestones. Do not re-evaluate it.
 
-v1.2 features that drive stack decisions:
-1. Multiple taste profiles with naming, selection, and switching
-2. First-run onboarding flow (detection, guided setup, completion tracking)
-3. Playlist regeneration reliability (state consistency, error recovery)
+v1.3 features that drive stack decisions:
+1. Like/dislike feedback on songs (during playlist view + post-run review)
+2. Feedback persistence and browsing (feedback library screen)
+3. Scoring integration (liked songs boosted, disliked songs penalized/filtered)
+4. Taste learning (analyze feedback patterns to discover implicit preferences)
+5. Freshness toggle and tracking (prefer fresh vs familiar songs)
 
 ---
 
-## Critical Discovery: Multi-Profile Infrastructure Already Exists
+## Critical Decision: SharedPreferences Is Still Sufficient
 
-Before recommending any new stack additions, a thorough codebase review reveals that **the multi-profile architecture is already implemented and shipped in v1.1**:
+### The Key Question
 
-| Capability | Status | Location |
-|-----------|--------|----------|
-| Multiple taste profiles (list) | DONE | `TasteProfileLibraryNotifier` in `taste_profile_providers.dart` |
-| Named profiles | DONE | `TasteProfile.name` field exists and is editable |
-| Profile selection/switching | DONE | `selectProfile(String id)` method + `selectedProfile` getter |
-| Profile CRUD (add/edit/delete) | DONE | Full CRUD in `TasteProfileLibraryNotifier` |
-| Library UI with cards | DONE | `TasteProfileLibraryScreen` with selection, edit, delete |
-| Profile selector on playlist screen | DONE | `_TasteProfileSelector` widget with bottom sheet picker |
-| Legacy single-profile migration | DONE | `TasteProfilePreferences.loadAll()` auto-migrates |
-| Persistence of profile library | DONE | JSON array in SharedPreferences under `taste_profile_library` key |
-| Run plan library (parallel pattern) | DONE | Identical pattern in `RunPlanLibraryNotifier` |
+Song feedback could grow to thousands of entries over months of use. Is SharedPreferences still the right persistence choice, or should we migrate to a proper database?
 
-**This means v1.2's "multi-profile" work is NOT a new architecture effort.** It is refinement of existing infrastructure: better naming UX, onboarding to create a first profile, and ensuring selection state propagates correctly to generation.
+### Size Analysis
 
-**Confidence:** HIGH (verified by direct codebase inspection)
+Realistic data volumes for an active runner using the app:
+- Runs 3-5 times per week, ~15 songs per playlist = 45-75 songs/week
+- Assume they give feedback on ~50% of songs = 22-37 feedback entries/week
+- After 6 months: ~570-960 feedback entries
+- After 1 year: ~1,140-1,920 feedback entries
+- Extreme power user after 2 years: ~4,000 entries maximum
+
+Each feedback entry in JSON is approximately:
+```json
+{
+  "key": "artist name|song title",
+  "liked": true,
+  "feedbackAt": "2026-02-06T12:00:00.000",
+  "lastPlayedAt": "2026-02-06T12:00:00.000",
+  "playCount": 3
+}
+```
+
+That is roughly **120-150 bytes per entry**. At 4,000 entries (extreme case), the total JSON blob is **~600 KB**. This is well within SharedPreferences' practical limits. For comparison, the curated_songs.json bundled asset with 5,066 songs is already loaded into memory at app startup.
+
+### Performance Characteristics
+
+SharedPreferences loads all data into memory on first `getInstance()` call. Subsequent reads are synchronous and effectively instant. The 600 KB extreme case adds negligible load time (~10-20ms on a modern phone). Writes are asynchronous and non-blocking.
+
+The critical performance concern is not read/write speed but **deserialization cost** of parsing a large JSON array. At 4,000 entries, `jsonDecode` takes roughly 5-15ms on a modern device -- negligible.
+
+### Why NOT Switch to a Database
+
+| Factor | Assessment |
+|--------|-----------|
+| Data volume | ~600 KB max. SharedPreferences handles this fine. |
+| Query complexity | We need two operations: (1) lookup by song key (use a `Map<String, FeedbackEntry>`), (2) list all feedback for the library screen. Both are trivial with in-memory maps. |
+| Platform support | SharedPreferences works identically on web, Android, iOS. Drift/SQLite requires FFI on native and sql.js on web (different backends). Hive's web support is okay but Hive is community-maintained. |
+| Migration cost | Switching to a database mid-project requires migrating ALL existing SharedPreferences data (BPM cache, taste profiles, run plans, playlist history, onboarding state). This is a massive effort for zero user-visible benefit. |
+| Consistency | Every other data store in the app uses SharedPreferences + JSON. Introducing a second persistence mechanism creates cognitive load and maintenance burden. |
+| Build complexity | Drift requires code generation (broken with Dart 3.10). Hive requires code generation for type adapters. Both add build_runner complexity to an already fragile code-gen setup. |
+
+**Decision: Continue with SharedPreferences for feedback data.** Use the established single-JSON-key pattern (same as `playlist_history`, `taste_profile_library`, `bpm_cache_*`).
+
+**Confidence:** HIGH (size math verified; existing patterns proven across 6 data stores)
+
+### When to Reconsider
+
+If the app adds features that require:
+- Complex querying (e.g., "find all liked songs from the 2010s with BPM > 160")
+- Cross-device sync with conflict resolution
+- Data volumes exceeding 5,000-10,000 entries
+- Full-text search across song metadata
+
+None of these are in scope for v1.3 or foreseeable v1.4.
 
 ---
 
@@ -44,233 +85,295 @@ Before recommending any new stack additions, a thorough codebase review reveals 
 
 ### No New Dependencies Required
 
-All three v1.2 features can be built with the existing stack. No new pub.dev packages needed.
+All v1.3 features can be built with the existing stack. No new pub.dev packages are needed.
 
 | Feature | Stack Approach | New Dependencies |
 |---------|---------------|-----------------|
-| Multi-profile refinement | Extend existing `TasteProfileLibraryNotifier` + UI polish | None |
-| Onboarding flow | GoRouter `redirect` + SharedPreferences bool flag + new screen widgets | None |
-| Regeneration reliability | Fix state management in `PlaylistGenerationNotifier` | None |
-
-**Rationale:** The existing stack is comprehensive. Onboarding is a navigation + state detection problem (GoRouter redirect + SharedPreferences). Profile management is already implemented. Regeneration reliability is a bug fix in existing provider logic. Adding libraries would create maintenance burden for zero functional gain.
+| Song feedback UI (like/dislike) | Flutter Material `IconButton` + Riverpod state | None |
+| Feedback persistence | SharedPreferences + JSON (same pattern as all other data) | None |
+| Feedback library screen | Standard `ListView` + search/filter, same as taste profile library | None |
+| Scoring integration | Extend `SongQualityScorer.score()` with new feedback dimension | None |
+| Taste learning algorithm | Pure Dart statistical analysis (no ML libraries) | None |
+| Freshness tracking | Timestamp map in SharedPreferences, integrated into scorer | None |
+| Freshness toggle | Bool field on generation config, Riverpod state | None |
 
 ---
 
-## Feature 1: Onboarding Flow
+## Feature 1: Song Feedback Persistence
 
-### First-Run Detection
+### Data Model Design
 
-**Decision: SharedPreferences boolean flag with GoRouter redirect**
+**Decision: Use a `Map<String, SongFeedback>` keyed by the existing song lookup key format**
 
-The standard Flutter pattern for first-run detection uses a boolean flag in SharedPreferences, checked in a GoRouter `redirect` callback.
-
-```dart
-// Key for tracking onboarding completion
-static const _onboardingCompleteKey = 'onboarding_complete';
-```
-
-**Why GoRouter redirect (not manual navigation):**
-- GoRouter 17.x supports `redirect` as a top-level parameter on the `GoRouter` constructor
-- The redirect fires on every navigation event, ensuring the onboarding gate cannot be bypassed
-- The current router (`routerProvider`) can be extended with a redirect without restructuring existing routes
-- GoRouter's `refreshListenable` can be used to re-evaluate the redirect when onboarding completes, automatically navigating to home
-
-**Implementation pattern:**
-```dart
-GoRouter(
-  redirect: (context, state) {
-    final isOnboarded = ref.read(onboardingCompleteProvider);
-    final isOnboardingRoute = state.matchedLocation == '/onboarding';
-
-    if (!isOnboarded && !isOnboardingRoute) return '/onboarding';
-    if (isOnboarded && isOnboardingRoute) return '/';
-    return null; // no redirect
-  },
-  refreshListenable: onboardingListenable,
-  // ... existing routes
-);
-```
-
-**Onboarding state provider pattern:**
-```dart
-// Simple bool provider backed by SharedPreferences
-final onboardingCompleteProvider = StateNotifierProvider<OnboardingNotifier, bool>(
-  (ref) => OnboardingNotifier(),
-);
-```
-
-This follows the exact same async-init-in-constructor pattern used by `TasteProfileLibraryNotifier` and `RunPlanLibraryNotifier` -- call `_load()` from the constructor without awaiting.
-
-**Confidence:** HIGH (GoRouter redirect is documented, standard pattern; SharedPreferences bool flag is trivial)
-
-### Onboarding UI: No Third-Party Packages Needed
-
-**Decision: Use Flutter's built-in `PageView` + `PageController` for the step-through flow**
-
-The onboarding flow is 3-4 steps:
-1. Welcome / app purpose
-2. Create first taste profile (reuse existing `TasteProfileScreen` widgets)
-3. Create first run plan (reuse existing `RunPlanScreen` widgets)
-4. Confirm and start
-
-**Why NOT `smooth_page_indicator` or `introduction_screen`:**
-- The app already uses Material 3 design. A `LinearProgressIndicator` or `Stepper` widget from Flutter Material is sufficient for step progress indication.
-- `smooth_page_indicator` (latest: 2.0.1) adds dot-style indicators that are suited for image carousels, not form-heavy onboarding steps where a progress bar is more appropriate.
-- The onboarding screens are form-heavy (genre chips, artist input, distance picker), not swipeable image cards. A `PageView` with locked `physics: NeverScrollableScrollPhysics()` and explicit Next/Back buttons is the right UX pattern.
-- Adding a package for a few dots is not justified when `LinearProgressIndicator(value: step / totalSteps)` works.
-
-**Confidence:** HIGH (Flutter built-in widgets are well-documented and sufficient)
-
-### Onboarding Completion Criteria
-
-**Decision: Onboarding completes when at least one taste profile AND one run plan exist**
-
-This means the onboarding flow does not need its own separate completion state independent from the actual data. The check can be:
+The app already has a normalized song key format: `artist.toLowerCase().trim()|title.toLowerCase().trim()`. This is used throughout `CuratedSongRepository` and `PlaylistGenerator` for cross-source matching. Feedback should use the same key.
 
 ```dart
-bool get isOnboardingComplete {
-  final hasProfile = tasteProfileLibrary.profiles.isNotEmpty;
-  final hasRunPlan = runPlanLibrary.plans.isNotEmpty;
-  return hasProfile && hasRunPlan;
+class SongFeedback {
+  final String songKey;        // "artist|title" normalized
+  final bool liked;            // true = liked, false = disliked
+  final DateTime feedbackAt;   // when feedback was given
+  final DateTime? lastPlayedAt; // last time song appeared in a playlist
+  final int playCount;         // number of times generated in playlists
+  final String? artistName;    // denormalized for display
+  final String? title;         // denormalized for display
 }
 ```
 
-However, a separate `onboarding_complete` flag in SharedPreferences is still recommended because:
-- Users who delete all profiles should NOT be re-shown onboarding (they are not "first-run" users)
-- Checking two separate async-loading providers for redirect creates a race condition on cold start
-- A single bool flag loads faster than waiting for both libraries to deserialize
+**Why denormalize artist/title:** The feedback library screen needs to display song names. Without denormalization, we would need to look up each song key in the curated song repository (which only has curated songs, not API-sourced ones). Storing 20-30 extra bytes per entry is trivial compared to the lookup complexity.
 
-**Confidence:** HIGH (well-established UX pattern)
+**Persistence pattern:**
+```dart
+class SongFeedbackPreferences {
+  static const _key = 'song_feedback';
 
----
+  static Future<Map<String, SongFeedback>> load() async { ... }
+  static Future<void> save(Map<String, SongFeedback> feedback) async { ... }
+  static Future<void> clear() async { ... }
+}
+```
 
-## Feature 2: Multi-Profile Management Refinement
+This follows the exact same pattern as `TasteProfilePreferences`, `PlaylistHistoryPreferences`, and `BpmCachePreferences`.
 
-### What Already Works (Do Not Rebuild)
+**Confidence:** HIGH (proven pattern, trivial data model)
 
-The entire multi-profile data layer and library UI is shipped. v1.2 work here is UX polish only:
+### In-Memory Access Pattern
 
-| Component | Status | v1.2 Work Needed |
-|-----------|--------|-----------------|
-| `TasteProfile` domain model with `id`, `name` | Complete | None |
-| `TasteProfilePreferences` persistence | Complete (library pattern with migration) | None |
-| `TasteProfileLibraryNotifier` state management | Complete (add, update, delete, select) | None |
-| `TasteProfileLibraryScreen` UI | Complete | Polish: default names, empty state messaging |
-| `TasteProfileScreen` editor | Complete (edit + new modes) | Polish: guided prompts for first profile |
-| Profile selector on playlist screen | Complete (`_TasteProfileSelector`) | None |
-
-### Profile Naming Strategy
-
-**Decision: Auto-generate meaningful default names**
-
-Current behavior: profiles without a name show `"{first genre} Mix"` or `"Taste Profile"`. This is good enough but can be improved:
+**Decision: Load feedback map once at app startup, keep in Riverpod state, write-through on changes**
 
 ```dart
-String defaultProfileName(TasteProfile profile) {
-  if (profile.genres.isNotEmpty) {
-    final energy = profile.energyLevel == EnergyLevel.intense
-        ? 'High Energy'
-        : profile.energyLevel == EnergyLevel.chill
-            ? 'Chill'
-            : '';
-    final genre = profile.genres.first.displayName;
-    return '$energy $genre Mix'.trim();
+class SongFeedbackNotifier extends StateNotifier<Map<String, SongFeedback>> {
+  SongFeedbackNotifier() : super({}) { _load(); }
+
+  Future<void> _load() async {
+    state = await SongFeedbackPreferences.load();
   }
-  return 'My Profile';
+
+  Future<void> setFeedback(String songKey, bool liked, {String? artist, String? title}) async {
+    final entry = SongFeedback(...);
+    state = {...state, songKey: entry};
+    await SongFeedbackPreferences.save(state);
+  }
+
+  Future<void> removeFeedback(String songKey) async {
+    state = Map.from(state)..remove(songKey);
+    await SongFeedbackPreferences.save(state);
+  }
 }
 ```
 
-**No new packages needed.** This is pure presentation logic.
+**Why Map not List:** Feedback is accessed by song key during scoring (O(1) lookup needed for every candidate song during playlist generation). A list would require O(n) search per song. With 5,066 curated songs scored per generation, O(1) lookup is critical.
 
-**Confidence:** HIGH (trivial string formatting)
+**Confidence:** HIGH (same pattern as other notifiers in the codebase)
 
-### ID Generation
+---
 
-The current ID generation uses `DateTime.now().millisecondsSinceEpoch.toString()`. This is sufficient for a single-user local app where profiles are created seconds apart. No need to add the `uuid` package.
+## Feature 2: Scoring Integration
+
+### Extending SongQualityScorer
+
+**Decision: Add a single new scoring dimension for feedback, not multiple**
+
+The current `SongQualityScorer` has 8 dimensions with a theoretical max of ~46 points. Feedback should add one dimension:
+
+| Dimension | Points | Rationale |
+|-----------|--------|-----------|
+| Liked song | +8 | Strong positive signal -- user explicitly endorsed this song for running |
+| Disliked song | -20 | Hard filter equivalent -- user explicitly rejected this song |
+| No feedback | 0 | Neutral -- no signal, no penalty |
+
+**Why +8 for liked (not higher):** Liked should be a strong boost but not override everything. A liked song with terrible BPM match (wrong tempo) should still rank below a neutral song with perfect BPM match. +8 puts feedback on par with danceability (max 8) and above genre match (6) but below runnability (max 15) and artist match (10). This reflects that explicit feedback is valuable but BPM match remains the primary purpose of the app.
+
+**Why -20 for disliked (not -15 like disliked artist):** Disliking a specific song is a stronger signal than disliking an artist (the user might like other songs by that artist). A -20 penalty effectively removes the song from consideration without requiring a hard filter, keeping the scorer's ranking-based architecture intact.
+
+**Integration point:** `SongQualityScorer.score()` gains a new optional parameter:
+
+```dart
+static int score({
+  required BpmSong song,
+  TasteProfile? tasteProfile,
+  String? previousArtist,
+  List<RunningGenre>? songGenres,
+  int? runnability,
+  bool? songFeedback, // NEW: true=liked, false=disliked, null=no feedback
+}) { ... }
+```
+
+**Confidence:** HIGH (straightforward extension of existing pure-function scorer)
+
+---
+
+## Feature 3: Taste Learning Algorithm
+
+### The Key Question
+
+Does taste learning need ML libraries (TensorFlow Lite, tflite_flutter) or can simple statistical analysis suffice?
+
+### Decision: Pure Dart Statistical Analysis -- No ML Libraries
+
+For an app with ~500-4,000 feedback entries from a single user, machine learning is overkill. The data is too sparse and too homogeneous (one user's taste) for collaborative filtering or neural networks to provide value over simple frequency analysis.
+
+**What taste learning actually needs to discover:**
+
+| Pattern | Detection Method | Example |
+|---------|-----------------|---------|
+| Genre preferences from feedback | Count likes/dislikes per genre, compute like ratio | "User likes 80% of Electronic songs but only 30% of Rock songs" |
+| Artist preferences from feedback | Count likes per artist | "User liked 5 songs by Dua Lipa but disliked 2 by Metallica" |
+| BPM sweet spot | Compute mean/median BPM of liked songs vs disliked | "User likes songs at 168-175 BPM, dislikes outside that range" |
+| Energy/danceability preferences | Average danceability of liked vs disliked songs | "User prefers high-danceability songs (avg 78 vs 45)" |
+
+All of these are basic frequency counts, ratios, and averages. They require:
+- Iterating over feedback entries (~500-4,000 items)
+- Grouping by category (genre, artist, BPM range)
+- Computing ratios and averages
+- Comparing against thresholds
+
+This is O(n) computation that runs in <1ms on any modern device. No matrix factorization, no gradient descent, no training step.
+
+**Why NOT tflite_flutter or ml_kit:**
+
+| Factor | Assessment |
+|--------|-----------|
+| Data volume | ~500-4,000 entries from one user. ML models need thousands of users or millions of interactions. |
+| Cold start | ML models are useless with <50 entries. Statistical analysis produces meaningful insights from ~10 entries. |
+| Model training | Would need to happen on-device (no backend). On-device ML training in Flutter is experimental and adds massive binary size (~15MB for TFLite). |
+| Interpretability | Statistical analysis produces human-readable insights ("You like Electronic 80%"). ML models produce opaque vectors. |
+| Complexity | ML adds a dependency, model file management, platform-specific FFI. Statistical analysis is 50-100 lines of pure Dart. |
+| Accuracy | With single-user data, frequency analysis IS the optimal approach. Collaborative filtering requires a user base. |
+
+### Taste Learning Output
+
+The learning algorithm produces a `LearnedTasteInsights` object:
+
+```dart
+class LearnedTasteInsights {
+  final Map<RunningGenre, double> genreAffinity;   // genre -> like ratio (0.0-1.0)
+  final Map<String, int> artistAffinity;            // artist -> net likes (likes - dislikes)
+  final double? preferredBpmCenter;                 // mean BPM of liked songs
+  final double? preferredBpmRange;                  // stddev of liked song BPMs
+  final double? preferredDanceability;              // mean danceability of liked songs
+  final int totalFeedbackCount;                     // confidence indicator
+}
+```
+
+**How scoring uses learned insights:**
+
+The learned insights are converted to scoring adjustments in `SongQualityScorer`:
+- Genre affinity above threshold (e.g., >0.7 like ratio, >5 samples) -> implicit genre boost (+3)
+- Genre affinity below threshold (e.g., <0.3 like ratio, >5 samples) -> implicit genre penalty (-3)
+- Artist with net positive likes (>2) -> implicit artist boost (+5) if not already in taste profile
+- BPM within preferred range -> small boost (+1)
+
+These implicit boosts are SMALLER than explicit taste profile settings (genre match = +6, artist match = +10) because learned preferences have less certainty than explicitly stated ones.
+
+**Minimum sample threshold:** Learning insights require at least 5 feedback entries per category before activating. Below that, the sample size is too small to be meaningful. This prevents a single like of an Electronic song from boosting all Electronic songs.
+
+**Confidence:** HIGH (frequency analysis is a well-understood technique; the data characteristics match perfectly)
+
+---
+
+## Feature 4: Freshness Tracking
+
+### Data Model
+
+**Decision: Track last-played timestamps in a separate SharedPreferences key**
+
+Freshness tracking needs to know when a song was last included in a generated playlist. This is separate from feedback (a song can be fresh/stale regardless of whether the user liked it).
+
+```dart
+class FreshnessPreferences {
+  static const _key = 'song_freshness';
+
+  // Map<String, DateTime> -- songKey -> lastPlayedAt
+  static Future<Map<String, DateTime>> load() async { ... }
+  static Future<void> save(Map<String, DateTime> freshness) async { ... }
+}
+```
+
+**Why separate from feedback:** Not all generated songs receive feedback. Every generated song should update the freshness tracker regardless. Combining with feedback would conflate two independent concerns.
+
+**Size analysis:** Same calculation as feedback -- at most 4,000 entries, each ~80 bytes (key + ISO timestamp). Total ~320 KB. Well within SharedPreferences limits.
+
+### Freshness Scoring Integration
+
+**Decision: Freshness is a scoring modifier, not a hard filter**
+
+Add a freshness dimension to `SongQualityScorer`:
+
+| Freshness State | Points | Rationale |
+|----------------|--------|-----------|
+| Never played | +3 | Bonus for discovery when "keep it fresh" is on |
+| Played > 30 days ago | +2 | Enough time has passed, feels fresh again |
+| Played 7-30 days ago | 0 | Neutral |
+| Played < 7 days ago | -3 | Recent, penalize when freshness is on |
+| Played < 3 days ago | -6 | Very recent, strong penalty when freshness is on |
+
+**Freshness toggle behavior:**
+- When "keep it fresh" is ON: Apply freshness scoring as above
+- When "optimize for taste" is ON (default): Set all freshness scores to 0 (ignore freshness entirely, maximize for taste/quality)
+
+This is a simple boolean toggle, not a slider. Two clear modes are easier for runners to understand than a freshness-vs-taste continuum.
+
+**Integration:** The freshness map is passed to `PlaylistGenerator.generate()` alongside the feedback map. The generator passes freshness data to the scorer.
 
 **Confidence:** HIGH
 
 ---
 
-## Feature 3: Playlist Regeneration Reliability
+## Feature 5: Freshness Toggle UI
 
-### Current Regeneration Issues Identified
+### Decision: Store as Part of Generation Config, Not a Separate Setting
 
-Reading the `PlaylistGenerationNotifier` code reveals the following reliability concerns:
+The freshness toggle is a generation-time preference, like choosing a run plan or taste profile. It should live near those selectors on the playlist generation screen, not buried in app settings.
 
-**Issue 1: `regeneratePlaylist()` re-fetches songs from API instead of reusing cached pool**
+**Storage:** A single SharedPreferences boolean key `freshness_enabled` (default: false). This follows the same pattern as `onboarding_complete`.
 
-The `regeneratePlaylist()` method calls `_fetchAllSongs(storedPlan)` which makes fresh API calls. When the user just wants a different shuffle of the same song pool, this is wasteful and can fail if the API is down. The `state.songPool` is already available from the previous generation.
+**No new packages needed.** A `SwitchListTile` or `SegmentedButton` in the playlist screen's idle/loaded view is sufficient.
 
-**Fix approach:** Add a `shufflePlaylist()` method that reuses `state.songPool` and only calls `PlaylistGenerator.generate()` with the existing pool. Reserve `regeneratePlaylist()` for when the user changes run plan or taste profile (requiring new songs).
-
-**Issue 2: State reads stale providers during regeneration**
-
-`generatePlaylist()` reads `runPlanNotifierProvider` and `tasteProfileNotifierProvider` at call time. If the user changed their selected profile between generating and regenerating, `regeneratePlaylist()` uses the OLD stored plan/profile from `state.runPlan` / `state.tasteProfile`, while `generatePlaylist()` uses the CURRENT selection from providers. This inconsistency can lead to confusing behavior.
-
-**Fix approach:** Both methods should consistently read from providers for the current selection, with `state.runPlan/tasteProfile` serving only as fallback. Alternatively, regenerate should explicitly accept parameters.
-
-**Issue 3: No error recovery for partial API failure**
-
-If the API fails mid-fetch (e.g., 3 out of 6 BPM queries succeed), the entire generation falls through to the curated-only path. Songs from successful API calls are discarded.
-
-**Fix approach:** Merge API results with curated fallback rather than either/or. This is a domain logic change, not a stack change.
-
-**All three issues are fixable within existing Riverpod StateNotifier pattern. No new packages needed.**
-
-**Confidence:** HIGH (issues identified by direct code review; fixes are straightforward state management changes)
+**Confidence:** HIGH
 
 ---
 
 ## What NOT to Add
 
-| Technology | Why Not Add |
-|-----------|-------------|
-| **smooth_page_indicator** ^2.0.1 | Onboarding flow uses form-heavy steps, not swipeable cards. Flutter's built-in `LinearProgressIndicator` or `Stepper` is appropriate. |
-| **introduction_screen** | Over-engineered for our needs. Our onboarding must reuse existing taste profile and run plan form widgets, not display intro images. |
-| **uuid** | `DateTime.now().millisecondsSinceEpoch` is sufficient for local single-user ID generation. UUIDs add a dependency for no practical benefit at this scale. |
-| **drift / SQLite / Hive** | Data volume has not changed. SharedPreferences handles profile library (JSON array) easily. |
-| **flutter_secure_storage** (activate it) | Already in pubspec.yaml but unused. Profile data is not sensitive enough to warrant encrypted storage. |
-| **Supabase (activate it beyond init)** | Cross-device profile sync would be nice but is out of scope for v1.2. All data remains local. |
-| **auto_route** | GoRouter 17.x is already in use and supports redirect-based onboarding. No reason to switch routing packages. |
-| **riverpod_generator** (activate it) | Code-gen is broken with Dart 3.10 (documented in project memory). Continue with manual providers. |
-| **freezed** (for new models) | Existing models use hand-written `copyWith`, `fromJson`, `toJson`. This pattern is established and works. Adding freezed for new classes while existing ones are manual creates inconsistency. |
+| Technology | Why NOT |
+|-----------|---------|
+| **tflite_flutter** (TensorFlow Lite) | ML is overkill for single-user taste learning from <4,000 entries. Adds ~15MB binary size, platform-specific FFI, model file management. Simple frequency analysis achieves the same or better results for this use case. |
+| **drift** / **sqflite** | Data volume (<1MB total) does not justify a database migration. Code generation (required by Drift) is broken with Dart 3.10. Would require migrating ALL existing SharedPreferences data stores. |
+| **hive** / **isar** | Hive and Isar are abandoned by their original author and community-maintained. Isar's Rust core makes forking impractical. Neither offers meaningful benefits over SharedPreferences at this data volume. |
+| **objectbox** | Commercial NoSQL database -- overkill for local feedback storage. Requires native binaries per platform. |
+| **flutter_rating_bar** | Song feedback is binary (like/dislike), not a 1-5 star rating. Two icon buttons are sufficient. Adding a rating package for two buttons is wasteful. |
+| **collection** (dart package) | Dart's built-in `Map`, `List`, and `Iterable` methods are sufficient for all statistical computations. No need for `groupBy`, `maxBy`, etc. when the operations are simple counts and averages. |
+| **riverpod_generator** | Still broken with Dart 3.10 (documented in project memory). Continue with manual `StateNotifierProvider`. |
+| **freezed** (for new models) | Existing domain models use hand-written `fromJson`/`toJson`/`copyWith`. New models should follow the same pattern for consistency. |
+| **SharedPreferencesAsync** migration | The legacy `SharedPreferences` API works correctly for all current use cases. Migration adds risk for zero user-visible benefit. Defer until the legacy API is actually deprecated. |
 
 ---
 
 ## Existing Stack: Confirmed Sufficient
 
-| Package | Version | v1.2 Usage |
+| Package | Version | v1.3 Usage |
 |---------|---------|-----------|
-| `flutter_riverpod` | ^2.6.1 | Onboarding state provider, generation state fixes |
-| `go_router` | ^17.0.1 | `redirect` callback for onboarding gate, new `/onboarding` route |
-| `shared_preferences` | ^2.5.4 | `onboarding_complete` bool flag |
+| `flutter_riverpod` | ^2.6.1 | New `SongFeedbackNotifier`, `FreshnessNotifier`, `TasteLearningProvider` |
+| `go_router` | ^17.0.1 | New routes for feedback library screen |
+| `shared_preferences` | ^2.5.4 | Three new keys: `song_feedback`, `song_freshness`, `freshness_enabled` |
 | `http` | ^1.6.0 | Unchanged |
 | `url_launcher` | ^6.3.2 | Unchanged |
 | `supabase_flutter` | ^2.12.0 | Unchanged (init only) |
 | `flutter_dotenv` | ^6.0.0 | Unchanged |
 
-**Note on SharedPreferences API:** The project uses the classic `SharedPreferences` API (synchronous reads after `getInstance()`). Version 2.5.4 also offers `SharedPreferencesAsync` and `SharedPreferencesWithCache`. No reason to migrate -- the classic API is not deprecated yet and the project's usage patterns are simple enough that the newer APIs provide no benefit. If migration happens, it should be a separate effort, not mixed with v1.2 feature work.
-
-**Confidence:** HIGH (all versions verified against pub.dev, all patterns verified against codebase)
+**Confidence:** HIGH (all versions verified, all patterns verified against codebase)
 
 ---
 
-## Data Storage: No Changes to Strategy
+## New SharedPreferences Keys for v1.3
 
-| Data | Storage | v1.2 Changes |
-|------|---------|-------------|
-| Taste profile library | SharedPreferences (JSON array) | None -- already supports multiple profiles |
-| Selected profile ID | SharedPreferences (string) | None -- already persisted |
-| Run plan library | SharedPreferences (JSON array) | None |
-| Onboarding completion | SharedPreferences (bool) | NEW -- single `onboarding_complete` key |
-| BPM cache | SharedPreferences (JSON per BPM) | None |
-| Playlist history | SharedPreferences (JSON array) | None |
+| Key | Type | Purpose |
+|-----|------|---------|
+| `song_feedback` | String (JSON map) | All song feedback entries, keyed by song lookup key |
+| `song_freshness` | String (JSON map) | Last-played timestamps, keyed by song lookup key |
+| `freshness_enabled` | bool | Whether "keep it fresh" mode is active |
 
-**New SharedPreferences keys for v1.2:**
-- `onboarding_complete` (bool) -- that is the only new key needed.
-
-**Confidence:** HIGH
+**Total new storage footprint (extreme case):** ~920 KB (600 KB feedback + 320 KB freshness). Combined with existing data (~200 KB for profiles, plans, history, cache), total SharedPreferences usage is ~1.1 MB. This is well within practical limits on all platforms. Web localStorage limits are typically 5-10MB per origin.
 
 ---
 
@@ -278,43 +381,75 @@ If the API fails mid-fetch (e.g., 3 out of 6 BPM queries succeed), the entire ge
 
 | Existing File | What Changes | How |
 |--------------|-------------|-----|
-| `lib/app/router.dart` | Add `redirect` for onboarding gate + `/onboarding` route | Extend `GoRouter` constructor with redirect callback |
-| `lib/features/playlist/providers/playlist_providers.dart` | Fix regeneration to reuse song pool, fix stale state reads | Modify `regeneratePlaylist()`, add `shufflePlaylist()` |
-| `lib/features/taste_profile/presentation/taste_profile_library_screen.dart` | Polish empty state, improve default naming | Minor UI changes |
-| `lib/features/home/presentation/home_screen.dart` | Update for first-run vs returning user messaging | Conditional UI based on onboarding state |
-| `lib/main.dart` | No changes needed | GoRouter redirect handles onboarding detection |
+| `lib/features/song_quality/domain/song_quality_scorer.dart` | Add feedback and freshness scoring dimensions | Two new static methods + parameters on `score()` |
+| `lib/features/playlist/domain/playlist_generator.dart` | Pass feedback map and freshness map to scorer | Add parameters to `generate()` and `_scoreAndRank()` |
+| `lib/features/playlist/presentation/widgets/song_tile.dart` | Add like/dislike icon buttons | Extend existing `SongTile` widget |
+| `lib/features/playlist/presentation/playlist_screen.dart` | Add freshness toggle to generation UI | Add `SwitchListTile` or `SegmentedButton` |
+| `lib/features/playlist/providers/playlist_providers.dart` | Read feedback + freshness maps during generation | Add provider reads in `generatePlaylist()` |
+| `lib/app/router.dart` | Add `/feedback-library` route | Standard GoRouter route addition |
 
 **New files to create:**
+
 | File | Purpose |
 |------|---------|
-| `lib/features/onboarding/data/onboarding_preferences.dart` | SharedPreferences wrapper for `onboarding_complete` flag |
-| `lib/features/onboarding/providers/onboarding_providers.dart` | `OnboardingNotifier` StateNotifier for completion state |
-| `lib/features/onboarding/presentation/onboarding_screen.dart` | Multi-step onboarding UI (PageView with embedded forms) |
+| `lib/features/feedback/domain/song_feedback.dart` | `SongFeedback` domain model |
+| `lib/features/feedback/data/song_feedback_preferences.dart` | SharedPreferences persistence for feedback |
+| `lib/features/feedback/providers/feedback_providers.dart` | `SongFeedbackNotifier` + derived providers |
+| `lib/features/feedback/presentation/feedback_library_screen.dart` | Browse/edit all feedback entries |
+| `lib/features/freshness/domain/freshness_tracker.dart` | Freshness computation logic |
+| `lib/features/freshness/data/freshness_preferences.dart` | SharedPreferences persistence for freshness |
+| `lib/features/freshness/providers/freshness_providers.dart` | `FreshnessNotifier` state management |
+| `lib/features/taste_learning/domain/taste_learner.dart` | Pure Dart statistical analysis algorithm |
+| `lib/features/taste_learning/domain/learned_taste_insights.dart` | Output model from taste learning |
+| `lib/features/taste_learning/providers/taste_learning_providers.dart` | Provider that computes insights from feedback |
 
-**These follow the exact same `features/{name}/data|domain|presentation|providers` structure as every other feature module.**
+These follow the exact same `features/{name}/data|domain|presentation|providers` structure as every other feature module.
 
 ---
 
-## Architecture Decision Record: Why No New Packages
+## Architecture Decision Record: Why Zero New Dependencies (Again)
 
-The v1.2 milestone is fundamentally a **UX refinement milestone**, not an infrastructure milestone. The multi-profile architecture shipped in v1.1. The onboarding pattern (bool flag + GoRouter redirect) is a 20-line addition to existing infrastructure. The regeneration fix is a state management bug fix.
+v1.3 is a **data-driven intelligence milestone**, but the intelligence is simple enough to implement in pure Dart. The core insight is that single-user taste learning from explicit binary feedback is a frequency counting problem, not a machine learning problem.
 
-Adding packages for any of these introduces:
-- Version resolution conflicts with existing dependencies
-- Build time increase (especially problematic with Dart 3.10 code-gen issues)
-- Learning curve for maintainer
-- Upgrade burden for future milestones
+The existing stack handles:
+- **Persistence:** SharedPreferences stores up to ~1 MB of feedback + freshness data with no performance concerns
+- **State management:** Riverpod `StateNotifier` provides reactive in-memory access with write-through persistence
+- **Scoring:** `SongQualityScorer` is a pure-function scorer designed for extensibility with new dimensions
+- **UI patterns:** `SongTile`, library screens, and toggle UIs have established patterns to follow
 
-The existing Flutter + Riverpod + GoRouter + SharedPreferences stack handles everything v1.2 needs. **The right decision is zero new dependencies.**
+Adding ML libraries, databases, or UI packages for this milestone would create complexity disproportionate to the problem. The right approach is extending the existing architecture with new domain logic, not adding new infrastructure.
+
+**Zero new dependencies for the third milestone in a row.** This is a sign of a well-chosen initial stack, not a resistance to change.
+
+---
+
+## Alternatives Considered
+
+| Decision | Chosen | Alternative | Why Not Alternative |
+|----------|--------|------------|-------------------|
+| Feedback persistence | SharedPreferences (JSON map) | Drift/SQLite database | Data volume <1MB; code-gen broken; migration cost outweighs benefit |
+| Taste learning | Pure Dart frequency analysis | tflite_flutter (ML) | Single-user, <4K entries; ML adds 15MB+ binary size for worse results |
+| Feedback data structure | `Map<String, SongFeedback>` | `List<SongFeedback>` | Map provides O(1) lookup during scoring; list would be O(n) per song |
+| Freshness storage | Separate SharedPreferences key | Embedded in feedback entries | Not all songs get feedback; freshness tracks ALL generated songs |
+| Freshness UX | Binary toggle (fresh/taste) | Slider (0-100% freshness weight) | Binary is clearer for runners; two distinct modes are easier to understand |
+| Feedback granularity | Binary (like/dislike) | 5-star rating | Binary feedback has higher completion rates; more actionable for scoring |
 
 ---
 
 ## Sources
 
-- [GoRouter redirect documentation](https://pub.dev/packages/go_router) - HIGH confidence (verified v17.1.0 changelog, redirect supported)
-- [GoRouter onboarding redirect pattern](https://dev.to/kcl/onboarding-with-go-router-in-flutter-2jd6) - MEDIUM confidence (community tutorial, but pattern is standard)
-- [SharedPreferences v2.5.4 changelog](https://pub.dev/packages/shared_preferences/changelog) - HIGH confidence (verified on pub.dev)
-- [smooth_page_indicator v2.0.1](https://pub.dev/packages/smooth_page_indicator) - HIGH confidence (verified on pub.dev, decided NOT to use)
-- [Flutter Riverpod async init pattern](https://codewithandrea.com/articles/robust-app-initialization-riverpod/) - MEDIUM confidence (community tutorial by reputable author)
-- [Flutter onboarding with Riverpod + SharedPreferences + GoRouter](https://flutterexplained.com/p/flutter-onboarding-with-riverpod) - MEDIUM confidence (community tutorial, aligns with documented APIs)
-- Existing codebase analysis (all files read directly) - HIGH confidence
+### Primary (HIGH confidence)
+- [SharedPreferences v2.5.4](https://pub.dev/packages/shared_preferences) - Verified version, API capabilities, and storage characteristics
+- [Flutter official storage cookbook](https://docs.flutter.dev/cookbook/persistence/key-value) - SharedPreferences is recommended for "relatively small collection of key-values"
+- Existing codebase analysis (all files read directly) - Pattern consistency verified across 6 existing SharedPreferences data stores
+
+### Secondary (MEDIUM confidence)
+- [SharedPreferences performance analysis](https://moldstud.com/articles/p-the-role-of-shared-preferences-in-flutter-app-performance-frequently-asked-questions-explained) - Performance characteristics for large data
+- [Flutter database comparison 2025](https://dinkomarinac.dev/best-local-database-for-flutter-apps-a-complete-guide) - Drift, Hive, Isar alternatives assessment
+- [Isar abandonment discussion](https://github.com/isar/isar/issues/1689) - Isar/Hive maintenance status
+- [Spotify recommendation system guide](https://www.music-tomorrow.com/blog/how-spotify-recommendation-system-works-complete-guide) - Collaborative filtering requires user base; content-based filtering suitable for single-user
+- [Hive vs Isar vs Drift comparison 2025](https://medium.com/@flutter-app/hive-vs-isar-vs-drift-best-offline-db-for-flutter-c6f73cf1241e) - Database alternatives analysis
+
+### Tertiary (LOW confidence)
+- [Music recommendation with implicit feedback](https://blog.reachsumit.com/posts/2022/09/explicit-implicit-cf/) - Academic patterns for feedback-based recommendation
+- [Content-based music filtering review](https://arxiv.org/html/2507.02282v1) - Content-based filtering approaches

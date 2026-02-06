@@ -12,8 +12,14 @@ enum RunType {
   interval;
 
   /// Deserializes from a JSON string (enum name).
+  ///
+  /// Falls back to [steady] for unknown values, so a newer app version's
+  /// data doesn't crash an older version.
   static RunType fromJson(String name) =>
-      RunType.values.firstWhere((e) => e.name == name);
+      RunType.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => RunType.steady,
+      );
 }
 
 /// A single segment within a run plan.

@@ -33,9 +33,16 @@ class TasteProfilePreferences {
     final jsonString = prefs.getString(_profilesKey);
     if (jsonString == null) return [];
     final list = jsonDecode(jsonString) as List<dynamic>;
-    return list
-        .map((j) => TasteProfile.fromJson(j as Map<String, dynamic>))
-        .toList();
+    final profiles = <TasteProfile>[];
+    for (final j in list) {
+      try {
+        profiles.add(TasteProfile.fromJson(j as Map<String, dynamic>));
+      } catch (_) {
+        // Skip corrupt profiles so one bad entry doesn't prevent
+        // the rest of the library from loading.
+      }
+    }
+    return profiles;
   }
 
   /// Loads the selected profile ID, or null.

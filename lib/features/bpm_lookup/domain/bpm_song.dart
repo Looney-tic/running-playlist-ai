@@ -16,8 +16,14 @@ enum BpmMatchType {
   doubleTime;
 
   /// Deserializes from a JSON string (enum name).
+  ///
+  /// Falls back to [exact] for unknown values, so a newer app version's
+  /// data doesn't crash an older version.
   static BpmMatchType fromJson(String name) =>
-      BpmMatchType.values.firstWhere((e) => e.name == name);
+      BpmMatchType.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => BpmMatchType.exact,
+      );
 }
 
 /// A song discovered from the GetSongBPM API.

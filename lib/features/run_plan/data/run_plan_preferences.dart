@@ -33,9 +33,16 @@ class RunPlanPreferences {
     final jsonString = prefs.getString(_plansKey);
     if (jsonString == null) return [];
     final list = jsonDecode(jsonString) as List<dynamic>;
-    return list
-        .map((j) => RunPlan.fromJson(j as Map<String, dynamic>))
-        .toList();
+    final plans = <RunPlan>[];
+    for (final j in list) {
+      try {
+        plans.add(RunPlan.fromJson(j as Map<String, dynamic>));
+      } catch (_) {
+        // Skip corrupt plans so one bad entry doesn't prevent
+        // the rest of the library from loading.
+      }
+    }
+    return plans;
   }
 
   /// Loads the selected plan ID, or null.

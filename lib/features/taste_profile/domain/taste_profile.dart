@@ -8,8 +8,14 @@ enum EnergyLevel {
   intense;
 
   /// Deserializes from a JSON string (enum name).
+  ///
+  /// Falls back to [balanced] for unknown values, so a newer app version's
+  /// data doesn't crash an older version.
   static EnergyLevel fromJson(String name) =>
-      EnergyLevel.values.firstWhere((e) => e.name == name);
+      EnergyLevel.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => EnergyLevel.balanced,
+      );
 }
 
 /// Curated list of 15 running-relevant music genres.
@@ -38,8 +44,25 @@ enum RunningGenre {
   final String displayName;
 
   /// Deserializes from a JSON string (enum name).
+  ///
+  /// Falls back to [pop] for unknown values. Prefer [tryFromJson] when
+  /// building lists where unknown values should be silently dropped.
   static RunningGenre fromJson(String name) =>
-      RunningGenre.values.firstWhere((e) => e.name == name);
+      RunningGenre.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => RunningGenre.pop,
+      );
+
+  /// Returns the matching genre or `null` for unknown values.
+  ///
+  /// Used when parsing genre lists so unknown values from future app
+  /// versions are silently dropped rather than mapped to a fallback.
+  static RunningGenre? tryFromJson(String name) {
+    for (final genre in RunningGenre.values) {
+      if (genre.name == name) return genre;
+    }
+    return null;
+  }
 }
 
 /// Vocal vs instrumental preference for running music.
@@ -102,11 +125,24 @@ enum MusicDecade {
       };
 
   /// Deserializes from a JSON string (enum name).
+  ///
+  /// Falls back to [the2010s] for unknown values.
   static MusicDecade fromJson(String name) =>
       MusicDecade.values.firstWhere(
         (e) => e.name == name,
         orElse: () => MusicDecade.the2010s,
       );
+
+  /// Returns the matching decade or `null` for unknown values.
+  ///
+  /// Used when parsing decade lists so unknown values from future app
+  /// versions are silently dropped rather than mapped to a fallback.
+  static MusicDecade? tryFromJson(String name) {
+    for (final decade in MusicDecade.values) {
+      if (decade.name == name) return decade;
+    }
+    return null;
+  }
 }
 
 /// The user's running music taste preferences.
@@ -133,7 +169,8 @@ class TasteProfile {
       id: json['id'] as String?,
       name: json['name'] as String?,
       genres: (json['genres'] as List<dynamic>)
-          .map((g) => RunningGenre.fromJson(g as String))
+          .map((g) => RunningGenre.tryFromJson(g as String))
+          .whereType<RunningGenre>()
           .toList(),
       artists: (json['artists'] as List<dynamic>)
           .map((a) => a as String)
@@ -151,7 +188,8 @@ class TasteProfile {
               .toList() ??
           const [],
       decades: (json['decades'] as List<dynamic>?)
-              ?.map((d) => MusicDecade.fromJson(d as String))
+              ?.map((d) => MusicDecade.tryFromJson(d as String))
+              .whereType<MusicDecade>()
               .toList() ??
           const [],
     );

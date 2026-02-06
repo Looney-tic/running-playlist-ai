@@ -3,19 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
+import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
 
 /// Home hub screen with navigation to all app features.
 ///
-/// When a run plan exists, displays a quick-regenerate card and cadence
-/// nudge controls above the standard navigation buttons.
+/// Displays context-aware empty states based on whether a taste profile and
+/// run plan exist. When both are configured, shows a quick-regenerate card
+/// (with active profile name) and cadence nudge controls above the standard
+/// navigation buttons.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final runPlan = ref.watch(runPlanNotifierProvider);
+    final tasteProfile = ref.watch(tasteProfileNotifierProvider);
     final strideState = ref.watch(strideNotifierProvider);
     final cadence = strideState.cadence.round();
+    final theme = Theme.of(context);
+
+    final hasProfile = tasteProfile != null;
+    final hasPlan = runPlan != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -33,8 +41,27 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 24),
           child: Column(
             children: [
+              // Context-aware setup prompts
+              if (!hasProfile)
+                _SetupCard(
+                  icon: Icons.music_note,
+                  title: 'Set up your music taste',
+                  subtitle: 'Tell us what genres you like to run to',
+                  color: theme.colorScheme.secondaryContainer,
+                  onTap: () => context.push('/taste-profile'),
+                ),
+              if (!hasPlan)
+                _SetupCard(
+                  icon: Icons.timer,
+                  title: 'Create a run plan',
+                  subtitle:
+                      'Set your distance and pace for playlist matching',
+                  color: theme.colorScheme.secondaryContainer,
+                  onTap: () => context.push('/run-plan'),
+                ),
+
               // Quick-regenerate and cadence nudge (shown when run plan exists)
-              if (runPlan != null) ...[
+              if (hasPlan) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Card(
@@ -43,7 +70,9 @@ class HomeScreen extends ConsumerWidget {
                       title: const Text('Regenerate Playlist'),
                       subtitle: Text(
                         '${runPlan.distanceKm.toStringAsFixed(1)}'
-                        ' km at $cadence spm',
+                        ' km at $cadence spm'
+                        '${hasProfile ? '\nProfile: '
+                            '${tasteProfile.name ?? "Unnamed"}' : ''}',
                       ),
                       onTap: () => context.push('/playlist?auto=true'),
                     ),
@@ -146,6 +175,40 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Reusable setup prompt card for missing profile or plan.
+class _SetupCard extends StatelessWidget {
+  const _SetupCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 8),
+      child: Card(
+        color: color,
+        child: ListTile(
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          onTap: onTap,
         ),
       ),
     );

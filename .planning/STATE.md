@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality -- Phase 17: Curated Running Songs (complete)
+**Current focus:** v1.1 Experience Quality -- Phase 18: UX Refinements (in progress)
 
 ## Current Position
 
-Phase: 17 of 18 (Curated Running Songs)
-Plan: 2 of 2 in current phase
-Status: Phase complete, verified (12/12 must-haves)
-Last activity: 2026-02-06 -- Phase 17 verified and complete
+Phase: 18 of 18 (UX Refinements)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 18-01-PLAN.md
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████░░░░] 4/6
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████████░░] 5/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24 (10 from v0.1 + 10 from v1.0 + 4 from v1.1)
+- Total plans completed: 25 (10 from v0.1 + 10 from v1.0 + 5 from v1.1)
 - Average duration: 6m
-- Total execution time: ~2.1 hours
+- Total execution time: ~2.2 hours
 
 **By Phase (v0.1):**
 
@@ -48,6 +48,7 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████�
 |-------|-------|-------|----------|
 | 16 | 2/2 | 8m | 4m |
 | 17 | 2/2 | 11m | 6m |
+| 18 | 1/2 | 4m | 4m |
 
 ## Accumulated Context
 
@@ -66,6 +67,10 @@ Full decision log in PROJECT.md Key Decisions table.
 - **Lookup key format artist|title lowercase trimmed:** O(1) Set membership checks for cross-source matching
 - **Catch-all for Supabase errors:** Supabase.instance throws AssertionError (Error, not Exception) when not initialized; catch(_) required for graceful degradation
 - **300 curated songs, 20 per genre:** Even distribution exceeding 200-minimum across all 15 RunningGenre values
+- **VocalPreference fallback to noPreference:** Safe default on unknown JSON string
+- **TempoVarianceTolerance fallback to moderate:** Preserves current behavior on unknown JSON string
+- **Disliked artist penalty -15:** Stronger than diversity penalty (-5), weaker than artist match (+10)
+- **Loose tempo variant weight 2:** Between moderate (1) and exact (3), narrows gap for variety-seeking users
 
 ### Pending Todos
 
@@ -88,5 +93,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Phase 17 Curated Running Songs complete and verified -- ready for Phase 18
+Stopped at: Completed 18-01-PLAN.md (TDD domain & scoring extensions)
 Resume file: None

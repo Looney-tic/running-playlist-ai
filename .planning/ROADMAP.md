@@ -88,11 +88,11 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
   1. User can tap "shuffle" on a generated playlist and get a different song order instantly without a loading spinner or API call
   2. User can close the app completely, reopen it, and tap "generate" from the home screen without seeing a null-state error or crash
   3. User can switch their selected run plan or taste profile and the next generated playlist reflects the updated selection -- not a stale cached version
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: TBD
-- [ ] 19-02: TBD
+- [ ] 19-01-PLAN.md -- Readiness guards on library notifiers and instant shufflePlaylist() method
+- [ ] 19-02-PLAN.md -- Wire playlist screen UI to shufflePlaylist() and add Generate button
 
 ### Phase 20: Profile Polish
 **Goal**: Multi-profile management is safe and verified -- destructive actions require confirmation, corrupt data degrades gracefully, and the full create/edit/delete/switch lifecycle is tested
@@ -141,6 +141,6 @@ Plans:
 | 16. Scoring Foundation | v1.1 | 2/2 | Complete | 2026-02-05 |
 | 17. Curated Songs | v1.1 | 2/2 | Complete | 2026-02-06 |
 | 18. UX Refinements | v1.1 | 2/2 | Complete | 2026-02-06 |
-| 19. Regeneration Reliability | v1.2 | 0/2 | Not started | - |
+| 19. Regeneration Reliability | v1.2 | 0/2 | Planned | - |
 | 20. Profile Polish | v1.2 | 0/2 | Not started | - |
 | 21. Onboarding | v1.2 | 0/2 | Not started | - |

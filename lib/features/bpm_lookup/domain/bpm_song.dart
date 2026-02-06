@@ -34,6 +34,7 @@ class BpmSong {
     this.genre,
     this.decade,
     this.durationSeconds,
+    this.danceability,
   });
 
   /// Deserializes from our local JSON format (cache / persistence).
@@ -52,6 +53,7 @@ class BpmSong {
       genre: json['genre'] as String?,
       decade: json['decade'] as String?,
       durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+      danceability: (json['danceability'] as num?)?.toInt(),
     );
   }
 
@@ -74,6 +76,8 @@ class BpmSong {
       artistUri: artist['uri'] as String?,
       albumTitle: album?['title'] as String?,
       matchType: matchType,
+      danceability:
+          int.tryParse(json['danceability']?.toString() ?? ''),
     );
   }
 
@@ -99,6 +103,13 @@ class BpmSong {
   /// Song duration in seconds. Null for API-sourced songs.
   final int? durationSeconds;
 
+  /// Danceability score (0-100) from the API or curated dataset.
+  ///
+  /// Higher values indicate stronger, more regular rhythm — a key
+  /// predictor of running suitability per Karageorghis research.
+  /// Null when the data source does not provide this field.
+  final int? danceability;
+
   /// Serializes to our local JSON format for cache / persistence.
   ///
   /// Note: [matchType] is intentionally **excluded** from the serialized
@@ -117,6 +128,7 @@ class BpmSong {
         if (genre != null) 'genre': genre,
         if (decade != null) 'decade': decade,
         if (durationSeconds != null) 'durationSeconds': durationSeconds,
+        if (danceability != null) 'danceability': danceability,
       };
 
   /// Creates a copy with a different [matchType].
@@ -132,5 +144,6 @@ class BpmSong {
         genre: genre,
         decade: decade,
         durationSeconds: durationSeconds,
+        danceability: danceability,
       );
 }

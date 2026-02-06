@@ -17,7 +17,8 @@ class SongTile extends StatelessWidget {
   final int? index;
 
   /// Quality threshold for showing the star badge.
-  static const _starThreshold = 12;
+  /// Adjusted for max score 42 (was 12 for max 28).
+  static const _starThreshold = 16;
 
   @override
   Widget build(BuildContext context) {

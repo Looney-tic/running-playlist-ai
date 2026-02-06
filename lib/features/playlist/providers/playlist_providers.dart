@@ -292,6 +292,7 @@ class PlaylistGenerationNotifier
               genre: song.genre,
               decade: song.decade,
               durationSeconds: song.durationSeconds,
+              danceability: song.danceability,
             ),
           );
     }

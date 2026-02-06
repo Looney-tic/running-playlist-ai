@@ -19,6 +19,7 @@ class CuratedSong {
     this.bpm,
     this.decade,
     this.durationSeconds,
+    this.danceability,
   });
 
   /// Deserializes from camelCase JSON (bundled asset format).
@@ -30,6 +31,7 @@ class CuratedSong {
       bpm: (json['bpm'] as num?)?.toInt(),
       decade: json['decade'] as String?,
       durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+      danceability: (json['danceability'] as num?)?.toInt(),
     );
   }
 
@@ -42,6 +44,7 @@ class CuratedSong {
       bpm: (row['bpm'] as num?)?.toInt(),
       decade: row['decade'] as String?,
       durationSeconds: (row['duration_seconds'] as num?)?.toInt(),
+      danceability: (row['danceability'] as num?)?.toInt(),
     );
   }
 
@@ -63,6 +66,9 @@ class CuratedSong {
   /// Song duration in seconds.
   final int? durationSeconds;
 
+  /// Danceability score (0-100). Null until enriched.
+  final int? danceability;
+
   /// Normalized lookup key for matching against BpmSong candidates.
   ///
   /// Format: `'artist_lowercase_trimmed|title_lowercase_trimmed'`
@@ -79,5 +85,6 @@ class CuratedSong {
         if (bpm != null) 'bpm': bpm,
         if (decade != null) 'decade': decade,
         if (durationSeconds != null) 'durationSeconds': durationSeconds,
+        if (danceability != null) 'danceability': danceability,
       };
 }

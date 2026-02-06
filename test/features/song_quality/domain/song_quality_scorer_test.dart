@@ -9,6 +9,7 @@ BpmSong _song({
   BpmMatchType matchType = BpmMatchType.exact,
   String? genre,
   String? decade,
+  int? danceability,
 }) {
   return BpmSong(
     songId: 'id-1',
@@ -18,6 +19,7 @@ BpmSong _song({
     matchType: matchType,
     genre: genre,
     decade: decade,
+    danceability: danceability,
   );
 }
 
@@ -83,33 +85,38 @@ void main() {
   // ──────────────────────────────────────────────────────
   group('Genre match', () {
     test('matching genre adds +6', () {
-      final profile = TasteProfile(genres: [RunningGenre.rock]);
-      final score = SongQualityScorer.score(
+      // Compare matching vs non-matching profile with same genre
+      // to isolate genre match from genre runnability.
+      final matchProfile = TasteProfile(genres: [RunningGenre.rock]);
+      final noMatchProfile = TasteProfile(genres: [RunningGenre.pop]);
+      final matchScore = SongQualityScorer.score(
         song: _song(),
-        tasteProfile: profile,
+        tasteProfile: matchProfile,
         songGenres: [RunningGenre.rock],
       );
-      final noGenreScore = SongQualityScorer.score(
+      final noMatchScore = SongQualityScorer.score(
         song: _song(),
-        tasteProfile: profile,
-        songGenres: null,
+        tasteProfile: noMatchProfile,
+        songGenres: [RunningGenre.rock],
       );
-      expect(score - noGenreScore, equals(6));
+      expect(matchScore - noMatchScore, equals(6));
     });
 
     test('non-matching genre adds +0', () {
+      // Same genre in both calls, so runnability is identical.
       final profile = TasteProfile(genres: [RunningGenre.pop]);
-      final score = SongQualityScorer.score(
+      final rockScore = SongQualityScorer.score(
         song: _song(),
         tasteProfile: profile,
         songGenres: [RunningGenre.rock],
       );
-      final noGenreScore = SongQualityScorer.score(
+      final noProfileScore = SongQualityScorer.score(
         song: _song(),
-        tasteProfile: profile,
-        songGenres: null,
+        tasteProfile: null,
+        songGenres: [RunningGenre.rock],
       );
-      expect(score, equals(noGenreScore));
+      // No genre match in either case, runnability same → equal
+      expect(rockScore, equals(noProfileScore));
     });
 
     test('null songGenres adds +0', () {
@@ -128,18 +135,19 @@ void main() {
     });
 
     test('empty tasteProfile genres adds +0', () {
+      // Same genre in both calls to control for runnability.
       final profile = TasteProfile(genres: []);
       final score = SongQualityScorer.score(
         song: _song(),
         tasteProfile: profile,
         songGenres: [RunningGenre.rock],
       );
-      final noGenreScore = SongQualityScorer.score(
+      final noProfileScore = SongQualityScorer.score(
         song: _song(),
-        tasteProfile: profile,
-        songGenres: null,
+        tasteProfile: null,
+        songGenres: [RunningGenre.rock],
       );
-      expect(score, equals(noGenreScore));
+      expect(score, equals(noProfileScore));
     });
   });
 
@@ -235,11 +243,12 @@ void main() {
   // Composite scoring
   // ──────────────────────────────────────────────────────
   group('Composite scoring', () {
-    test('best case: artist(10) + genre(6) + exact(3) + curated(5) + decade(4) = 28',
+    test(
+        'best case: artist(10) + dance(8) + genre(6) + runnability(6) + curated(5) + decade(4) + exact(3) = 42',
         () {
       final profile = TasteProfile(
         artists: ['Eminem'],
-        genres: [RunningGenre.rock],
+        genres: [RunningGenre.electronic],
         decades: [MusicDecade.the2000s],
       );
       final score = SongQualityScorer.score(
@@ -247,15 +256,17 @@ void main() {
           artistName: 'Eminem',
           matchType: BpmMatchType.exact,
           decade: '2000s',
+          danceability: 85,
         ),
         tasteProfile: profile,
-        songGenres: [RunningGenre.rock],
+        songGenres: [RunningGenre.electronic],
         isCurated: true,
       );
-      expect(score, equals(28));
+      expect(score, equals(42));
     });
 
-    test('worst case: no match + variant(1) = 1', () {
+    test('worst case: no match + variant(1) + neutral dance(3) + runnability(4) = 8',
+        () {
       final profile = TasteProfile(
         artists: ['Eminem'],
         genres: [RunningGenre.pop],
@@ -266,7 +277,8 @@ void main() {
         tasteProfile: profile,
         songGenres: [RunningGenre.rock],
       );
-      expect(score, equals(1));
+      // halfTime(1) + danceability neutral(3) + rock runnability(4) = 8
+      expect(score, equals(8));
     });
   });
 
@@ -328,8 +340,8 @@ void main() {
         previousArtist: null,
         songGenres: null,
       );
-      // Exact BPM=3 => 3
-      expect(score, equals(3));
+      // Exact BPM(3) + danceability neutral(3) + genre runnability neutral(2) = 8
+      expect(score, equals(8));
     });
 
     test('no Flutter imports in scorer', () {
@@ -358,11 +370,11 @@ void main() {
     });
 
     test('curated bonus is additive, not multiplicative', () {
-      // Exact BPM song: base includes +3 (exact BPM) = 3
-      // With curated: 3 + 5 = 8
+      // Exact BPM(3) + danceability neutral(3) + genre runnability neutral(2) = 8
+      // With curated: 8 + 5 = 13
       final song = _song(matchType: BpmMatchType.exact);
       final curated = SongQualityScorer.score(song: song, isCurated: true);
-      expect(curated, equals(8)); // 3 base + 5 curated
+      expect(curated, equals(13)); // 8 base + 5 curated
     });
 
     test('curatedBonusWeight constant is 5', () {
@@ -601,6 +613,213 @@ void main() {
         tasteProfile: profile,
       );
       expect(score, equals(noDecadeScore));
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Danceability scoring
+  // ──────────────────────────────────────────────────────
+  group('Danceability scoring', () {
+    test('high danceability (>=70) adds +8', () {
+      final highScore = SongQualityScorer.score(
+        song: _song(danceability: 85),
+      );
+      final nullScore = SongQualityScorer.score(
+        song: _song(danceability: null),
+      );
+      // high(8) vs neutral(3) = +5 difference
+      expect(highScore - nullScore, equals(5));
+    });
+
+    test('good danceability (50-69) adds +5', () {
+      final goodScore = SongQualityScorer.score(
+        song: _song(danceability: 60),
+      );
+      final nullScore = SongQualityScorer.score(
+        song: _song(danceability: null),
+      );
+      // good(5) vs neutral(3) = +2 difference
+      expect(goodScore - nullScore, equals(2));
+    });
+
+    test('moderate danceability (30-49) adds +2', () {
+      final modScore = SongQualityScorer.score(
+        song: _song(danceability: 40),
+      );
+      final nullScore = SongQualityScorer.score(
+        song: _song(danceability: null),
+      );
+      // moderate(2) vs neutral(3) = -1 difference
+      expect(modScore - nullScore, equals(-1));
+    });
+
+    test('low danceability (<30) adds +0', () {
+      final lowScore = SongQualityScorer.score(
+        song: _song(danceability: 15),
+      );
+      final nullScore = SongQualityScorer.score(
+        song: _song(danceability: null),
+      );
+      // low(0) vs neutral(3) = -3 difference
+      expect(lowScore - nullScore, equals(-3));
+    });
+
+    test('null danceability adds neutral +3', () {
+      final score = SongQualityScorer.score(
+        song: _song(danceability: null),
+      );
+      // exact(3) + danceability neutral(3) + genre runnability neutral(2) = 8
+      expect(score, equals(8));
+    });
+
+    test('danceability boundary: exactly 70 gets +8', () {
+      final at70 = SongQualityScorer.score(song: _song(danceability: 70));
+      final at69 = SongQualityScorer.score(song: _song(danceability: 69));
+      expect(at70 - at69, equals(3)); // 8 vs 5
+    });
+
+    test('danceability boundary: exactly 50 gets +5', () {
+      final at50 = SongQualityScorer.score(song: _song(danceability: 50));
+      final at49 = SongQualityScorer.score(song: _song(danceability: 49));
+      expect(at50 - at49, equals(3)); // 5 vs 2
+    });
+
+    test('danceabilityMaxWeight constant is 8', () {
+      expect(SongQualityScorer.danceabilityMaxWeight, equals(8));
+    });
+
+    test('danceabilityNeutral constant is 3', () {
+      expect(SongQualityScorer.danceabilityNeutral, equals(3));
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Genre runnability scoring
+  // ──────────────────────────────────────────────────────
+  group('Genre runnability scoring', () {
+    test('tier 1 genres (electronic, edm, house, dnb) score 6', () {
+      for (final genre in [
+        RunningGenre.electronic,
+        RunningGenre.edm,
+        RunningGenre.house,
+        RunningGenre.drumAndBass,
+      ]) {
+        final score = SongQualityScorer.score(
+          song: _song(),
+          songGenres: [genre],
+        );
+        final nullGenreScore = SongQualityScorer.score(
+          song: _song(),
+          songGenres: null,
+        );
+        // tier1(6) vs neutral(2) = +4
+        expect(score - nullGenreScore, equals(4),
+            reason: '${genre.name} should be tier 1');
+      }
+    });
+
+    test('tier 2 genres (pop, dance, kPop, hipHop) score 5', () {
+      for (final genre in [
+        RunningGenre.pop,
+        RunningGenre.dance,
+        RunningGenre.kPop,
+        RunningGenre.hipHop,
+      ]) {
+        final score = SongQualityScorer.score(
+          song: _song(),
+          songGenres: [genre],
+        );
+        final nullGenreScore = SongQualityScorer.score(
+          song: _song(),
+          songGenres: null,
+        );
+        // tier2(5) vs neutral(2) = +3
+        expect(score - nullGenreScore, equals(3),
+            reason: '${genre.name} should be tier 2');
+      }
+    });
+
+    test('tier 3 genres (rock, punk, latin, funk) score 4', () {
+      for (final genre in [
+        RunningGenre.rock,
+        RunningGenre.punk,
+        RunningGenre.latin,
+        RunningGenre.funk,
+      ]) {
+        final score = SongQualityScorer.score(
+          song: _song(),
+          songGenres: [genre],
+        );
+        final nullGenreScore = SongQualityScorer.score(
+          song: _song(),
+          songGenres: null,
+        );
+        // tier3(4) vs neutral(2) = +2
+        expect(score - nullGenreScore, equals(2),
+            reason: '${genre.name} should be tier 3');
+      }
+    });
+
+    test('tier 4 genres (indie, rnb, metal) score 3', () {
+      for (final genre in [
+        RunningGenre.indie,
+        RunningGenre.rnb,
+        RunningGenre.metal,
+      ]) {
+        final score = SongQualityScorer.score(
+          song: _song(),
+          songGenres: [genre],
+        );
+        final nullGenreScore = SongQualityScorer.score(
+          song: _song(),
+          songGenres: null,
+        );
+        // tier4(3) vs neutral(2) = +1
+        expect(score - nullGenreScore, equals(1),
+            reason: '${genre.name} should be tier 4');
+      }
+    });
+
+    test('null genres get neutral score (2)', () {
+      final score = SongQualityScorer.score(
+        song: _song(),
+        songGenres: null,
+      );
+      // exact(3) + danceability neutral(3) + genre runnability neutral(2) = 8
+      expect(score, equals(8));
+    });
+
+    test('empty genres get neutral score (2)', () {
+      final scoreNull = SongQualityScorer.score(
+        song: _song(),
+        songGenres: null,
+      );
+      final scoreEmpty = SongQualityScorer.score(
+        song: _song(),
+        songGenres: [],
+      );
+      expect(scoreNull, equals(scoreEmpty));
+    });
+
+    test('multiple genres: highest runnability wins', () {
+      // electronic(6) + rock(4) -> should pick 6
+      final multiScore = SongQualityScorer.score(
+        song: _song(),
+        songGenres: [RunningGenre.rock, RunningGenre.electronic],
+      );
+      final electronicOnly = SongQualityScorer.score(
+        song: _song(),
+        songGenres: [RunningGenre.electronic],
+      );
+      expect(multiScore, equals(electronicOnly));
+    });
+
+    test('genreRunnabilityMaxWeight constant is 6', () {
+      expect(SongQualityScorer.genreRunnabilityMaxWeight, equals(6));
+    });
+
+    test('genreRunnabilityNeutral constant is 2', () {
+      expect(SongQualityScorer.genreRunnabilityNeutral, equals(2));
     });
   });
 }

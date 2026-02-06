@@ -37,6 +37,18 @@ void main() {
       expect(song.bpm, isNull);
       expect(song.decade, isNull);
       expect(song.durationSeconds, isNull);
+      expect(song.danceability, isNull);
+    });
+
+    test('deserializes danceability when present', () {
+      final json = {
+        'title': 'Test',
+        'artistName': 'Artist',
+        'genre': 'pop',
+        'danceability': 75,
+      };
+      final song = CuratedSong.fromJson(json);
+      expect(song.danceability, 75);
     });
   });
 
@@ -72,6 +84,18 @@ void main() {
       expect(song.bpm, isNull);
       expect(song.decade, isNull);
       expect(song.durationSeconds, isNull);
+      expect(song.danceability, isNull);
+    });
+
+    test('deserializes danceability from Supabase row', () {
+      final row = {
+        'title': 'Test',
+        'artist_name': 'Artist',
+        'genre': 'pop',
+        'danceability': 82,
+      };
+      final song = CuratedSong.fromSupabaseRow(row);
+      expect(song.danceability, 82);
     });
   });
 
@@ -142,6 +166,27 @@ void main() {
       );
       final json = song.toJson();
       expect(json.containsKey('bpm'), isFalse);
+    });
+
+    test('roundtrip preserves danceability', () {
+      const original = CuratedSong(
+        title: 'Test',
+        artistName: 'Artist',
+        genre: 'pop',
+        danceability: 68,
+      );
+      final roundtripped = CuratedSong.fromJson(original.toJson());
+      expect(roundtripped.danceability, equals(68));
+    });
+
+    test('toJson excludes null danceability', () {
+      const song = CuratedSong(
+        title: 'Test',
+        artistName: 'Artist',
+        genre: 'pop',
+      );
+      final json = song.toJson();
+      expect(json.containsKey('danceability'), isFalse);
     });
   });
 }

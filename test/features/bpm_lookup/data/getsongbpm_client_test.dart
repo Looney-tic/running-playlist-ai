@@ -46,7 +46,7 @@ void main() {
 
       expect(capturedUri, isNotNull);
       expect(capturedUri!.scheme, equals('https'));
-      expect(capturedUri!.host, equals('api.getsongbpm.com'));
+      expect(capturedUri!.host, equals('api.getsong.co'));
       expect(capturedUri!.path, equals('/tempo/'));
       expect(capturedUri!.queryParameters['api_key'], equals('test-key-123'));
       expect(capturedUri!.queryParameters['bpm'], equals('170'));

@@ -108,11 +108,11 @@ Plans:
   2. Returning user can generate a new playlist for their last run configuration with a single tap from the home screen
   3. Songs with high runnability or curated status show a visible quality indicator (badge or icon) in the playlist UI
   4. User can set vocal preference, tempo variance tolerance, and disliked artists in the taste profile -- and these preferences affect generated playlists
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 18-01: TBD
-- [ ] 18-02: TBD
+- [ ] 18-01-PLAN.md -- TDD: TasteProfile model extension, SongQualityScorer disliked-artist + tempo-variance scoring, StrideNotifier.nudgeCadence
+- [ ] 18-02-PLAN.md -- UI: Quality badges, cadence nudge widgets, quick-regenerate card, taste profile screen extensions, auto-trigger wiring
 
 ## Progress
 

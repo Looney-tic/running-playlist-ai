@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 20 - Profile Polish (v1.2)
+**Current focus:** Phase 21 - Onboarding (v1.2)
 
 ## Current Position
 
-Phase: 20 of 21 (Profile Polish)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 20-02-PLAN.md
+Phase: 21 of 21 (Onboarding)
+Plan: 0 of 2 in current phase
+Status: Ready to plan
+Last activity: 2026-02-06 -- Phase 20 complete (2/2 plans)
 
-Progress: v0.1-v1.1 complete (26 plans) | v1.2: [=====.....] 4/6
+Progress: v0.1-v1.1 complete (26 plans) | v1.2: [=======...] 4/6
 
 ## Performance Metrics
 
@@ -67,5 +67,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 20-02-PLAN.md (Phase 20 complete)
+Stopped at: Phase 20 complete, ready for Phase 21
 Resume file: None

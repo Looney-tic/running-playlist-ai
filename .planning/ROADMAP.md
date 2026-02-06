@@ -105,8 +105,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md -- TDD: Safe enum deserialization with orElse fallbacks and corrupt JSON resilience
-- [ ] 20-02-PLAN.md -- Delete confirmation dialogs and multi-profile lifecycle tests
+- [x] 20-01-PLAN.md -- TDD: Safe enum deserialization with orElse fallbacks and corrupt JSON resilience
+- [x] 20-02-PLAN.md -- Delete confirmation dialogs and multi-profile lifecycle tests
 
 ### Phase 21: Onboarding
 **Goal**: First-time users are guided through creating their first run plan and taste profile, arriving at a generated playlist without needing to discover the app's workflow themselves
@@ -142,5 +142,5 @@ Plans:
 | 17. Curated Songs | v1.1 | 2/2 | Complete | 2026-02-06 |
 | 18. UX Refinements | v1.1 | 2/2 | Complete | 2026-02-06 |
 | 19. Regeneration Reliability | v1.2 | 2/2 | Complete | 2026-02-06 |
-| 20. Profile Polish | v1.2 | 0/2 | Not started | - |
+| 20. Profile Polish | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 21. Onboarding | v1.2 | 0/2 | Not started | - |

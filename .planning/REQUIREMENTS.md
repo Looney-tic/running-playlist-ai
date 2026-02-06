@@ -15,9 +15,9 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 
 ### Profile Polish
 
-- [ ] **PROF-01**: Deleting a taste profile shows a confirmation dialog before removal
-- [ ] **PROF-02**: All enum deserializers (RunningGenre, EnergyLevel, etc.) have orElse fallbacks to prevent crash on corrupt/unknown data
-- [ ] **PROF-03**: Multi-profile flows (create, edit, delete, switch, persist) verified with integration test coverage
+- [x] **PROF-01**: Deleting a taste profile shows a confirmation dialog before removal
+- [x] **PROF-02**: All enum deserializers (RunningGenre, EnergyLevel, etc.) have orElse fallbacks to prevent crash on corrupt/unknown data
+- [x] **PROF-03**: Multi-profile flows (create, edit, delete, switch, persist) verified with integration test coverage
 
 ### Onboarding
 
@@ -52,9 +52,9 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 | REGEN-01 | Phase 19 | Done |
 | REGEN-02 | Phase 19 | Done |
 | REGEN-03 | Phase 19 | Done |
-| PROF-01 | Phase 20 | Pending |
-| PROF-02 | Phase 20 | Pending |
-| PROF-03 | Phase 20 | Pending |
+| PROF-01 | Phase 20 | Done |
+| PROF-02 | Phase 20 | Done |
+| PROF-03 | Phase 20 | Done |
 | ONBD-01 | Phase 21 | Pending |
 | ONBD-02 | Phase 21 | Pending |
 | ONBD-03 | Phase 21 | Pending |

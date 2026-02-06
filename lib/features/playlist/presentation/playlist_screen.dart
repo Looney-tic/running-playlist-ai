@@ -103,9 +103,12 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     if (state.playlist != null) {
       return _PlaylistView(
         playlist: state.playlist!,
-        onRegenerate: () => ref
+        onShuffle: () => ref
             .read(playlistGenerationProvider.notifier)
-            .regeneratePlaylist(),
+            .shufflePlaylist(),
+        onGenerate: () => ref
+            .read(playlistGenerationProvider.notifier)
+            .generatePlaylist(),
       );
     }
 
@@ -272,10 +275,15 @@ class _IdleView extends ConsumerWidget {
 
 /// Displays the generated playlist grouped by segment with cadence nudge.
 class _PlaylistView extends ConsumerWidget {
-  const _PlaylistView({required this.playlist, required this.onRegenerate});
+  const _PlaylistView({
+    required this.playlist,
+    required this.onShuffle,
+    required this.onGenerate,
+  });
 
   final Playlist playlist;
-  final VoidCallback onRegenerate;
+  final VoidCallback onShuffle;
+  final VoidCallback onGenerate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -304,7 +312,7 @@ class _PlaylistView extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: onRegenerate,
+                onPressed: onGenerate,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Try Again'),
               ),
@@ -365,14 +373,14 @@ class _PlaylistView extends ConsumerWidget {
                 ),
               ),
               FilledButton.tonalIcon(
-                onPressed: onRegenerate,
+                onPressed: onShuffle,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: const Text('Shuffle'),
               ),
             ],
           ),
         ),
-        // Selectors
+        // Selectors + Generate
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
@@ -380,6 +388,15 @@ class _PlaylistView extends ConsumerWidget {
               Expanded(child: _RunPlanSelector()),
               const SizedBox(width: 8),
               Expanded(child: _TasteProfileSelector()),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: onGenerate,
+                icon: const Icon(
+                  Icons.play_arrow_rounded,
+                  size: 18,
+                ),
+                label: const Text('Generate'),
+              ),
             ],
           ),
         ),

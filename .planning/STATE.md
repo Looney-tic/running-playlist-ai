@@ -58,6 +58,9 @@ Full decision log in PROJECT.md Key Decisions table.
 
 - **Energy alignment proximity threshold:** 15-point proximity gives +2 partial match (avoids harsh cutoffs)
 - **Public weight constants:** All scoring weights are static const for testability and future tuning
+- **Runnability replaces curated bonus + genre runnability:** Single data-driven dimension (0-15 pts) replacing flat curated bonus (+5) and genre runnability tiers (0-6); new max composite = 46
+- **Curated runnability map:** curatedLookupKeys (Set<String>) replaced by curatedRunnability (Map<String, int>) for runnability value lookup during scoring
+- **Runnability neutral = 5:** Slightly generous neutral for API-sourced songs without curated data
 - **Bidirectional artist substring match:** Preserved exact logic from PlaylistGenerator for backward compatibility
 - **Danceability parsed as int? from API:** Handles both string and int values, forward-compatible with endpoint availability
 - **Quality metadata on PlaylistSong:** runningQuality + isEnriched for future UI quality indicators
@@ -97,5 +100,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: v1.1 milestone complete -- all 14 requirements verified, all 6 plans across 3 phases shipped
+Stopped at: Completed quick-002 (runnability scoring system)
 Resume file: None

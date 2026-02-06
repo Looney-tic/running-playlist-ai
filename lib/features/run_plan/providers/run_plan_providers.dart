@@ -2,42 +2,73 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/run_plan/data/run_plan_preferences.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 
-/// Manages the current [RunPlan] state and persistence.
-///
-/// Loads the saved plan from SharedPreferences on initialization.
-/// Provides methods to set, update, and clear the active run plan.
-///
-/// Follows the same pattern as StrideNotifier.
-class RunPlanNotifier extends StateNotifier<RunPlan?> {
-  RunPlanNotifier() : super(null) {
-    _load();
-  }
+/// State holding all saved plans and which one is selected.
+class RunPlanLibraryState {
+  const RunPlanLibraryState({
+    this.plans = const [],
+    this.selectedId,
+  });
 
-  /// Loads the saved run plan from SharedPreferences.
-  Future<void> _load() async {
-    state = await RunPlanPreferences.load();
-  }
+  final List<RunPlan> plans;
+  final String? selectedId;
 
-  /// Sets the active run plan and persists it.
-  Future<void> setPlan(RunPlan plan) async {
-    state = plan;
-    await RunPlanPreferences.save(plan);
-  }
-
-  /// Clears the active run plan and removes it from storage.
-  Future<void> clear() async {
-    state = null;
-    await RunPlanPreferences.clear();
+  /// The currently selected plan, or null if none is selected.
+  RunPlan? get selectedPlan {
+    if (selectedId == null) return plans.isNotEmpty ? plans.first : null;
+    return plans
+        .cast<RunPlan?>()
+        .firstWhere((p) => p!.id == selectedId, orElse: () => null);
   }
 }
 
-/// Provides [RunPlanNotifier] and the current [RunPlan?] to the widget tree.
-///
-/// Usage:
-/// - `ref.watch(runPlanNotifierProvider)` to read the current plan reactively
-/// - `ref.read(runPlanNotifierProvider.notifier).setPlan(plan)` to save a plan
-/// - `ref.read(runPlanNotifierProvider.notifier).clear()` to remove the plan
-final runPlanNotifierProvider =
-    StateNotifierProvider<RunPlanNotifier, RunPlan?>(
-  (ref) => RunPlanNotifier(),
+/// Manages the run plan library: multiple saved plans + selection.
+class RunPlanLibraryNotifier extends StateNotifier<RunPlanLibraryState> {
+  RunPlanLibraryNotifier() : super(const RunPlanLibraryState()) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final plans = await RunPlanPreferences.loadAll();
+    final selectedId = await RunPlanPreferences.loadSelectedId();
+    state = RunPlanLibraryState(plans: plans, selectedId: selectedId);
+  }
+
+  /// Adds a new plan and selects it.
+  Future<void> addPlan(RunPlan plan) async {
+    final updated = [...state.plans, plan];
+    state = RunPlanLibraryState(plans: updated, selectedId: plan.id);
+    await RunPlanPreferences.saveAll(updated);
+    await RunPlanPreferences.saveSelectedId(plan.id);
+  }
+
+  /// Selects a plan by ID.
+  Future<void> selectPlan(String id) async {
+    state = RunPlanLibraryState(plans: state.plans, selectedId: id);
+    await RunPlanPreferences.saveSelectedId(id);
+  }
+
+  /// Deletes a plan by ID. If it was selected, selects the first remaining.
+  Future<void> deletePlan(String id) async {
+    final updated = state.plans.where((p) => p.id != id).toList();
+    final newSelectedId = state.selectedId == id
+        ? (updated.isNotEmpty ? updated.first.id : null)
+        : state.selectedId;
+    state = RunPlanLibraryState(plans: updated, selectedId: newSelectedId);
+    await RunPlanPreferences.saveAll(updated);
+    await RunPlanPreferences.saveSelectedId(newSelectedId);
+  }
+}
+
+/// Provides the run plan library (all saved plans + selection).
+final runPlanLibraryProvider =
+    StateNotifierProvider<RunPlanLibraryNotifier, RunPlanLibraryState>(
+  (ref) => RunPlanLibraryNotifier(),
 );
+
+/// Convenience: provides the currently selected [RunPlan?].
+///
+/// This replaces the old `runPlanNotifierProvider` for read-only access.
+/// Widgets that just need the active plan can watch this.
+final runPlanNotifierProvider = Provider<RunPlan?>((ref) {
+  return ref.watch(runPlanLibraryProvider).selectedPlan;
+});

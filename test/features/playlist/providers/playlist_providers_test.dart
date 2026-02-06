@@ -150,7 +150,7 @@ void main() {
         }),
       );
 
-      const runPlan = RunPlan(
+      final runPlan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -200,7 +200,7 @@ void main() {
         }),
       );
 
-      const runPlan = RunPlan(
+      final runPlan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -254,7 +254,7 @@ void main() {
         ),
       );
 
-      const runPlan = RunPlan(
+      final runPlan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -291,7 +291,7 @@ void main() {
         ),
       );
 
-      const runPlan = RunPlan(
+      final runPlan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -335,7 +335,7 @@ void main() {
         }),
       );
 
-      const runPlan = RunPlan(
+      final runPlan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,

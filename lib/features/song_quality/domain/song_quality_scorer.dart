@@ -1,8 +1,8 @@
 /// Pure Dart song quality scorer. No Flutter dependencies.
 ///
 /// Computes a composite running-suitability score for candidate songs
-/// using danceability, genre match, energy alignment, segment-aware
-/// energy, artist diversity, and BPM accuracy.
+/// using genre match, artist match, BPM accuracy, artist diversity,
+/// decade match, and curated bonus.
 library;
 
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
@@ -22,18 +22,6 @@ class SongQualityScorer {
   /// Score bonus when the song's genre matches a taste profile genre.
   static const genreMatchWeight = 6;
 
-  /// Maximum score from danceability (scaled from 0-100 to 0-8).
-  static const danceabilityMaxWeight = 8;
-
-  /// Neutral danceability score when danceability data is absent.
-  static const danceabilityNeutral = 4;
-
-  /// Maximum score from energy alignment (in-range).
-  static const energyAlignedWeight = 4;
-
-  /// Neutral energy alignment score when data is absent.
-  static const energyNeutral = 2;
-
   /// Score bonus for exact BPM match.
   static const exactBpmWeight = 3;
 
@@ -49,6 +37,9 @@ class SongQualityScorer {
   /// Score for half-time/double-time match under loose tempo tolerance.
   static const looseTempoVariantWeight = 2;
 
+  /// Score bonus for songs from a preferred decade.
+  static const decadeMatchWeight = 4;
+
   /// Score bonus for curated (verified-good) running songs.
   static const curatedBonusWeight = 5;
 
@@ -58,15 +49,14 @@ class SongQualityScorer {
   /// Dimensions:
   /// 1. Artist match: +10 if song artist in taste profile
   /// 2. Genre match: +6 if song genre matches taste profile genres
-  /// 3. Danceability: 0-8 scaled from 0-100 (null -> 4 neutral)
-  /// 4. Energy alignment: 0/2/4 based on energy preference vs danceability
-  /// 5. BPM match: +3 exact, +1 variant
+  /// 3. BPM match: +3 exact, +1 variant
+  /// 4. Decade match: +4 if song decade matches taste profile decades
+  /// 5. Curated bonus: +5 if from curated dataset
   /// 6. Artist diversity: -5 if same artist as previous song
+  /// 7. Disliked artist: -15 if artist is disliked
   static int score({
     required BpmSong song,
     TasteProfile? tasteProfile,
-    int? danceability,
-    String? segmentLabel,
     String? previousArtist,
     List<RunningGenre>? songGenres,
     bool isCurated = false,
@@ -76,11 +66,10 @@ class SongQualityScorer {
     total += _artistMatchScore(song, tasteProfile);
     total += _dislikedArtistScore(song, tasteProfile);
     total += _genreMatchScore(songGenres, tasteProfile);
-    total += _danceabilityScore(danceability);
-    total += _energyAlignmentScore(danceability, tasteProfile, segmentLabel);
     total += _bpmMatchScore(song, tasteProfile);
     total += _artistDiversityScore(song, previousArtist);
     total += _curatedBonus(isCurated);
+    total += _decadeMatchScore(song.decade, tasteProfile);
 
     return total;
   }
@@ -157,85 +146,6 @@ class SongQualityScorer {
     return 0;
   }
 
-  /// Danceability: scales 0-100 to 0-8. Null -> 4 (neutral midpoint).
-  static int _danceabilityScore(int? danceability) {
-    if (danceability == null) return danceabilityNeutral;
-    return (danceability / 100 * danceabilityMaxWeight)
-        .round()
-        .clamp(0, danceabilityMaxWeight);
-  }
-
-  /// Energy alignment: 0/2/4 based on how danceability fits the preferred
-  /// energy range. Segment labels can override the user's energy preference.
-  static int _energyAlignmentScore(
-    int? danceability,
-    TasteProfile? tasteProfile,
-    String? segmentLabel,
-  ) {
-    if (danceability == null) return energyNeutral;
-    if (tasteProfile == null) return energyNeutral;
-
-    final energyLevel = _resolveEnergyLevel(
-      tasteProfile.energyLevel,
-      segmentLabel,
-    );
-
-    final (min, max) = _energyRange(energyLevel);
-
-    if (danceability >= min && danceability <= max) {
-      return energyAlignedWeight;
-    }
-
-    // Check proximity: within 15 points of range boundary -> +2
-    final distanceToRange = danceability < min
-        ? min - danceability
-        : danceability - max;
-
-    if (distanceToRange <= 15) {
-      return energyNeutral;
-    }
-
-    return 0;
-  }
-
-  /// Resolves the effective energy level considering segment label overrides.
-  ///
-  /// - "Warm-up", "Cool-down", "Rest N" -> chill
-  /// - "Work N", "Sprint" -> intense
-  /// - "Main", "Running", null -> user's preference
-  static EnergyLevel _resolveEnergyLevel(
-    EnergyLevel userPreference,
-    String? segmentLabel,
-  ) {
-    if (segmentLabel == null) return userPreference;
-
-    final label = segmentLabel.toLowerCase();
-
-    if (label == 'warm-up' || label == 'cool-down') {
-      return EnergyLevel.chill;
-    }
-
-    if (label.startsWith('rest')) {
-      return EnergyLevel.chill;
-    }
-
-    if (label.startsWith('work') || label == 'sprint') {
-      return EnergyLevel.intense;
-    }
-
-    // "Main", "Running", or any other label -> user preference
-    return userPreference;
-  }
-
-  /// Maps an energy level to a preferred danceability range (min, max).
-  static (int, int) _energyRange(EnergyLevel level) {
-    return switch (level) {
-      EnergyLevel.chill => (20, 50),
-      EnergyLevel.balanced => (40, 70),
-      EnergyLevel.intense => (60, 100),
-    };
-  }
-
   /// Disliked artist: -15 if song artist matches any disliked artist.
   /// Case-insensitive bidirectional substring match (same as artist match).
   static int _dislikedArtistScore(BpmSong song, TasteProfile? tasteProfile) {
@@ -285,4 +195,19 @@ class SongQualityScorer {
   /// Curated bonus: +5 if the song is from the curated running songs dataset.
   static int _curatedBonus(bool isCurated) =>
       isCurated ? curatedBonusWeight : 0;
+
+  /// Decade match: +4 if song decade matches any preferred decade.
+  static int _decadeMatchScore(
+    String? songDecade,
+    TasteProfile? tasteProfile,
+  ) {
+    if (songDecade == null) return 0;
+    if (tasteProfile == null || tasteProfile.decades.isEmpty) return 0;
+
+    if (tasteProfile.decades.any((d) => d.jsonValue == songDecade)) {
+      return decadeMatchWeight;
+    }
+
+    return 0;
+  }
 }

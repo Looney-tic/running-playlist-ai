@@ -122,15 +122,15 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () => context.push('/run-plan'),
+                onPressed: () => context.push('/my-runs'),
                 icon: const Icon(Icons.timer),
-                label: const Text('Plan Run'),
+                label: const Text('My Runs'),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () => context.push('/taste-profile'),
+                onPressed: () => context.push('/taste-profiles'),
                 icon: const Icon(Icons.music_note),
-                label: const Text('Taste Profile'),
+                label: const Text('Taste Profiles'),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(

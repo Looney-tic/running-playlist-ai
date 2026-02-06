@@ -4,9 +4,11 @@ import 'package:running_playlist_ai/features/home/presentation/home_screen.dart'
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_history_detail_screen.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_history_screen.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_screen.dart';
+import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_library_screen.dart';
 import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
 import 'package:running_playlist_ai/features/stride/presentation/stride_screen.dart';
+import 'package:running_playlist_ai/features/taste_profile/presentation/taste_profile_library_screen.dart';
 import 'package:running_playlist_ai/features/taste_profile/presentation/taste_profile_screen.dart';
 
 /// Application router with routes for all app features.
@@ -29,12 +31,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const StrideScreen(),
       ),
       GoRoute(
+        path: '/my-runs',
+        builder: (context, state) => const RunPlanLibraryScreen(),
+      ),
+      GoRoute(
         path: '/run-plan',
         builder: (context, state) => const RunPlanScreen(),
       ),
       GoRoute(
+        path: '/taste-profiles',
+        builder: (context, state) => const TasteProfileLibraryScreen(),
+      ),
+      GoRoute(
         path: '/taste-profile',
-        builder: (context, state) => const TasteProfileScreen(),
+        builder: (context, state) => TasteProfileScreen(
+          profileId: state.uri.queryParameters['id'],
+        ),
       ),
       GoRoute(
         path: '/playlist',

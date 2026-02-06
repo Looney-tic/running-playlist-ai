@@ -12,16 +12,16 @@ void main() {
         'artistName': 'Eminem',
         'genre': 'hipHop',
         'bpm': 171,
-        'danceability': 72,
-        'energyLevel': 'intense',
+        'decade': '2000s',
+        'durationSeconds': 326,
       };
       final song = CuratedSong.fromJson(json);
       expect(song.title, 'Lose Yourself');
       expect(song.artistName, 'Eminem');
       expect(song.genre, 'hipHop');
       expect(song.bpm, 171);
-      expect(song.danceability, 72);
-      expect(song.energyLevel, 'intense');
+      expect(song.decade, '2000s');
+      expect(song.durationSeconds, 326);
     });
 
     test('handles null optional fields', () {
@@ -29,15 +29,14 @@ void main() {
         'title': 'Test',
         'artistName': 'Artist',
         'genre': 'pop',
-        'bpm': 140,
       };
       final song = CuratedSong.fromJson(json);
       expect(song.title, 'Test');
       expect(song.artistName, 'Artist');
       expect(song.genre, 'pop');
-      expect(song.bpm, 140);
-      expect(song.danceability, isNull);
-      expect(song.energyLevel, isNull);
+      expect(song.bpm, isNull);
+      expect(song.decade, isNull);
+      expect(song.durationSeconds, isNull);
     });
   });
 
@@ -51,16 +50,16 @@ void main() {
         'artist_name': 'Eminem',
         'genre': 'hipHop',
         'bpm': 171,
-        'danceability': 72,
-        'energy_level': 'intense',
+        'decade': '2000s',
+        'duration_seconds': 326,
       };
       final song = CuratedSong.fromSupabaseRow(row);
       expect(song.title, 'Lose Yourself');
       expect(song.artistName, 'Eminem');
       expect(song.genre, 'hipHop');
       expect(song.bpm, 171);
-      expect(song.danceability, 72);
-      expect(song.energyLevel, 'intense');
+      expect(song.decade, '2000s');
+      expect(song.durationSeconds, 326);
     });
 
     test('handles null optional fields in Supabase row', () {
@@ -68,11 +67,11 @@ void main() {
         'title': 'Test',
         'artist_name': 'Artist',
         'genre': 'pop',
-        'bpm': 140,
       };
       final song = CuratedSong.fromSupabaseRow(row);
-      expect(song.danceability, isNull);
-      expect(song.energyLevel, isNull);
+      expect(song.bpm, isNull);
+      expect(song.decade, isNull);
+      expect(song.durationSeconds, isNull);
     });
   });
 
@@ -81,7 +80,7 @@ void main() {
   // ──────────────────────────────────────────────────────
   group('CuratedSong.lookupKey', () {
     test('produces normalized lowercase trimmed artist|title', () {
-      final song = CuratedSong(
+      const song = CuratedSong(
         title: '  Lose Yourself ',
         artistName: ' Eminem ',
         genre: 'hipHop',
@@ -91,7 +90,7 @@ void main() {
     });
 
     test('handles already normalized values', () {
-      final song = CuratedSong(
+      const song = CuratedSong(
         title: 'run',
         artistName: 'foo fighters',
         genre: 'rock',
@@ -106,34 +105,43 @@ void main() {
   // ──────────────────────────────────────────────────────
   group('CuratedSong.toJson', () {
     test('roundtrips through fromJson(toJson())', () {
-      final original = CuratedSong(
+      const original = CuratedSong(
         title: 'Lose Yourself',
         artistName: 'Eminem',
         genre: 'hipHop',
         bpm: 171,
-        danceability: 72,
-        energyLevel: 'intense',
+        decade: '2000s',
+        durationSeconds: 326,
       );
       final roundtripped = CuratedSong.fromJson(original.toJson());
       expect(roundtripped.lookupKey, original.lookupKey);
       expect(roundtripped.bpm, original.bpm);
-      expect(roundtripped.danceability, original.danceability);
-      expect(roundtripped.energyLevel, original.energyLevel);
+      expect(roundtripped.decade, original.decade);
+      expect(roundtripped.durationSeconds, original.durationSeconds);
       expect(roundtripped.genre, original.genre);
     });
 
     test('roundtrips with null optionals', () {
-      final original = CuratedSong(
+      const original = CuratedSong(
         title: 'Test',
         artistName: 'Artist',
         genre: 'pop',
-        bpm: 140,
       );
       final roundtripped = CuratedSong.fromJson(original.toJson());
       expect(roundtripped.lookupKey, original.lookupKey);
-      expect(roundtripped.bpm, original.bpm);
-      expect(roundtripped.danceability, isNull);
-      expect(roundtripped.energyLevel, isNull);
+      expect(roundtripped.bpm, isNull);
+      expect(roundtripped.decade, isNull);
+      expect(roundtripped.durationSeconds, isNull);
+    });
+
+    test('toJson excludes null bpm', () {
+      const song = CuratedSong(
+        title: 'Test',
+        artistName: 'Artist',
+        genre: 'pop',
+      );
+      final json = song.toJson();
+      expect(json.containsKey('bpm'), isFalse);
     });
   });
 }

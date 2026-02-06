@@ -195,7 +195,7 @@ void main() {
 
   group('TasteProfile copyWith for new fields', () {
     test('copies vocalPreference only', () {
-      const original = TasteProfile();
+      final original = TasteProfile();
       final copied = original.copyWith(
         vocalPreference: VocalPreference.preferVocals,
       );
@@ -208,7 +208,7 @@ void main() {
     });
 
     test('copies tempoVarianceTolerance only', () {
-      const original = TasteProfile();
+      final original = TasteProfile();
       final copied = original.copyWith(
         tempoVarianceTolerance: TempoVarianceTolerance.strict,
       );
@@ -221,7 +221,7 @@ void main() {
     });
 
     test('copies dislikedArtists only', () {
-      const original = TasteProfile();
+      final original = TasteProfile();
       final copied = original.copyWith(
         dislikedArtists: ['Drake', 'Pitbull'],
       );
@@ -295,17 +295,17 @@ void main() {
 
   group('TasteProfile defaults', () {
     test('default constructor has empty genres', () {
-      const profile = TasteProfile();
+      final profile = TasteProfile();
       expect(profile.genres, isEmpty);
     });
 
     test('default constructor has empty artists', () {
-      const profile = TasteProfile();
+      final profile = TasteProfile();
       expect(profile.artists, isEmpty);
     });
 
     test('default constructor has balanced energy level', () {
-      const profile = TasteProfile();
+      final profile = TasteProfile();
       expect(profile.energyLevel, equals(EnergyLevel.balanced));
     });
   });
@@ -342,13 +342,13 @@ void main() {
     });
 
     test('toJson stores energy level enum name', () {
-      const profile = TasteProfile(energyLevel: EnergyLevel.chill);
+      final profile = TasteProfile(energyLevel: EnergyLevel.chill);
       final json = profile.toJson();
       expect(json['energyLevel'], equals('chill'));
     });
 
     test('round-trip with empty genres and artists', () {
-      const original = TasteProfile();
+      final original = TasteProfile();
       final json = original.toJson();
       final restored = TasteProfile.fromJson(json);
       expect(restored.genres, isEmpty);

@@ -75,6 +75,40 @@ enum TempoVarianceTolerance {
       );
 }
 
+/// Preferred music decade for running playlists.
+enum MusicDecade {
+  the1960s('60s'),
+  the1970s('70s'),
+  the1980s('80s'),
+  the1990s('90s'),
+  the2000s('2000s'),
+  the2010s('2010s'),
+  the2020s('2020s');
+
+  const MusicDecade(this.displayName);
+
+  /// Human-readable name for UI display.
+  final String displayName;
+
+  /// The string value stored in curated songs JSON (e.g., "1980s").
+  String get jsonValue => switch (this) {
+        MusicDecade.the1960s => '1960s',
+        MusicDecade.the1970s => '1970s',
+        MusicDecade.the1980s => '1980s',
+        MusicDecade.the1990s => '1990s',
+        MusicDecade.the2000s => '2000s',
+        MusicDecade.the2010s => '2010s',
+        MusicDecade.the2020s => '2020s',
+      };
+
+  /// Deserializes from a JSON string (enum name).
+  static MusicDecade fromJson(String name) =>
+      MusicDecade.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => MusicDecade.the2010s,
+      );
+}
+
 /// The user's running music taste preferences.
 ///
 /// Stores genre preferences (1-5 from [RunningGenre]), favorite artists
@@ -82,17 +116,22 @@ enum TempoVarianceTolerance {
 /// a [TempoVarianceTolerance], and disliked artists. Persisted as a single
 /// JSON blob via SharedPreferences.
 class TasteProfile {
-  const TasteProfile({
+  TasteProfile({
     this.genres = const [],
     this.artists = const [],
     this.energyLevel = EnergyLevel.balanced,
     this.vocalPreference = VocalPreference.noPreference,
     this.tempoVarianceTolerance = TempoVarianceTolerance.moderate,
     this.dislikedArtists = const [],
-  });
+    this.decades = const [],
+    this.name,
+    String? id,
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
   factory TasteProfile.fromJson(Map<String, dynamic> json) {
     return TasteProfile(
+      id: json['id'] as String?,
+      name: json['name'] as String?,
       genres: (json['genres'] as List<dynamic>)
           .map((g) => RunningGenre.fromJson(g as String))
           .toList(),
@@ -111,8 +150,17 @@ class TasteProfile {
               ?.map((a) => a as String)
               .toList() ??
           const [],
+      decades: (json['decades'] as List<dynamic>?)
+              ?.map((d) => MusicDecade.fromJson(d as String))
+              .toList() ??
+          const [],
     );
   }
+
+  final String id;
+
+  /// Optional user-given name for the profile.
+  final String? name;
 
   /// Selected running genres (1-5).
   final List<RunningGenre> genres;
@@ -132,24 +180,35 @@ class TasteProfile {
   /// Artists the user wants to avoid in playlists.
   final List<String> dislikedArtists;
 
+  /// Preferred music decades (empty means no preference).
+  final List<MusicDecade> decades;
+
   Map<String, dynamic> toJson() => {
+        'id': id,
+        if (name != null) 'name': name,
         'genres': genres.map((g) => g.name).toList(),
         'artists': artists,
         'energyLevel': energyLevel.name,
         'vocalPreference': vocalPreference.name,
         'tempoVarianceTolerance': tempoVarianceTolerance.name,
         'dislikedArtists': dislikedArtists,
+        'decades': decades.map((d) => d.name).toList(),
       };
 
   TasteProfile copyWith({
+    String? id,
+    String? name,
     List<RunningGenre>? genres,
     List<String>? artists,
     EnergyLevel? energyLevel,
     VocalPreference? vocalPreference,
     TempoVarianceTolerance? tempoVarianceTolerance,
     List<String>? dislikedArtists,
+    List<MusicDecade>? decades,
   }) {
     return TasteProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
       genres: genres ?? this.genres,
       artists: artists ?? this.artists,
       energyLevel: energyLevel ?? this.energyLevel,
@@ -157,6 +216,7 @@ class TasteProfile {
       tempoVarianceTolerance:
           tempoVarianceTolerance ?? this.tempoVarianceTolerance,
       dislikedArtists: dislikedArtists ?? this.dislikedArtists,
+      decades: decades ?? this.decades,
     );
   }
 }

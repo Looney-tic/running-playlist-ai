@@ -9,34 +9,108 @@ import 'package:url_launcher/url_launcher.dart';
 /// a bottom sheet with Spotify/YouTube play options. Used by both
 /// the playlist screen and the playlist history detail screen.
 class SongTile extends StatelessWidget {
-  const SongTile({required this.song, super.key});
+  const SongTile({required this.song, this.index, super.key});
 
   final PlaylistSong song;
 
+  /// 1-based song index within the full playlist (shown as track number).
+  final int? index;
+
+  /// Quality threshold for showing the star badge.
+  static const _starThreshold = 12;
+
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: song.runningQuality != null && song.runningQuality! >= 20
-          ? const Icon(Icons.star, size: 20, color: Colors.amber)
-          : null,
-      title: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        '${song.artistName}  ${_matchLabel(song.matchType)}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Text(
-        '${song.bpm} BPM',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w500,
+    final theme = Theme.of(context);
+    final quality = song.runningQuality;
+    final showStar = quality != null && quality >= _starThreshold;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      color: theme.colorScheme.surfaceContainerLow,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _showPlayOptions(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              // Track number
+              SizedBox(
+                width: 28,
+                child: Text(
+                  index != null ? '$index' : '',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Song info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (showStar) ...[
+                          const Icon(Icons.star_rounded,
+                              size: 16, color: Colors.amber),
+                          const SizedBox(width: 4),
+                        ],
+                        Expanded(
+                          child: Text(
+                            song.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${song.artistName}${_matchLabel(song.matchType)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // BPM chip
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${song.bpm}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      onTap: () => _showPlayOptions(context),
     );
   }
 
@@ -45,9 +119,9 @@ class SongTile extends StatelessWidget {
       case BpmMatchType.exact:
         return '';
       case BpmMatchType.halfTime:
-        return '(half-time)';
+        return '  \u00b7  half-time';
       case BpmMatchType.doubleTime:
-        return '(double-time)';
+        return '  \u00b7  double-time';
     }
   }
 

@@ -12,14 +12,12 @@ BpmSong _song({
   String title = 'Song',
   String artist = 'Artist',
   int tempo = 170,
-  int? danceability,
 }) =>
     BpmSong(
       songId: id,
       title: title,
       artistName: artist,
       tempo: tempo,
-      danceability: danceability,
     );
 
 void main() {
@@ -27,7 +25,7 @@ void main() {
 
   group('PlaylistGenerator.generate', () {
     test('generates songs for a single-segment steady run', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -76,7 +74,7 @@ void main() {
     });
 
     test('generates songs across multiple segments', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.warmUpCoolDown,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -160,7 +158,7 @@ void main() {
     test(
       'defaults segment label to "Segment N" when label is null',
       () {
-        const plan = RunPlan(
+        final plan = RunPlan(
           type: RunType.steady,
           distanceKm: 5,
           paceMinPerKm: 6,
@@ -191,7 +189,7 @@ void main() {
     );
 
     test('assigns id, distanceKm, and paceMinPerKm from run plan', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -221,7 +219,7 @@ void main() {
     });
 
     test('preserves run plan name in playlist', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 10,
         paceMinPerKm: 5,
@@ -249,7 +247,7 @@ void main() {
 
   group('PlaylistGenerator dedup', () {
     test('does not repeat songs across segments', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.warmUpCoolDown,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -300,7 +298,7 @@ void main() {
 
   group('PlaylistGenerator taste filtering', () {
     test('ranks artist-match songs higher', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -313,7 +311,7 @@ void main() {
         ],
       );
 
-      const tasteProfile = TasteProfile(
+      final tasteProfile = TasteProfile(
         genres: [RunningGenre.rock],
         artists: ['Eminem'],
       );
@@ -354,7 +352,7 @@ void main() {
     test(
       'falls back to unfiltered BPM matches when no taste match',
       () {
-        const plan = RunPlan(
+        final plan = RunPlan(
           type: RunType.steady,
           distanceKm: 5,
           paceMinPerKm: 6,
@@ -367,7 +365,7 @@ void main() {
           ],
         );
 
-        const tasteProfile = TasteProfile(
+        final tasteProfile = TasteProfile(
           genres: [RunningGenre.rock],
           artists: ['Nonexistent Artist'],
         );
@@ -392,7 +390,7 @@ void main() {
     );
 
     test('works with null taste profile', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -419,7 +417,7 @@ void main() {
     });
 
     test('artist matching is case-insensitive', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -433,7 +431,7 @@ void main() {
       );
 
       // lowercase
-      const tasteProfile = TasteProfile(
+      final tasteProfile = TasteProfile(
         artists: ['eminem'],
       );
 
@@ -467,7 +465,7 @@ void main() {
 
   group('PlaylistGenerator external links', () {
     test('each song has Spotify and YouTube URLs', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -516,7 +514,7 @@ void main() {
       'returns empty playlist when no songs available '
       'for any segment',
       () {
-        const plan = RunPlan(
+        final plan = RunPlan(
           type: RunType.steady,
           distanceKm: 5,
           paceMinPerKm: 6,
@@ -542,7 +540,7 @@ void main() {
     test(
       'handles segment with very short duration (< 1 song)',
       () {
-        const plan = RunPlan(
+        final plan = RunPlan(
           type: RunType.steady,
           distanceKm: 1,
           paceMinPerKm: 6,
@@ -573,7 +571,7 @@ void main() {
     test(
       'uses half-time songs when exact BPM pool is empty',
       () {
-        const plan = RunPlan(
+        final plan = RunPlan(
           type: RunType.steady,
           distanceKm: 5,
           paceMinPerKm: 6,
@@ -608,7 +606,7 @@ void main() {
     );
 
     test('prefers exact match over half/double-time', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -652,53 +650,9 @@ void main() {
   // -- Composite scoring (SongQualityScorer integration) --------------------
 
   group('PlaylistGenerator composite scoring', () {
-    test('ranks high-danceability songs above low-danceability songs',
-        () {
-      const plan = RunPlan(
-        type: RunType.steady,
-        distanceKm: 5,
-        paceMinPerKm: 6,
-        segments: [
-          RunSegment(
-            durationSeconds: 420,
-            targetBpm: 170,
-            label: 'Running',
-          ),
-        ],
-      );
-
-      final songsByBpm = {
-        170: [
-          _song(
-            id: 'low',
-            title: 'Low Dance',
-            artist: 'Artist A',
-            danceability: 10,
-          ),
-          _song(
-            id: 'high',
-            title: 'High Dance',
-            artist: 'Artist B',
-            danceability: 90,
-          ),
-        ],
-      };
-
-      final playlist = PlaylistGenerator.generate(
-        runPlan: plan,
-        songsByBpm: songsByBpm,
-        random: Random(42),
-      );
-
-      // Both songs present (420/210=2). High danceability should
-      // rank first.
-      expect(playlist.songs.length, equals(2));
-      expect(playlist.songs.first.title, equals('High Dance'));
-    });
-
     test('no consecutive same-artist songs in generated playlist',
         () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -747,97 +701,13 @@ void main() {
       }
     });
 
-    test(
-      'warm-up segment prefers lower-danceability songs '
-      'over main segment',
-      () {
-        const plan = RunPlan(
-          type: RunType.warmUpCoolDown,
-          distanceKm: 5,
-          paceMinPerKm: 6,
-          segments: [
-            RunSegment(
-              durationSeconds: 210,
-              targetBpm: 170,
-              label: 'Warm-up',
-            ),
-            RunSegment(
-              durationSeconds: 210,
-              targetBpm: 170,
-              label: 'Running',
-            ),
-          ],
-        );
-
-        const tasteProfile = TasteProfile(
-          energyLevel: EnergyLevel.intense,
-        );
-
-        // Songs with varying danceability. Enough for both segments.
-        final songsByBpm = {
-          170: [
-            _song(
-              id: 'chill1',
-              title: 'Chill Song',
-              artist: 'Artist A',
-              danceability: 30,
-            ),
-            _song(
-              id: 'chill2',
-              title: 'Chill Song 2',
-              artist: 'Artist B',
-              danceability: 35,
-            ),
-            _song(
-              id: 'hype1',
-              title: 'Hype Song',
-              artist: 'Artist C',
-              danceability: 85,
-            ),
-            _song(
-              id: 'hype2',
-              title: 'Hype Song 2',
-              artist: 'Artist D',
-              danceability: 90,
-            ),
-          ],
-        };
-
-        final playlist = PlaylistGenerator.generate(
-          runPlan: plan,
-          tasteProfile: tasteProfile,
-          songsByBpm: songsByBpm,
-          random: Random(42),
-        );
-
-        final warmUpSong = playlist.songs
-            .firstWhere((s) => s.segmentLabel == 'Warm-up');
-        final runningSong = playlist.songs
-            .firstWhere((s) => s.segmentLabel == 'Running');
-
-        // Warm-up overrides to chill energy, so low-danceability
-        // songs score higher for energy alignment. The running
-        // segment uses 'intense' from tasteProfile, preferring high
-        // danceability.
-        expect(
-          warmUpSong.runningQuality! < runningSong.runningQuality!,
-          isTrue,
-          reason:
-              'Warm-up song (chill energy) should have lower '
-              'quality score than running song (intense energy) '
-              'because chill-range danceability songs score lower '
-              'overall. Warm-up: ${warmUpSong.runningQuality}, '
-              'Running: ${runningSong.runningQuality}',
-        );
-      },
-    );
   });
 
   // -- Curated song ranking ---------------------------------------------------
 
   group('PlaylistGenerator curated ranking', () {
     test('curated songs rank higher than equivalent non-curated songs', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,
@@ -882,7 +752,7 @@ void main() {
     });
 
     test('empty curatedLookupKeys produces same results as null', () {
-      const plan = RunPlan(
+      final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
         paceMinPerKm: 6,

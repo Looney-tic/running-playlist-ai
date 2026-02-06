@@ -7,7 +7,8 @@ library;
 
 /// A curated running song verified as good for running.
 ///
-/// Contains genre, BPM, and optional danceability/energy metadata.
+/// Contains genre, BPM, and release decade metadata. BPM is nullable
+/// because some songs lack verified BPM data from Deezer.
 /// The [lookupKey] getter produces a normalized identifier for
 /// cross-source matching against [BpmSong] candidates during scoring.
 class CuratedSong {
@@ -15,9 +16,9 @@ class CuratedSong {
     required this.title,
     required this.artistName,
     required this.genre,
-    required this.bpm,
-    this.danceability,
-    this.energyLevel,
+    this.bpm,
+    this.decade,
+    this.durationSeconds,
   });
 
   /// Deserializes from camelCase JSON (bundled asset format).
@@ -26,9 +27,9 @@ class CuratedSong {
       title: json['title'] as String,
       artistName: json['artistName'] as String,
       genre: json['genre'] as String,
-      bpm: (json['bpm'] as num).toInt(),
-      danceability: (json['danceability'] as num?)?.toInt(),
-      energyLevel: json['energyLevel'] as String?,
+      bpm: (json['bpm'] as num?)?.toInt(),
+      decade: json['decade'] as String?,
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
     );
   }
 
@@ -38,9 +39,9 @@ class CuratedSong {
       title: row['title'] as String,
       artistName: row['artist_name'] as String,
       genre: row['genre'] as String,
-      bpm: (row['bpm'] as num).toInt(),
-      danceability: (row['danceability'] as num?)?.toInt(),
-      energyLevel: row['energy_level'] as String?,
+      bpm: (row['bpm'] as num?)?.toInt(),
+      decade: row['decade'] as String?,
+      durationSeconds: (row['duration_seconds'] as num?)?.toInt(),
     );
   }
 
@@ -53,14 +54,14 @@ class CuratedSong {
   /// Genre identifier (matches RunningGenre enum names).
   final String genre;
 
-  /// Song tempo in beats per minute.
-  final int bpm;
+  /// Song tempo in beats per minute. Null if no verified BPM data.
+  final int? bpm;
 
-  /// Optional danceability score (0-100).
-  final int? danceability;
+  /// Optional release decade (e.g., "1980s", "2010s").
+  final String? decade;
 
-  /// Optional energy level label ('chill', 'balanced', 'intense').
-  final String? energyLevel;
+  /// Song duration in seconds.
+  final int? durationSeconds;
 
   /// Normalized lookup key for matching against BpmSong candidates.
   ///
@@ -75,8 +76,8 @@ class CuratedSong {
         'title': title,
         'artistName': artistName,
         'genre': genre,
-        'bpm': bpm,
-        if (danceability != null) 'danceability': danceability,
-        if (energyLevel != null) 'energyLevel': energyLevel,
+        if (bpm != null) 'bpm': bpm,
+        if (decade != null) 'decade': decade,
+        if (durationSeconds != null) 'durationSeconds': durationSeconds,
       };
 }

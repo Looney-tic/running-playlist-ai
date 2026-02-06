@@ -5,15 +5,13 @@ import 'package:running_playlist_ai/features/taste_profile/providers/taste_profi
 
 /// Taste profile screen where users configure their running music preferences.
 ///
-/// Three sections:
-/// - **Genres:** FilterChip grid for selecting 1-5 preferred genres
-/// - **Artists:** TextField + InputChip list for adding up to 10
-///   favorite artists
-/// - **Energy Level:** SegmentedButton for chill/balanced/intense preference
-///
-/// Preferences persist across app restarts via TasteProfilePreferences.
+/// Accepts an optional [profileId] to edit an existing profile. When null,
+/// creates a new profile.
 class TasteProfileScreen extends ConsumerStatefulWidget {
-  const TasteProfileScreen({super.key});
+  const TasteProfileScreen({this.profileId, super.key});
+
+  /// ID of an existing profile to edit, or null for new.
+  final String? profileId;
 
   @override
   ConsumerState<TasteProfileScreen> createState() =>
@@ -28,53 +26,87 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
   TempoVarianceTolerance _selectedTempoVarianceTolerance =
       TempoVarianceTolerance.moderate;
   final _dislikedArtists = <String>[];
+  final _selectedDecades = <MusicDecade>{};
   final _artistController = TextEditingController();
   final _dislikedArtistController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _initialized = false;
+
+  /// The existing profile being edited, or null for new.
+  TasteProfile? _existingProfile;
 
   @override
   void dispose() {
     _artistController.dispose();
     _dislikedArtistController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(tasteProfileNotifierProvider);
+    final libraryState = ref.watch(tasteProfileLibraryProvider);
     final theme = Theme.of(context);
 
-    // Sync local state from provider on first load (handles existing profile)
-    if (!_initialized && profile != null) {
-      _initialized = true;
-      // Use addPostFrameCallback to avoid setState during build
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _selectedGenres
-            ..clear()
-            ..addAll(profile.genres);
-          _artists
-            ..clear()
-            ..addAll(profile.artists);
-          _selectedEnergyLevel = profile.energyLevel;
-          _selectedVocalPreference = profile.vocalPreference;
-          _selectedTempoVarianceTolerance = profile.tempoVarianceTolerance;
-          _dislikedArtists
-            ..clear()
-            ..addAll(profile.dislikedArtists);
+    // Sync local state from the profile being edited
+    if (!_initialized && libraryState.profiles.isNotEmpty) {
+      TasteProfile? profile;
+      if (widget.profileId != null) {
+        profile = libraryState.profiles
+            .cast<TasteProfile?>()
+            .firstWhere((p) => p!.id == widget.profileId, orElse: () => null);
+      }
+
+      if (profile != null) {
+        _existingProfile = profile;
+        _initialized = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _nameController.text = profile!.name ?? '';
+            _selectedGenres
+              ..clear()
+              ..addAll(profile.genres);
+            _artists
+              ..clear()
+              ..addAll(profile.artists);
+            _selectedEnergyLevel = profile.energyLevel;
+            _selectedVocalPreference = profile.vocalPreference;
+            _selectedTempoVarianceTolerance = profile.tempoVarianceTolerance;
+            _dislikedArtists
+              ..clear()
+              ..addAll(profile.dislikedArtists);
+            _selectedDecades
+              ..clear()
+              ..addAll(profile.decades);
+          });
         });
-      });
+      } else if (widget.profileId == null) {
+        _initialized = true;
+      }
     }
+
+    final isEditing = _existingProfile != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Taste Profile'),
+        title: Text(isEditing ? 'Edit Taste Profile' : 'New Taste Profile'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // -- Profile name --
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Profile Name',
+                hintText: 'e.g. "High Energy Mix"',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // -- Genre selection --
             Text('Running Genres', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
@@ -99,6 +131,37 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
                         }
                       } else {
                         _selectedGenres.remove(genre);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+
+            // -- Decade selection --
+            Text('Decades', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Prefer songs from specific eras '
+              '(${_selectedDecades.length} selected)',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: MusicDecade.values.map((decade) {
+                final isSelected = _selectedDecades.contains(decade);
+                return FilterChip(
+                  label: Text(decade.displayName),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedDecades.add(decade);
+                      } else {
+                        _selectedDecades.remove(decade);
                       }
                     });
                   },
@@ -268,9 +331,7 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
             ElevatedButton(
               onPressed: _selectedGenres.isNotEmpty ? _saveProfile : null,
               child: Text(
-                profile != null
-                    ? 'Update Taste Profile'
-                    : 'Save Taste Profile',
+                isEditing ? 'Update Taste Profile' : 'Save Taste Profile',
               ),
             ),
           ],
@@ -318,18 +379,30 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
   }
 
   void _saveProfile() {
+    final name = _nameController.text.trim();
     final profile = TasteProfile(
+      id: _existingProfile?.id,
+      name: name.isNotEmpty ? name : null,
       genres: _selectedGenres.toList(),
       artists: List.of(_artists),
       energyLevel: _selectedEnergyLevel,
       vocalPreference: _selectedVocalPreference,
       tempoVarianceTolerance: _selectedTempoVarianceTolerance,
       dislikedArtists: List.of(_dislikedArtists),
+      decades: _selectedDecades.toList(),
     );
-    ref.read(tasteProfileNotifierProvider.notifier).setProfile(profile);
+
+    final notifier = ref.read(tasteProfileLibraryProvider.notifier);
+    if (_existingProfile != null) {
+      notifier.updateProfile(profile);
+    } else {
+      notifier.addProfile(profile);
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Taste profile saved!')),
     );
+
+    Navigator.of(context).pop();
   }
 }

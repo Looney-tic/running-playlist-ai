@@ -3,35 +3,61 @@ import 'dart:convert';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persistence wrapper for the current run plan.
+/// Persistence wrapper for the run plan library.
 ///
-/// Stores the active [RunPlan] as a JSON string in SharedPreferences
-/// so it survives app restarts. Uses static methods with async access
-/// to the SharedPreferences singleton.
-///
-/// Follows the same pattern as StridePreferences.
+/// Stores multiple [RunPlan]s and tracks which one is currently selected.
+/// Migrates automatically from the legacy single-plan format.
 class RunPlanPreferences {
-  static const _key = 'current_run_plan';
+  static const _plansKey = 'run_plan_library';
+  static const _selectedIdKey = 'run_plan_selected_id';
 
-  /// Loads the saved run plan, or null if none is stored.
-  static Future<RunPlan?> load() async {
+  // Legacy key for migration
+  static const _legacyKey = 'current_run_plan';
+
+  /// Loads all saved run plans.
+  static Future<List<RunPlan>> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_key);
-    if (jsonString == null) return null;
-    final json = jsonDecode(jsonString) as Map<String, dynamic>;
-    return RunPlan.fromJson(json);
+
+    // Migrate legacy single plan if present
+    final legacyJson = prefs.getString(_legacyKey);
+    if (legacyJson != null) {
+      final plan = RunPlan.fromJson(
+        jsonDecode(legacyJson) as Map<String, dynamic>,
+      );
+      await saveAll([plan]);
+      await prefs.setString(_selectedIdKey, plan.id);
+      await prefs.remove(_legacyKey);
+      return [plan];
+    }
+
+    final jsonString = prefs.getString(_plansKey);
+    if (jsonString == null) return [];
+    final list = jsonDecode(jsonString) as List<dynamic>;
+    return list
+        .map((j) => RunPlan.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
-  /// Saves the given run plan as a JSON string.
-  static Future<void> save(RunPlan plan) async {
+  /// Loads the selected plan ID, or null.
+  static Future<String?> loadSelectedId() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(plan.toJson());
-    await prefs.setString(_key, jsonString);
+    return prefs.getString(_selectedIdKey);
   }
 
-  /// Removes the stored run plan.
-  static Future<void> clear() async {
+  /// Saves all run plans.
+  static Future<void> saveAll(List<RunPlan> plans) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+    final jsonString = jsonEncode(plans.map((p) => p.toJson()).toList());
+    await prefs.setString(_plansKey, jsonString);
+  }
+
+  /// Saves the selected plan ID.
+  static Future<void> saveSelectedId(String? id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null) {
+      await prefs.remove(_selectedIdKey);
+    } else {
+      await prefs.setString(_selectedIdKey, id);
+    }
   }
 }

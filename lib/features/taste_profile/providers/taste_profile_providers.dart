@@ -2,168 +2,100 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/taste_profile/data/taste_profile_preferences.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
 
-/// Manages the user's [TasteProfile] state and persistence.
-///
-/// Loads the saved profile from SharedPreferences on initialization.
-/// Provides granular mutation methods that enforce business rules
-/// (max 5 genres, max 10 artists, artist name validation).
-///
-/// Follows the same pattern as RunPlanNotifier.
-class TasteProfileNotifier extends StateNotifier<TasteProfile?> {
-  TasteProfileNotifier() : super(null) {
-    _load();
-  }
+/// State holding all saved taste profiles and which one is selected.
+class TasteProfileLibraryState {
+  const TasteProfileLibraryState({
+    this.profiles = const [],
+    this.selectedId,
+  });
 
-  /// Loads the saved taste profile from SharedPreferences.
-  Future<void> _load() async {
-    state = await TasteProfilePreferences.load();
-  }
+  final List<TasteProfile> profiles;
+  final String? selectedId;
 
-  /// Replaces the entire taste profile and persists it.
-  Future<void> setProfile(TasteProfile profile) async {
-    state = profile;
-    await TasteProfilePreferences.save(profile);
-  }
-
-  /// Sets the selected genres (clamped to max 5).
-  Future<void> setGenres(List<RunningGenre> genres) async {
-    final clamped = genres.length > 5 ? genres.sublist(0, 5) : genres;
-    final profile = (state ?? const TasteProfile()).copyWith(genres: clamped);
-    state = profile;
-    await TasteProfilePreferences.save(profile);
-  }
-
-  /// Adds an artist if valid (non-empty, not duplicate, under max 10).
-  ///
-  /// Also removes the artist from disliked artists if present
-  /// (mutual exclusivity: a favorite cannot also be disliked).
-  ///
-  /// Returns true if the artist was added, false if rejected.
-  Future<bool> addArtist(String artist) async {
-    final trimmed = artist.trim();
-    if (trimmed.isEmpty) return false;
-
-    final current = state ?? const TasteProfile();
-    if (current.artists.length >= 10) return false;
-
-    // Case-insensitive duplicate check
-    final lowerTrimmed = trimmed.toLowerCase();
-    if (current.artists.any((a) => a.toLowerCase() == lowerTrimmed)) {
-      return false;
+  /// The currently selected profile, or null if none exists.
+  TasteProfile? get selectedProfile {
+    if (selectedId == null) {
+      return profiles.isNotEmpty ? profiles.first : null;
     }
-
-    // Mutual exclusivity: remove from disliked if present
-    final updatedDisliked = current.dislikedArtists
-        .where((a) => a.toLowerCase() != lowerTrimmed)
-        .toList();
-
-    final updated = current.copyWith(
-      artists: [...current.artists, trimmed],
-      dislikedArtists: updatedDisliked,
-    );
-    state = updated;
-    await TasteProfilePreferences.save(updated);
-    return true;
-  }
-
-  /// Removes an artist by exact string match.
-  Future<void> removeArtist(String artist) async {
-    final current = state;
-    if (current == null) return;
-    final updated = current.copyWith(
-      artists: current.artists.where((a) => a != artist).toList(),
-    );
-    state = updated;
-    await TasteProfilePreferences.save(updated);
-  }
-
-  /// Sets the energy level preference.
-  Future<void> setEnergyLevel(EnergyLevel level) async {
-    final profile =
-        (state ?? const TasteProfile()).copyWith(energyLevel: level);
-    state = profile;
-    await TasteProfilePreferences.save(profile);
-  }
-
-  /// Adds a disliked artist if valid (non-empty, max 10, no duplicates).
-  ///
-  /// Also removes the artist from favorites if present
-  /// (mutual exclusivity: a disliked artist cannot also be a favorite).
-  ///
-  /// Returns true if the artist was added, false if rejected.
-  Future<bool> addDislikedArtist(String artist) async {
-    final trimmed = artist.trim();
-    if (trimmed.isEmpty) return false;
-
-    final current = state ?? const TasteProfile();
-    if (current.dislikedArtists.length >= 10) return false;
-
-    // Case-insensitive duplicate check
-    final lowerTrimmed = trimmed.toLowerCase();
-    if (current.dislikedArtists.any((a) => a.toLowerCase() == lowerTrimmed)) {
-      return false;
-    }
-
-    // Mutual exclusivity: remove from favorites if present
-    final updatedFavorites = current.artists
-        .where((a) => a.toLowerCase() != lowerTrimmed)
-        .toList();
-
-    final updated = current.copyWith(
-      dislikedArtists: [...current.dislikedArtists, trimmed],
-      artists: updatedFavorites,
-    );
-    state = updated;
-    await TasteProfilePreferences.save(updated);
-    return true;
-  }
-
-  /// Removes a disliked artist by exact string match.
-  Future<void> removeDislikedArtist(String artist) async {
-    final current = state;
-    if (current == null) return;
-    final updated = current.copyWith(
-      dislikedArtists:
-          current.dislikedArtists.where((a) => a != artist).toList(),
-    );
-    state = updated;
-    await TasteProfilePreferences.save(updated);
-  }
-
-  /// Sets the vocal preference.
-  Future<void> setVocalPreference(VocalPreference pref) async {
-    final profile =
-        (state ?? const TasteProfile()).copyWith(vocalPreference: pref);
-    state = profile;
-    await TasteProfilePreferences.save(profile);
-  }
-
-  /// Sets the tempo variance tolerance.
-  Future<void> setTempoVarianceTolerance(
-      TempoVarianceTolerance tolerance) async {
-    final profile = (state ?? const TasteProfile())
-        .copyWith(tempoVarianceTolerance: tolerance);
-    state = profile;
-    await TasteProfilePreferences.save(profile);
-  }
-
-  /// Clears the taste profile and removes it from storage.
-  Future<void> clear() async {
-    state = null;
-    await TasteProfilePreferences.clear();
+    return profiles
+        .cast<TasteProfile?>()
+        .firstWhere((p) => p!.id == selectedId, orElse: () => null);
   }
 }
 
-/// Provides [TasteProfileNotifier] and the current [TasteProfile?]
-/// to the widget tree.
-///
-/// Usage:
-/// - `ref.watch(tasteProfileNotifierProvider)` to read
-/// - `ref.read(...notifier).setGenres(genres)` to update
-/// - `ref.read(...notifier).addArtist(name)` to add artist
-/// - `ref.read(...notifier).setEnergyLevel(level)` to set energy
-/// - `ref.read(...notifier).clear()` to remove the profile
-final tasteProfileNotifierProvider =
-    StateNotifierProvider<TasteProfileNotifier, TasteProfile?>(
-  (ref) => TasteProfileNotifier(),
+/// Manages the taste profile library: multiple saved profiles + selection.
+class TasteProfileLibraryNotifier
+    extends StateNotifier<TasteProfileLibraryState> {
+  TasteProfileLibraryNotifier()
+      : super(const TasteProfileLibraryState()) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final profiles = await TasteProfilePreferences.loadAll();
+    final selectedId = await TasteProfilePreferences.loadSelectedId();
+    state = TasteProfileLibraryState(
+      profiles: profiles,
+      selectedId: selectedId,
+    );
+  }
+
+  /// Adds a new profile and selects it.
+  Future<void> addProfile(TasteProfile profile) async {
+    final updated = [...state.profiles, profile];
+    state = TasteProfileLibraryState(
+      profiles: updated,
+      selectedId: profile.id,
+    );
+    await TasteProfilePreferences.saveAll(updated);
+    await TasteProfilePreferences.saveSelectedId(profile.id);
+  }
+
+  /// Updates an existing profile in-place.
+  Future<void> updateProfile(TasteProfile profile) async {
+    final updated = state.profiles.map((p) {
+      return p.id == profile.id ? profile : p;
+    }).toList();
+    state = TasteProfileLibraryState(
+      profiles: updated,
+      selectedId: state.selectedId,
+    );
+    await TasteProfilePreferences.saveAll(updated);
+  }
+
+  /// Selects a profile by ID.
+  Future<void> selectProfile(String id) async {
+    state = TasteProfileLibraryState(
+      profiles: state.profiles,
+      selectedId: id,
+    );
+    await TasteProfilePreferences.saveSelectedId(id);
+  }
+
+  /// Deletes a profile by ID. If it was selected, selects the first remaining.
+  Future<void> deleteProfile(String id) async {
+    final updated = state.profiles.where((p) => p.id != id).toList();
+    final newSelectedId = state.selectedId == id
+        ? (updated.isNotEmpty ? updated.first.id : null)
+        : state.selectedId;
+    state = TasteProfileLibraryState(
+      profiles: updated,
+      selectedId: newSelectedId,
+    );
+    await TasteProfilePreferences.saveAll(updated);
+    await TasteProfilePreferences.saveSelectedId(newSelectedId);
+  }
+}
+
+/// Provides the taste profile library (all saved profiles + selection).
+final tasteProfileLibraryProvider = StateNotifierProvider<
+    TasteProfileLibraryNotifier, TasteProfileLibraryState>(
+  (ref) => TasteProfileLibraryNotifier(),
 );
+
+/// Convenience: provides the currently selected [TasteProfile?].
+///
+/// Backward compatible with existing code that reads the active taste profile.
+final tasteProfileNotifierProvider = Provider<TasteProfile?>((ref) {
+  return ref.watch(tasteProfileLibraryProvider).selectedProfile;
+});

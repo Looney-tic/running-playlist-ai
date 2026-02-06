@@ -31,7 +31,9 @@ class BpmSong {
     this.artistUri,
     this.albumTitle,
     this.matchType = BpmMatchType.exact,
-    this.danceability,
+    this.genre,
+    this.decade,
+    this.durationSeconds,
   });
 
   /// Deserializes from our local JSON format (cache / persistence).
@@ -47,7 +49,9 @@ class BpmSong {
       matchType: json['matchType'] != null
           ? BpmMatchType.fromJson(json['matchType'] as String)
           : BpmMatchType.exact,
-      danceability: (json['danceability'] as num?)?.toInt(),
+      genre: json['genre'] as String?,
+      decade: json['decade'] as String?,
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
     );
   }
 
@@ -70,8 +74,6 @@ class BpmSong {
       artistUri: artist['uri'] as String?,
       albumTitle: album?['title'] as String?,
       matchType: matchType,
-      danceability:
-          int.tryParse(json['danceability']?.toString() ?? ''),
     );
   }
 
@@ -84,11 +86,18 @@ class BpmSong {
   final String? albumTitle;
   final BpmMatchType matchType;
 
-  /// Optional danceability score (0-100) from the API.
+  /// Optional genre identifier (matches RunningGenre enum names).
   ///
-  /// May be null if the API endpoint does not include this field.
-  /// Used by SongQualityScorer for composite quality scoring.
-  final int? danceability;
+  /// Populated from curated songs dataset. Null for API-sourced songs.
+  final String? genre;
+
+  /// Optional release decade (e.g., "1980s", "2010s").
+  ///
+  /// Populated from curated songs dataset. Null for API-sourced songs.
+  final String? decade;
+
+  /// Song duration in seconds. Null for API-sourced songs.
+  final int? durationSeconds;
 
   /// Serializes to our local JSON format for cache / persistence.
   ///
@@ -105,7 +114,9 @@ class BpmSong {
         'songUri': songUri,
         'artistUri': artistUri,
         'albumTitle': albumTitle,
-        if (danceability != null) 'danceability': danceability,
+        if (genre != null) 'genre': genre,
+        if (decade != null) 'decade': decade,
+        if (durationSeconds != null) 'durationSeconds': durationSeconds,
       };
 
   /// Creates a copy with a different [matchType].
@@ -118,6 +129,8 @@ class BpmSong {
         artistUri: artistUri,
         albumTitle: albumTitle,
         matchType: type,
-        danceability: danceability,
+        genre: genre,
+        decade: decade,
+        durationSeconds: durationSeconds,
       );
 }

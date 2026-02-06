@@ -7,6 +7,8 @@ import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.
 BpmSong _song({
   String artistName = 'TestArtist',
   BpmMatchType matchType = BpmMatchType.exact,
+  String? genre,
+  String? decade,
 }) {
   return BpmSong(
     songId: 'id-1',
@@ -14,356 +16,12 @@ BpmSong _song({
     artistName: artistName,
     tempo: 170,
     matchType: matchType,
+    genre: genre,
+    decade: decade,
   );
 }
 
 void main() {
-  // ──────────────────────────────────────────────────────
-  // Danceability scoring
-  // ──────────────────────────────────────────────────────
-  group('Danceability scoring', () {
-    test('danceability=90 yields score component of 7', () {
-      final score1 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 90,
-      );
-      final score0 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 0,
-      );
-      // Isolate danceability component by diffing against danceability=0
-      expect(score1 - score0, equals(7));
-    });
-
-    test('danceability=50 yields score component of 4', () {
-      final score50 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 50,
-      );
-      final score0 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 0,
-      );
-      expect(score50 - score0, equals(4));
-    });
-
-    test('danceability=10 yields score component of 1', () {
-      final score10 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 10,
-      );
-      final score0 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 0,
-      );
-      expect(score10 - score0, equals(1));
-    });
-
-    test('danceability=null yields neutral score of 4', () {
-      final scoreNull = SongQualityScorer.score(
-        song: _song(),
-        danceability: null,
-      );
-      final score0 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 0,
-      );
-      expect(scoreNull - score0, equals(4));
-    });
-
-    test('danceability=0 yields score component of 0', () {
-      final score0 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 0,
-      );
-      final scoreNull = SongQualityScorer.score(
-        song: _song(),
-        danceability: null,
-      );
-      // danceability=0 should score lower than null (neutral=4)
-      expect(score0 < scoreNull, isTrue);
-    });
-
-    test('danceability=100 yields score component of 8', () {
-      final score100 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 100,
-      );
-      final score0 = SongQualityScorer.score(
-        song: _song(),
-        danceability: 0,
-      );
-      expect(score100 - score0, equals(8));
-    });
-
-    test('high danceability scores higher than low danceability (QUAL-02)',
-        () {
-      final highScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 90,
-      );
-      final lowScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 10,
-      );
-      expect(highScore, greaterThan(lowScore));
-    });
-  });
-
-  // ──────────────────────────────────────────────────────
-  // Energy alignment
-  // ──────────────────────────────────────────────────────
-  group('Energy alignment', () {
-    test('chill user, danceability=35 -> +4 (in range 20-50)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.chill);
-      final scoreIn = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-      );
-      // Compare to out-of-range (danceability=80 for chill)
-      final scoreOut = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-      );
-      // Difference should be 4 (energy alignment) minus danceability diff
-      // Instead, test the energy alignment component directly:
-      // in-range gets +4, far-out-of-range gets +0
-      expect(scoreIn - scoreOut, equals(4 + _danceabilityDiff(35, 80)));
-    });
-
-    test('chill user, danceability=80 -> +0 (far outside range)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.chill);
-      // danceability=80 is far outside chill range (20-50)
-      // Energy alignment should be 0
-      // Verify by comparing to balanced user at same danceability
-      final chillScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-      );
-      final intenseProfile =
-          TasteProfile(energyLevel: EnergyLevel.intense);
-      final intenseScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: intenseProfile,
-      );
-      // intense user at 80 should get +4, chill user at 80 should get +0
-      expect(intenseScore - chillScore, equals(4));
-    });
-
-    test('intense user, danceability=80 -> +4 (in range 60-100)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final scoreIn = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-      );
-      final scoreOut = SongQualityScorer.score(
-        song: _song(),
-        danceability: 30,
-        tasteProfile: profile,
-      );
-      expect(scoreIn - scoreOut, equals(4 + _danceabilityDiff(80, 30)));
-    });
-
-    test('intense user, danceability=30 -> +0 (far outside range)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final chillProfile = TasteProfile(energyLevel: EnergyLevel.chill);
-      final intenseScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 30,
-        tasteProfile: profile,
-      );
-      final chillScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 30,
-        tasteProfile: chillProfile,
-      );
-      // chill user at 30 gets +4 (in range 20-50), intense at 30 gets +0
-      expect(chillScore - intenseScore, equals(4));
-    });
-
-    test('balanced user, danceability=55 -> +4 (in range 40-70)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.balanced);
-      final scoreIn = SongQualityScorer.score(
-        song: _song(),
-        danceability: 55,
-        tasteProfile: profile,
-      );
-      final scoreOut = SongQualityScorer.score(
-        song: _song(),
-        danceability: 10,
-        tasteProfile: profile,
-      );
-      expect(scoreIn - scoreOut, equals(4 + _danceabilityDiff(55, 10)));
-    });
-
-    test('danceability=null -> +2 (neutral regardless of energy)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.chill);
-      final scoreNull = SongQualityScorer.score(
-        song: _song(),
-        danceability: null,
-        tasteProfile: profile,
-      );
-      // Compare with danceability in-range (35 for chill) -> +4
-      final scoreIn = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-      );
-      // energy diff is 4-2=2, danceability diff is (35/100*8).round()-4
-      final danceComp = (35 / 100 * 8).round() - 4; // 3-4 = -1
-      expect(scoreIn - scoreNull, equals(2 + danceComp));
-    });
-
-    test('tasteProfile=null -> +2 (neutral)', () {
-      final scoreNoProfile = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: null,
-      );
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final scoreWithProfile = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-      );
-      // intense at 80 -> energy=+4, null profile -> energy=+2
-      expect(scoreWithProfile - scoreNoProfile, equals(2));
-    });
-
-    test('chill vs intense user get different scores (QUAL-06)', () {
-      final chill = TasteProfile(energyLevel: EnergyLevel.chill);
-      final intense = TasteProfile(energyLevel: EnergyLevel.intense);
-      final chillScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 50,
-        tasteProfile: chill,
-      );
-      final intenseScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 50,
-        tasteProfile: intense,
-      );
-      expect(chillScore, isNot(equals(intenseScore)));
-    });
-  });
-
-  // ──────────────────────────────────────────────────────
-  // Segment energy override
-  // ──────────────────────────────────────────────────────
-  group('Segment energy override', () {
-    test('Warm-up overrides intense to chill range (QUAL-05)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final warmupScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-        segmentLabel: 'Warm-up',
-      );
-      final normalScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-        segmentLabel: null,
-      );
-      // Warm-up treats as chill: danceability=35 is in chill range (20-50) -> +4
-      // Normal intense: danceability=35 is far outside intense range (60-100) -> +0
-      expect(warmupScore - normalScore, equals(4));
-    });
-
-    test('Cool-down overrides intense to chill range', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final cooldownScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-        segmentLabel: 'Cool-down',
-      );
-      final normalScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-        segmentLabel: null,
-      );
-      expect(cooldownScore - normalScore, equals(4));
-    });
-
-    test('Work 1 overrides chill to intense range', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.chill);
-      final workScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-        segmentLabel: 'Work 1',
-      );
-      final normalScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-        segmentLabel: null,
-      );
-      // Work overrides to intense: danceability=80 in intense range -> +4
-      // Normal chill: danceability=80 far outside chill range -> +0
-      expect(workScore - normalScore, equals(4));
-    });
-
-    test('Rest 2 overrides intense to chill range', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final restScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-        segmentLabel: 'Rest 2',
-      );
-      final normalScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 35,
-        tasteProfile: profile,
-        segmentLabel: null,
-      );
-      expect(restScore - normalScore, equals(4));
-    });
-
-    test('Main segment uses user preference (no override)', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final mainScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-        segmentLabel: 'Main',
-      );
-      final noLabelScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-        segmentLabel: null,
-      );
-      expect(mainScore, equals(noLabelScore));
-    });
-
-    test('null segmentLabel uses user preference', () {
-      final profile = TasteProfile(energyLevel: EnergyLevel.intense);
-      final score = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: profile,
-        segmentLabel: null,
-      );
-      // intense at 80 -> in range -> +4, verify non-zero energy
-      final noEnergyScore = SongQualityScorer.score(
-        song: _song(),
-        danceability: 80,
-        tasteProfile: null,
-        segmentLabel: null,
-      );
-      expect(score - noEnergyScore, equals(2));
-    });
-  });
-
   // ──────────────────────────────────────────────────────
   // Artist match
   // ──────────────────────────────────────────────────────
@@ -466,7 +124,6 @@ void main() {
         tasteProfile: profile,
         songGenres: [],
       );
-      // Both null and empty should give +0 genre bonus
       expect(scoreNull, equals(scoreEmpty));
     });
 
@@ -578,37 +235,38 @@ void main() {
   // Composite scoring
   // ──────────────────────────────────────────────────────
   group('Composite scoring', () {
-    test('best case: artist(10) + dance(7) + energy(4) + exact(3) + genre(6) = 30',
+    test('best case: artist(10) + genre(6) + exact(3) + curated(5) + decade(4) = 28',
         () {
       final profile = TasteProfile(
         artists: ['Eminem'],
         genres: [RunningGenre.rock],
-        energyLevel: EnergyLevel.intense,
+        decades: [MusicDecade.the2000s],
       );
       final score = SongQualityScorer.score(
-        song: _song(artistName: 'Eminem', matchType: BpmMatchType.exact),
+        song: _song(
+          artistName: 'Eminem',
+          matchType: BpmMatchType.exact,
+          decade: '2000s',
+        ),
         tasteProfile: profile,
-        danceability: 90, // -> 7 points, in intense range -> +4
         songGenres: [RunningGenre.rock],
+        isCurated: true,
       );
-      expect(score, equals(30));
+      expect(score, equals(28));
     });
 
-    test('worst case: no match(0) + low dance(1) + no energy(0) + variant(1) + no genre(0) = 2',
-        () {
+    test('worst case: no match + variant(1) = 1', () {
       final profile = TasteProfile(
         artists: ['Eminem'],
         genres: [RunningGenre.pop],
-        energyLevel: EnergyLevel.intense,
       );
       final score = SongQualityScorer.score(
         song: _song(
             artistName: 'Unknown', matchType: BpmMatchType.halfTime),
         tasteProfile: profile,
-        danceability: 10, // -> 1 point, intense range 60-100, 10 far outside -> +0
         songGenres: [RunningGenre.rock],
       );
-      expect(score, equals(2));
+      expect(score, equals(1));
     });
   });
 
@@ -667,18 +325,15 @@ void main() {
       final score = SongQualityScorer.score(
         song: _song(),
         tasteProfile: null,
-        danceability: null,
-        segmentLabel: null,
         previousArtist: null,
         songGenres: null,
       );
-      // Exact BPM=3, neutral danceability=4, neutral energy=2 => 9
-      expect(score, equals(9));
+      // Exact BPM=3 => 3
+      expect(score, equals(3));
     });
 
     test('no Flutter imports in scorer', () {
-      // This test is a reminder -- actual verification done via grep
-      // in the verification step. Including here for documentation.
+      // This test is a reminder -- actual verification done via grep.
       expect(true, isTrue);
     });
   });
@@ -703,11 +358,11 @@ void main() {
     });
 
     test('curated bonus is additive, not multiplicative', () {
-      // Exact BPM song: base includes +3 (exact BPM) + 4 (neutral dance) + 2 (neutral energy) = 9
-      // With curated: 9 + 5 = 14
+      // Exact BPM song: base includes +3 (exact BPM) = 3
+      // With curated: 3 + 5 = 8
       final song = _song(matchType: BpmMatchType.exact);
       final curated = SongQualityScorer.score(song: song, isCurated: true);
-      expect(curated, equals(14)); // 9 base + 5 curated
+      expect(curated, equals(8)); // 3 base + 5 curated
     });
 
     test('curatedBonusWeight constant is 5', () {
@@ -769,7 +424,7 @@ void main() {
       );
       final noProfileScore = SongQualityScorer.score(
         song: _song(artistName: 'Eminem'),
-        tasteProfile: const TasteProfile(),
+        tasteProfile: TasteProfile(),
       );
       expect(score, equals(noProfileScore));
     });
@@ -782,7 +437,7 @@ void main() {
       );
       final noProfileScore = SongQualityScorer.score(
         song: _song(artistName: 'Drake'),
-        tasteProfile: const TasteProfile(),
+        tasteProfile: TasteProfile(),
       );
       expect(score, equals(noProfileScore));
     });
@@ -824,7 +479,6 @@ void main() {
       final profile = TasteProfile(
         tempoVarianceTolerance: TempoVarianceTolerance.strict,
       );
-      // Compare with null profile (moderate default) where halfTime gets 1
       final strictScore = SongQualityScorer.score(
         song: _song(matchType: BpmMatchType.halfTime),
         tasteProfile: profile,
@@ -865,7 +519,6 @@ void main() {
         song: _song(matchType: BpmMatchType.halfTime),
         tasteProfile: null,
       );
-      // Both should give halfTime=1 -> same score
       expect(moderateScore, equals(nullScore));
     });
 
@@ -908,18 +561,46 @@ void main() {
       );
       final moderateScore = SongQualityScorer.score(
         song: _song(matchType: BpmMatchType.halfTime),
-        tasteProfile: const TasteProfile(
+        tasteProfile: TasteProfile(
           tempoVarianceTolerance: TempoVarianceTolerance.moderate,
         ),
       );
       expect(nullScore, equals(moderateScore));
     });
   });
-}
 
-/// Helper to compute the danceability score difference between two values.
-int _danceabilityDiff(int a, int b) {
-  final scoreA = (a / 100 * 8).round().clamp(0, 8);
-  final scoreB = (b / 100 * 8).round().clamp(0, 8);
-  return scoreA - scoreB;
+  // ──────────────────────────────────────────────────────
+  // Decade match
+  // ──────────────────────────────────────────────────────
+  group('Decade match', () {
+    test('matching decade adds +4', () {
+      final profile = TasteProfile(
+        decades: [MusicDecade.the2000s],
+      );
+      final score = SongQualityScorer.score(
+        song: _song(decade: '2000s'),
+        tasteProfile: profile,
+      );
+      final noDecadeScore = SongQualityScorer.score(
+        song: _song(decade: null),
+        tasteProfile: profile,
+      );
+      expect(score - noDecadeScore, equals(4));
+    });
+
+    test('non-matching decade adds +0', () {
+      final profile = TasteProfile(
+        decades: [MusicDecade.the1990s],
+      );
+      final score = SongQualityScorer.score(
+        song: _song(decade: '2000s'),
+        tasteProfile: profile,
+      );
+      final noDecadeScore = SongQualityScorer.score(
+        song: _song(decade: null),
+        tasteProfile: profile,
+      );
+      expect(score, equals(noDecadeScore));
+    });
+  });
 }

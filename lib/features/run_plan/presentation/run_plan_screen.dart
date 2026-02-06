@@ -530,7 +530,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
         );
     }
 
-    ref.read(runPlanNotifierProvider.notifier).setPlan(plan);
+    ref.read(runPlanLibraryProvider.notifier).addPlan(plan);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Run plan saved!')),

@@ -9,6 +9,8 @@ import 'package:running_playlist_ai/features/playlist/providers/playlist_provide
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
+import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
+import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
 
 /// Screen for generating and displaying a BPM-matched playlist.
 ///
@@ -33,23 +35,24 @@ class PlaylistScreen extends ConsumerStatefulWidget {
 }
 
 class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
-  @override
-  void initState() {
-    super.initState();
-    if (widget.autoGenerate) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final runPlan = ref.read(runPlanNotifierProvider);
-        if (runPlan != null) {
-          ref.read(playlistGenerationProvider.notifier).generatePlaylist();
-        }
-      });
-    }
-  }
+  bool _autoGenTriggered = false;
 
   @override
   Widget build(BuildContext context) {
     final generationState = ref.watch(playlistGenerationProvider);
     final runPlan = ref.watch(runPlanNotifierProvider);
+
+    // Auto-generate: wait until the run plan is available (loaded async),
+    // then trigger once.
+    if (widget.autoGenerate &&
+        !_autoGenTriggered &&
+        runPlan != null &&
+        !generationState.isLoading) {
+      _autoGenTriggered = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(playlistGenerationProvider.notifier).generatePlaylist();
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -77,7 +80,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     // No run plan saved
     if (runPlan == null && !state.isLoading && state.playlist == null) {
       return _NoRunPlanView(
-        onGoToRunPlan: () => context.push('/run-plan'),
+        onGoToRunPlan: () => context.push('/my-runs'),
       );
     }
 
@@ -102,7 +105,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
         playlist: state.playlist!,
         onRegenerate: () => ref
             .read(playlistGenerationProvider.notifier)
-            .generatePlaylist(),
+            .regeneratePlaylist(),
       );
     }
 
@@ -228,35 +231,26 @@ class _ErrorView extends StatelessWidget {
 }
 
 /// Shown when a run plan is saved but no playlist has been generated yet.
-class _IdleView extends StatelessWidget {
+class _IdleView extends ConsumerWidget {
   const _IdleView({required this.runPlan, required this.onGenerate});
 
   final RunPlan runPlan;
   final VoidCallback onGenerate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.queue_music, size: 64, color: Colors.blue),
-            const SizedBox(height: 16),
-            Text(
-              runPlan.name ?? 'Your Run Plan',
-              style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+            const SizedBox(height: 24),
+            // Selectors
+            _RunPlanSelector(),
             const SizedBox(height: 8),
-            Text(
-              '${runPlan.distanceKm.toStringAsFixed(1)} km '
-              '${formatDuration(runPlan.totalDurationSeconds)} '
-              '${runPlan.segments.length} '
-              'segment${runPlan.segments.length == 1 ? "" : "s"}',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
+            _TasteProfileSelector(),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onGenerate,
@@ -320,36 +314,81 @@ class _PlaylistView extends ConsumerWidget {
       );
     }
 
+    final theme = Theme.of(context);
+    final starCount =
+        playlist.songs.where((s) => (s.runningQuality ?? 0) >= 12).length;
+
     return Column(
       children: [
-        // Summary header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        // Summary header card
+        Container(
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.primaryContainer,
+                theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Row(
             children: [
+              Icon(Icons.queue_music_rounded,
+                  size: 32, color: theme.colorScheme.onPrimaryContainer),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  '${playlist.songs.length} songs for your run',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${playlist.songs.length} songs for your run',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$starCount top picks'
+                      '  \u00b7  '
+                      '${formatDuration(playlist.totalDurationSeconds)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onPrimaryContainer
+                            .withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              TextButton.icon(
+              FilledButton.tonalIcon(
                 onPressed: onRegenerate,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Regenerate'),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Shuffle'),
               ),
+            ],
+          ),
+        ),
+        // Selectors
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(child: _RunPlanSelector()),
+              const SizedBox(width: 8),
+              Expanded(child: _TasteProfileSelector()),
             ],
           ),
         ),
         // Cadence nudge row
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 12),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -400,7 +439,6 @@ class _PlaylistView extends ConsumerWidget {
             ],
           ),
         ),
-        const Divider(),
         // Song list grouped by segment
         Expanded(
           child: ListView.builder(
@@ -417,13 +455,430 @@ class _PlaylistView extends ConsumerWidget {
                 children: [
                   if (showSegmentHeader)
                     SegmentHeader(label: song.segmentLabel),
-                  SongTile(song: song),
+                  Dismissible(
+                    key: ValueKey('${song.title}-${song.artistName}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .errorContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onErrorContainer,
+                      ),
+                    ),
+                    onDismissed: (_) => _onSongDismissed(
+                      context,
+                      ref,
+                      index,
+                    ),
+                    child: SongTile(song: song, index: index + 1),
+                  ),
                 ],
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  void _onSongDismissed(
+    BuildContext context,
+    WidgetRef ref,
+    int index,
+  ) {
+    final suggestions = ref
+        .read(playlistGenerationProvider.notifier)
+        .removeSong(index);
+
+    if (suggestions.isEmpty) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => _ReplacementSheet(
+        suggestions: suggestions,
+        onSelect: (replacement) {
+          Navigator.pop(ctx);
+          ref
+              .read(playlistGenerationProvider.notifier)
+              .insertSong(index, replacement);
+        },
+      ),
+    );
+  }
+}
+
+/// Tappable run plan selector row that opens a bottom sheet.
+class _RunPlanSelector extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final libraryState = ref.watch(runPlanLibraryProvider);
+    final selected = libraryState.selectedPlan;
+    final theme = Theme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => _showRunPlanSheet(context, ref),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.directions_run,
+                size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                selected?.name ?? 'Select Run Plan',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: selected != null
+                      ? null
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.expand_more,
+                size: 18, color: theme.colorScheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRunPlanSheet(BuildContext context, WidgetRef ref) {
+    final libraryState = ref.read(runPlanLibraryProvider);
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => _RunPlanSelectorSheet(
+        plans: libraryState.plans,
+        selectedId: libraryState.selectedPlan?.id,
+        onSelect: (id) {
+          Navigator.pop(ctx);
+          ref.read(runPlanLibraryProvider.notifier).selectPlan(id);
+        },
+      ),
+    );
+  }
+}
+
+/// Tappable taste profile selector row that opens a bottom sheet.
+class _TasteProfileSelector extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final libraryState = ref.watch(tasteProfileLibraryProvider);
+    final selected = libraryState.selectedProfile;
+    final theme = Theme.of(context);
+
+    String subtitle;
+    if (selected != null) {
+      subtitle = selected.name ??
+          selected.genres.map((g) => g.displayName).take(2).join(', ');
+    } else {
+      subtitle = 'Select Taste Profile';
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => _showTasteProfileSheet(context, ref),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.music_note,
+                size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: selected != null
+                      ? null
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.expand_more,
+                size: 18, color: theme.colorScheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTasteProfileSheet(BuildContext context, WidgetRef ref) {
+    final libraryState = ref.read(tasteProfileLibraryProvider);
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => _TasteProfileSelectorSheet(
+        profiles: libraryState.profiles,
+        selectedId: libraryState.selectedProfile?.id,
+        onSelect: (id) {
+          Navigator.pop(ctx);
+          ref
+              .read(tasteProfileLibraryProvider.notifier)
+              .selectProfile(id);
+        },
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for selecting a run plan.
+class _RunPlanSelectorSheet extends StatelessWidget {
+  const _RunPlanSelectorSheet({
+    required this.plans,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<RunPlan> plans;
+  final String? selectedId;
+  final void Function(String id) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (plans.isEmpty) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('No Run Plans', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              const Text('Create a run plan first.'),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/my-runs');
+                },
+                child: const Text('Create Run Plan'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Select Run Plan',
+                style: theme.textTheme.titleMedium),
+          ),
+          const Divider(height: 1),
+          ...plans.map((plan) {
+            final isSelected = plan.id == selectedId;
+            return ListTile(
+              leading: Icon(
+                Icons.directions_run,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                plan.name ?? '${plan.distanceKm.toStringAsFixed(1)} km run',
+                style: TextStyle(
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? theme.colorScheme.primary : null,
+                ),
+              ),
+              subtitle: Text(
+                '${plan.distanceKm.toStringAsFixed(1)} km'
+                '  \u00b7  '
+                '${formatDuration(plan.totalDurationSeconds)}',
+              ),
+              trailing:
+                  isSelected ? Icon(Icons.check, color: theme.colorScheme.primary) : null,
+              onTap: () => onSelect(plan.id),
+            );
+          }),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for selecting a taste profile.
+class _TasteProfileSelectorSheet extends StatelessWidget {
+  const _TasteProfileSelectorSheet({
+    required this.profiles,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<TasteProfile> profiles;
+  final String? selectedId;
+  final void Function(String id) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (profiles.isEmpty) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('No Taste Profiles', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              const Text('Create a taste profile first.'),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/taste-profiles');
+                },
+                child: const Text('Create Profile'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Select Taste Profile',
+                style: theme.textTheme.titleMedium),
+          ),
+          const Divider(height: 1),
+          ...profiles.map((profile) {
+            final isSelected = profile.id == selectedId;
+            final genreText =
+                profile.genres.map((g) => g.displayName).join(', ');
+            return ListTile(
+              leading: Icon(
+                Icons.music_note,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                profile.name ?? genreText,
+                style: TextStyle(
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? theme.colorScheme.primary : null,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: profile.name != null
+                  ? Text(genreText,
+                      maxLines: 1, overflow: TextOverflow.ellipsis)
+                  : null,
+              trailing:
+                  isSelected ? Icon(Icons.check, color: theme.colorScheme.primary) : null,
+              onTap: () => onSelect(profile.id),
+            );
+          }),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom sheet showing replacement suggestions after removing a song.
+class _ReplacementSheet extends StatelessWidget {
+  const _ReplacementSheet({
+    required this.suggestions,
+    required this.onSelect,
+  });
+
+  final List<PlaylistSong> suggestions;
+  final void Function(PlaylistSong) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Replace with...',
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          const Divider(height: 1),
+          ...suggestions.map(
+            (song) => ListTile(
+              leading: Icon(
+                Icons.music_note,
+                color: theme.colorScheme.primary,
+              ),
+              title: Text(
+                song.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(song.artistName),
+              trailing: Text(
+                '${song.bpm} BPM',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              onTap: () => onSelect(song),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Skip'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

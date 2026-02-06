@@ -54,17 +54,20 @@ class RunSegment {
 /// For a steady run, there is exactly one segment. Future plan types
 /// (intervals, warm-up/cool-down) will have multiple segments.
 class RunPlan {
-  const RunPlan({
+  RunPlan({
     required this.type,
     required this.distanceKm,
     required this.paceMinPerKm,
     required this.segments,
     this.name,
-    this.createdAt,
-  });
+    DateTime? createdAt,
+    String? id,
+  })  : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        createdAt = createdAt ?? DateTime.now();
 
   factory RunPlan.fromJson(Map<String, dynamic> json) {
     return RunPlan(
+      id: json['id'] as String?,
       type: RunType.fromJson(json['type'] as String),
       distanceKm: (json['distanceKm'] as num).toDouble(),
       paceMinPerKm: (json['paceMinPerKm'] as num).toDouble(),
@@ -78,12 +81,13 @@ class RunPlan {
     );
   }
 
+  final String id;
   final RunType type;
   final double distanceKm;
   final double paceMinPerKm;
   final List<RunSegment> segments;
   final String? name;
-  final DateTime? createdAt;
+  final DateTime createdAt;
 
   /// Total duration across all segments, in seconds.
   int get totalDurationSeconds =>
@@ -92,19 +96,15 @@ class RunPlan {
   /// Total duration across all segments, in minutes.
   double get totalDurationMinutes => totalDurationSeconds / 60.0;
 
-  Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{
-      'type': type.name,
-      'distanceKm': distanceKm,
-      'paceMinPerKm': paceMinPerKm,
-      'segments': segments.map((s) => s.toJson()).toList(),
-    };
-    if (name != null) json['name'] = name;
-    if (createdAt != null) {
-      json['createdAt'] = createdAt!.toIso8601String();
-    }
-    return json;
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'type': type.name,
+        'distanceKm': distanceKm,
+        'paceMinPerKm': paceMinPerKm,
+        'segments': segments.map((s) => s.toJson()).toList(),
+        if (name != null) 'name': name,
+        'createdAt': createdAt.toIso8601String(),
+      };
 }
 
 /// Formats a duration in seconds as "H:MM:SS" or "MM:SS".

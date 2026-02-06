@@ -117,41 +117,6 @@ void main() {
       final song = BpmSong.fromApiJson(json, matchType: BpmMatchType.halfTime);
       expect(song.matchType, equals(BpmMatchType.halfTime));
     });
-
-    test('parses danceability when present as string', () {
-      final json = {
-        'song_id': 's1',
-        'song_title': 'Song',
-        'tempo': '120',
-        'artist': {'name': 'A'},
-        'danceability': '55',
-      };
-      final song = BpmSong.fromApiJson(json);
-      expect(song.danceability, equals(55));
-    });
-
-    test('parses danceability when present as int', () {
-      final json = {
-        'song_id': 's1',
-        'song_title': 'Song',
-        'tempo': '120',
-        'artist': {'name': 'A'},
-        'danceability': 72,
-      };
-      final song = BpmSong.fromApiJson(json);
-      expect(song.danceability, equals(72));
-    });
-
-    test('handles missing danceability gracefully', () {
-      final json = {
-        'song_id': 's1',
-        'song_title': 'Song',
-        'tempo': '120',
-        'artist': {'name': 'A'},
-      };
-      final song = BpmSong.fromApiJson(json);
-      expect(song.danceability, isNull);
-    });
   });
 
   // -- BpmSong.toJson / fromJson round-trip ------------------------------------
@@ -216,19 +181,19 @@ void main() {
       expect(restored.albumTitle, isNull);
     });
 
-    test('toJson includes danceability when present', () {
+    test('toJson includes genre when present', () {
       const song = BpmSong(
         songId: 'abc',
         title: 'Song',
         artistName: 'Artist',
         tempo: 170,
-        danceability: 65,
+        genre: 'rock',
       );
       final json = song.toJson();
-      expect(json['danceability'], equals(65));
+      expect(json['genre'], equals('rock'));
     });
 
-    test('toJson excludes danceability when null', () {
+    test('toJson excludes genre when null', () {
       const song = BpmSong(
         songId: 'abc',
         title: 'Song',
@@ -236,23 +201,23 @@ void main() {
         tempo: 170,
       );
       final json = song.toJson();
-      expect(json.containsKey('danceability'), isFalse);
+      expect(json.containsKey('genre'), isFalse);
     });
 
-    test('toJson -> fromJson roundtrip preserves danceability', () {
+    test('toJson -> fromJson roundtrip preserves genre', () {
       const original = BpmSong(
         songId: 'abc',
         title: 'Song',
         artistName: 'Artist',
         tempo: 170,
-        danceability: 80,
+        genre: 'electronic',
       );
       final json = original.toJson();
       final restored = BpmSong.fromJson(json);
-      expect(restored.danceability, equals(80));
+      expect(restored.genre, equals('electronic'));
     });
 
-    test('fromJson handles missing danceability as null', () {
+    test('fromJson handles missing genre as null', () {
       final json = {
         'songId': 'abc',
         'title': 'Song',
@@ -260,7 +225,7 @@ void main() {
         'tempo': 170,
       };
       final song = BpmSong.fromJson(json);
-      expect(song.danceability, isNull);
+      expect(song.genre, isNull);
     });
   });
 
@@ -281,16 +246,16 @@ void main() {
       expect(halfTime.tempo, equals(85));
     });
 
-    test('preserves danceability when changing matchType', () {
+    test('preserves genre when changing matchType', () {
       const song = BpmSong(
         songId: 'abc',
         title: 'Song',
         artistName: 'Artist',
         tempo: 85,
-        danceability: 72,
+        genre: 'rock',
       );
       final halfTime = song.withMatchType(BpmMatchType.halfTime);
-      expect(halfTime.danceability, equals(72));
+      expect(halfTime.genre, equals('rock'));
       expect(halfTime.matchType, equals(BpmMatchType.halfTime));
     });
   });

@@ -89,12 +89,11 @@ class PlaylistGenerator {
       // Skip segment when no candidates available
       if (scored.isEmpty) continue;
 
-      // Calculate how many songs to select for this segment
-      final songsNeeded =
-          (segment.durationSeconds / estimatedSongDurationSeconds)
-              .ceil();
-      final selected =
-          scored.take(songsNeeded.clamp(1, scored.length)).toList();
+      // Fill segment duration using actual song durations when available.
+      final selected = _fillSegmentByDuration(
+        scored,
+        segment.durationSeconds,
+      );
 
       // Enforce artist diversity within selected songs
       final diverseSelected =
@@ -124,7 +123,7 @@ class PlaylistGenerator {
               entry.song.artistName,
             ),
             runningQuality: entry.score,
-            isEnriched: entry.song.danceability != null,
+            durationSeconds: entry.song.durationSeconds,
           ),
         );
       }
@@ -139,6 +138,31 @@ class PlaylistGenerator {
       distanceKm: runPlan.distanceKm,
       paceMinPerKm: runPlan.paceMinPerKm,
     );
+  }
+
+  /// Selects songs from a ranked list to fill a segment's duration.
+  ///
+  /// Uses actual [BpmSong.durationSeconds] when available, falling
+  /// back to [estimatedSongDurationSeconds] for songs without duration
+  /// data. Greedily picks the highest-scored songs until the segment
+  /// is filled. Always returns at least 1 song if available.
+  static List<_ScoredSong> _fillSegmentByDuration(
+    List<_ScoredSong> ranked,
+    int segmentDurationSeconds,
+  ) {
+    if (ranked.isEmpty) return [];
+
+    final selected = <_ScoredSong>[];
+    var filledSeconds = 0;
+
+    for (final entry in ranked) {
+      if (filledSeconds >= segmentDurationSeconds && selected.isNotEmpty) break;
+      selected.add(entry);
+      filledSeconds +=
+          entry.song.durationSeconds ?? estimatedSongDurationSeconds;
+    }
+
+    return selected;
   }
 
   /// Collects all candidate songs for a target BPM from the
@@ -172,7 +196,7 @@ class PlaylistGenerator {
   ///
   /// Delegates to [SongQualityScorer.score] for each candidate.
   /// Scoring dimensions include artist match, genre match,
-  /// danceability, energy alignment, BPM match, and artist diversity.
+  /// BPM match, decade match, curated bonus, and artist diversity.
   ///
   /// Songs are sorted by score descending. Within the same score
   /// tier, songs are shuffled for variety across regenerations.
@@ -197,12 +221,22 @@ class PlaylistGenerator {
             '${song.artistName.toLowerCase().trim()}|${song.title.toLowerCase().trim()}',
           );
 
+      // Convert genre string to RunningGenre list for scoring.
+      final songGenres = <RunningGenre>[];
+      if (song.genre != null) {
+        for (final g in RunningGenre.values) {
+          if (g.name == song.genre) {
+            songGenres.add(g);
+            break;
+          }
+        }
+      }
+
       final score = SongQualityScorer.score(
         song: song,
         tasteProfile: tasteProfile,
-        danceability: song.danceability,
-        segmentLabel: segmentLabel,
         previousArtist: previousArtist,
+        songGenres: songGenres.isNotEmpty ? songGenres : null,
         isCurated: isCurated,
       );
 

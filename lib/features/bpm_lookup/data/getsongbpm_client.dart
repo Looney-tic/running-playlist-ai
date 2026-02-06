@@ -30,7 +30,7 @@ class GetSongBpmClient {
   final String _apiKey;
   final http.Client _httpClient;
 
-  static const _baseUrl = 'api.getsongbpm.com';
+  static const _baseUrl = 'api.getsong.co';
   static const _timeout = Duration(seconds: 10);
 
   /// Fetches songs at the given [bpm] from the GetSongBPM API.

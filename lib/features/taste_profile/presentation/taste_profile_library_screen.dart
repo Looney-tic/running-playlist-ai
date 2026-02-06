@@ -71,9 +71,36 @@ class TasteProfileLibraryScreen extends ConsumerWidget {
                       .selectProfile(profile.id),
                   onEdit: () =>
                       context.push('/taste-profile?id=${profile.id}'),
-                  onDelete: () => ref
-                      .read(tasteProfileLibraryProvider.notifier)
-                      .deleteProfile(profile.id),
+                  onDelete: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Profile'),
+                        content: Text(
+                          'Delete "${profile.name ?? 'this profile'}"? This cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(ctx).colorScheme.error,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if ((confirmed ?? false) && context.mounted) {
+                      await ref
+                          .read(tasteProfileLibraryProvider.notifier)
+                          .deleteProfile(profile.id);
+                    }
+                  },
                 );
               },
             ),

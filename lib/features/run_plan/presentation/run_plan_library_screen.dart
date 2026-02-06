@@ -73,9 +73,36 @@ class RunPlanLibraryScreen extends ConsumerWidget {
                   onTap: () => ref
                       .read(runPlanLibraryProvider.notifier)
                       .selectPlan(plan.id),
-                  onDelete: () => ref
-                      .read(runPlanLibraryProvider.notifier)
-                      .deletePlan(plan.id),
+                  onDelete: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Run Plan'),
+                        content: Text(
+                          'Delete "${plan.name ?? 'this run plan'}"? This cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(ctx).colorScheme.error,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if ((confirmed ?? false) && context.mounted) {
+                      await ref
+                          .read(runPlanLibraryProvider.notifier)
+                          .deletePlan(plan.id);
+                    }
+                  },
                   onGenerate: () {
                     ref
                         .read(runPlanLibraryProvider.notifier)

@@ -121,24 +121,24 @@ class PlaylistGenerationNotifier
         songsByBpm = await _buildSongsFromCurated(runPlan);
       }
 
-      // Load curated song lookup keys for scoring bonus.
+      // Load curated song runnability scores for quality scoring.
       // Uses catch-all because Supabase.instance throws AssertionError
       // (not Exception) when not initialized, and Riverpod re-throws it.
-      var curatedLookupKeys = <String>{};
+      var curatedRunnability = <String, int>{};
       try {
-        curatedLookupKeys =
-            await ref.read(curatedLookupKeysProvider.future);
+        curatedRunnability =
+            await ref.read(curatedRunnabilityProvider.future);
         // ignore: avoid_catches_without_on_clauses, Supabase.instance throws AssertionError (Error, not Exception) when not initialized.
       } catch (_) {
-        // Graceful degradation: generate without curated bonus
+        // Graceful degradation: generate without runnability data
       }
 
       final playlist = PlaylistGenerator.generate(
         runPlan: runPlan,
         tasteProfile: tasteProfile,
         songsByBpm: songsByBpm,
-        curatedLookupKeys:
-            curatedLookupKeys.isNotEmpty ? curatedLookupKeys : null,
+        curatedRunnability:
+            curatedRunnability.isNotEmpty ? curatedRunnability : null,
       );
 
       if (!mounted) return;
@@ -183,10 +183,10 @@ class PlaylistGenerationNotifier
         songsByBpm = await _buildSongsFromCurated(storedPlan);
       }
 
-      var curatedLookupKeys = <String>{};
+      var curatedRunnability = <String, int>{};
       try {
-        curatedLookupKeys =
-            await ref.read(curatedLookupKeysProvider.future);
+        curatedRunnability =
+            await ref.read(curatedRunnabilityProvider.future);
         // ignore: avoid_catches_without_on_clauses
       } catch (_) {
         // Graceful degradation
@@ -196,8 +196,8 @@ class PlaylistGenerationNotifier
         runPlan: storedPlan,
         tasteProfile: tasteProfile,
         songsByBpm: songsByBpm,
-        curatedLookupKeys:
-            curatedLookupKeys.isNotEmpty ? curatedLookupKeys : null,
+        curatedRunnability:
+            curatedRunnability.isNotEmpty ? curatedRunnability : null,
       );
 
       if (!mounted) return;
@@ -293,6 +293,7 @@ class PlaylistGenerationNotifier
               decade: song.decade,
               durationSeconds: song.durationSeconds,
               danceability: song.danceability,
+              runnability: song.runnability,
             ),
           );
     }

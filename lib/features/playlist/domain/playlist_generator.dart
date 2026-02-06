@@ -55,7 +55,7 @@ class PlaylistGenerator {
     required Map<int, List<BpmSong>> songsByBpm,
     TasteProfile? tasteProfile,
     Random? random,
-    Set<String>? curatedLookupKeys,
+    Map<String, int>? curatedRunnability,
   }) {
     final rng = random ?? Random();
     final usedSongIds = <String>{};
@@ -83,7 +83,7 @@ class PlaylistGenerator {
         rng: rng,
         tasteProfile: tasteProfile,
         segmentLabel: segmentLabel,
-        curatedLookupKeys: curatedLookupKeys,
+        curatedRunnability: curatedRunnability,
       );
 
       // Skip segment when no candidates available
@@ -196,7 +196,7 @@ class PlaylistGenerator {
   ///
   /// Delegates to [SongQualityScorer.score] for each candidate.
   /// Scoring dimensions include artist match, genre match,
-  /// BPM match, decade match, curated bonus, and artist diversity.
+  /// BPM match, decade match, runnability, and artist diversity.
   ///
   /// Songs are sorted by score descending. Within the same score
   /// tier, songs are shuffled for variety across regenerations.
@@ -209,17 +209,18 @@ class PlaylistGenerator {
     required Random rng,
     TasteProfile? tasteProfile,
     String? segmentLabel,
-    Set<String>? curatedLookupKeys,
+    Map<String, int>? curatedRunnability,
   }) {
     String? previousArtist;
 
     // Shuffle first for randomness within same-score tiers,
     // then stable-sort by score descending.
     final scored = candidates.map((song) {
-      final isCurated = curatedLookupKeys != null &&
-          curatedLookupKeys.contains(
-            '${song.artistName.toLowerCase().trim()}|${song.title.toLowerCase().trim()}',
-          );
+      // Look up runnability from curated map, fall back to song's own field
+      final lookupKey =
+          '${song.artistName.toLowerCase().trim()}|${song.title.toLowerCase().trim()}';
+      final runnability =
+          curatedRunnability?[lookupKey] ?? song.runnability;
 
       // Convert genre string to RunningGenre list for scoring.
       final songGenres = <RunningGenre>[];
@@ -237,7 +238,7 @@ class PlaylistGenerator {
         tasteProfile: tasteProfile,
         previousArtist: previousArtist,
         songGenres: songGenres.isNotEmpty ? songGenres : null,
-        isCurated: isCurated,
+        runnability: runnability,
       );
 
       previousArtist = song.artistName;

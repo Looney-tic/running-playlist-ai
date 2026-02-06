@@ -705,8 +705,8 @@ void main() {
 
   // -- Curated song ranking ---------------------------------------------------
 
-  group('PlaylistGenerator curated ranking', () {
-    test('curated songs rank higher than equivalent non-curated songs', () {
+  group('PlaylistGenerator runnability ranking', () {
+    test('songs with high runnability rank higher', () {
       final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
@@ -720,7 +720,7 @@ void main() {
         ],
       );
 
-      // Two songs with identical attributes except one is curated
+      // Two songs with identical attributes except runnability
       final songsByBpm = {
         170: [
           _song(
@@ -736,22 +736,22 @@ void main() {
         ],
       };
 
-      // Mark 'Artist B|Curated Song' as curated via lookupKey
-      final curatedLookupKeys = {'artist b|curated song'};
+      // Give 'Artist B|Curated Song' high runnability via lookup map
+      final curatedRunnability = {'artist b|curated song': 85};
 
       final playlist = PlaylistGenerator.generate(
         runPlan: plan,
         songsByBpm: songsByBpm,
-        curatedLookupKeys: curatedLookupKeys,
+        curatedRunnability: curatedRunnability,
         random: Random(42),
       );
 
-      // Both songs selected (420/210=2). Curated song should rank first.
+      // Both songs selected (420/210=2). High-runnability song should rank first.
       expect(playlist.songs.length, equals(2));
       expect(playlist.songs.first.title, equals('Curated Song'));
     });
 
-    test('empty curatedLookupKeys produces same results as null', () {
+    test('empty curatedRunnability produces same results as null', () {
       final plan = RunPlan(
         type: RunType.steady,
         distanceKm: 5,
@@ -775,14 +775,14 @@ void main() {
       final withEmpty = PlaylistGenerator.generate(
         runPlan: plan,
         songsByBpm: songsByBpm,
-        curatedLookupKeys: const {},
+        curatedRunnability: const {},
         random: Random(42),
       );
 
       final withNull = PlaylistGenerator.generate(
         runPlan: plan,
         songsByBpm: songsByBpm,
-        curatedLookupKeys: null,
+        curatedRunnability: null,
         random: Random(42),
       );
 

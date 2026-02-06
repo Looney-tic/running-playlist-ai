@@ -20,6 +20,7 @@ class CuratedSong {
     this.decade,
     this.durationSeconds,
     this.danceability,
+    this.runnability,
   });
 
   /// Deserializes from camelCase JSON (bundled asset format).
@@ -32,6 +33,7 @@ class CuratedSong {
       decade: json['decade'] as String?,
       durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
       danceability: (json['danceability'] as num?)?.toInt(),
+      runnability: (json['runnability'] as num?)?.toInt(),
     );
   }
 
@@ -45,6 +47,7 @@ class CuratedSong {
       decade: row['decade'] as String?,
       durationSeconds: (row['duration_seconds'] as num?)?.toInt(),
       danceability: (row['danceability'] as num?)?.toInt(),
+      runnability: (row['runnability'] as num?)?.toInt(),
     );
   }
 
@@ -69,6 +72,13 @@ class CuratedSong {
   /// Danceability score (0-100). Null until enriched.
   final int? danceability;
 
+  /// Runnability score (0-100) combining crowd signal and audio features.
+  ///
+  /// Computed offline by tools/enrich_runnability.py. Songs with strong
+  /// crowd signal (many running playlist appearances) score 80-100.
+  /// Feature-only songs (no crowd data) score 15-40.
+  final int? runnability;
+
   /// Normalized lookup key for matching against BpmSong candidates.
   ///
   /// Format: `'artist_lowercase_trimmed|title_lowercase_trimmed'`
@@ -86,5 +96,6 @@ class CuratedSong {
         if (decade != null) 'decade': decade,
         if (durationSeconds != null) 'durationSeconds': durationSeconds,
         if (danceability != null) 'danceability': danceability,
+        if (runnability != null) 'runnability': runnability,
       };
 }

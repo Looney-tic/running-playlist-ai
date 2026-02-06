@@ -35,6 +35,7 @@ class BpmSong {
     this.decade,
     this.durationSeconds,
     this.danceability,
+    this.runnability,
   });
 
   /// Deserializes from our local JSON format (cache / persistence).
@@ -54,6 +55,7 @@ class BpmSong {
       decade: json['decade'] as String?,
       durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
       danceability: (json['danceability'] as num?)?.toInt(),
+      runnability: (json['runnability'] as num?)?.toInt(),
     );
   }
 
@@ -110,6 +112,11 @@ class BpmSong {
   /// Null when the data source does not provide this field.
   final int? danceability;
 
+  /// Runnability score (0-100) combining crowd signal and audio features.
+  ///
+  /// Populated from curated dataset. Null for API-sourced songs.
+  final int? runnability;
+
   /// Serializes to our local JSON format for cache / persistence.
   ///
   /// Note: [matchType] is intentionally **excluded** from the serialized
@@ -129,6 +136,7 @@ class BpmSong {
         if (decade != null) 'decade': decade,
         if (durationSeconds != null) 'durationSeconds': durationSeconds,
         if (danceability != null) 'danceability': danceability,
+        if (runnability != null) 'runnability': runnability,
       };
 
   /// Creates a copy with a different [matchType].
@@ -145,5 +153,6 @@ class BpmSong {
         decade: decade,
         durationSeconds: durationSeconds,
         danceability: danceability,
+        runnability: runnability,
       );
 }

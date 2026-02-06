@@ -2,12 +2,12 @@
 ///
 /// Computes a composite running-suitability score for candidate songs
 /// using genre match, artist match, BPM accuracy, artist diversity,
-/// decade match, curated bonus, danceability, and genre runnability.
+/// decade match, runnability, danceability, and disliked artist penalty.
 ///
 /// Scoring is grounded in Karageorghis' motivational music framework:
 /// 1. Rhythm Response (BPM match, danceability) — most important
 /// 2. Musicality (danceability proxy) — strong regular beat
-/// 3. Cultural Impact (genre match, genre runnability) — familiarity
+/// 3. Cultural Impact (genre match, runnability) — familiarity
 /// 4. Association (artist match, taste profile) — personal connection
 library;
 
@@ -46,40 +46,36 @@ class SongQualityScorer {
   /// Score bonus for songs from a preferred decade.
   static const decadeMatchWeight = 4;
 
-  /// Score bonus for curated (verified-good) running songs.
-  static const curatedBonusWeight = 5;
-
   /// Maximum danceability score (strong, regular rhythm).
   static const danceabilityMaxWeight = 8;
 
   /// Neutral danceability score when data is unavailable.
   static const danceabilityNeutral = 3;
 
-  /// Maximum genre runnability score (genre suited for running).
-  static const genreRunnabilityMaxWeight = 6;
+  /// Maximum runnability score (data-driven running suitability).
+  static const runnabilityMaxWeight = 15;
 
-  /// Neutral genre runnability score when genre is unknown.
-  static const genreRunnabilityNeutral = 2;
+  /// Neutral runnability score when data is unavailable.
+  static const runnabilityNeutral = 5;
 
   /// Computes a composite score for a candidate song.
   ///
   /// Returns an integer score (higher = better fit for the playlist).
-  /// Dimensions:
+  /// Dimensions (max = 46):
   /// 1. Artist match: +10 if song artist in taste profile
-  /// 2. Danceability: +0..8 based on rhythm regularity (Karageorghis #1)
-  /// 3. Genre match: +6 if song genre matches taste profile genres
-  /// 4. Genre runnability: +0..6 based on genre suitability for running
-  /// 5. Curated bonus: +5 if from curated dataset
-  /// 6. Decade match: +4 if song decade matches taste profile decades
-  /// 7. BPM match: +3 exact, +1 variant
-  /// 8. Artist diversity: -5 if same artist as previous song
-  /// 9. Disliked artist: -15 if artist is disliked
+  /// 2. Runnability: +0..15 based on crowd signal + audio features
+  /// 3. Danceability: +0..8 based on rhythm regularity (Karageorghis #1)
+  /// 4. Genre match: +6 if song genre matches taste profile genres
+  /// 5. Decade match: +4 if song decade matches taste profile decades
+  /// 6. BPM match: +3 exact, +1 variant
+  /// 7. Artist diversity: -5 if same artist as previous song
+  /// 8. Disliked artist: -15 if artist is disliked
   static int score({
     required BpmSong song,
     TasteProfile? tasteProfile,
     String? previousArtist,
     List<RunningGenre>? songGenres,
-    bool isCurated = false,
+    int? runnability,
   }) {
     var total = 0;
 
@@ -88,10 +84,9 @@ class SongQualityScorer {
     total += _genreMatchScore(songGenres, tasteProfile);
     total += _bpmMatchScore(song, tasteProfile);
     total += _artistDiversityScore(song, previousArtist);
-    total += _curatedBonus(isCurated);
     total += _decadeMatchScore(song.decade, tasteProfile);
     total += _danceabilityScore(song.danceability);
-    total += _genreRunnabilityScore(songGenres);
+    total += _runnabilityScore(runnability);
 
     return total;
   }
@@ -214,10 +209,6 @@ class SongQualityScorer {
     return 0;
   }
 
-  /// Curated bonus: +5 if the song is from the curated running songs dataset.
-  static int _curatedBonus(bool isCurated) =>
-      isCurated ? curatedBonusWeight : 0;
-
   /// Decade match: +4 if song decade matches any preferred decade.
   static int _decadeMatchScore(
     String? songDecade,
@@ -249,51 +240,23 @@ class SongQualityScorer {
     return 0;
   }
 
-  /// Genre runnability score: 0-6 points based on genre suitability.
+  /// Runnability score: 0-15 points based on data-driven running suitability.
   ///
-  /// Based on Karageorghis' research and runner community data:
-  /// - Tier 1 (excellent): strong 4-on-floor beat, high energy
-  /// - Tier 2 (great): consistent tempo, upbeat, motivational
-  /// - Tier 3 (good): rhythmic, energetic
-  /// - Tier 4 (moderate): variable rhythm or energy
+  /// Combines crowd signal (how often the song appears in running playlists)
+  /// with audio feature estimation (genre, danceability, BPM).
+  /// Replaces the old curated bonus (+5 flat) and genre runnability tiers
+  /// (0-6) with a single, more nuanced dimension.
   ///
-  /// Returns neutral score when genre is unknown to avoid penalizing
-  /// songs from the API that lack genre metadata.
-  static int _genreRunnabilityScore(List<RunningGenre>? songGenres) {
-    if (songGenres == null || songGenres.isEmpty) {
-      return genreRunnabilityNeutral;
-    }
-
-    // Return the highest runnability tier among the song's genres
-    var best = 0;
-    for (final genre in songGenres) {
-      final score = _genreRunnabilityMap[genre] ?? genreRunnabilityNeutral;
-      if (score > best) best = score;
-    }
-    return best;
+  /// When runnability data is unavailable (null), a neutral score is assigned
+  /// to avoid penalizing API-sourced songs without curated data.
+  static int _runnabilityScore(int? runnability) {
+    if (runnability == null) return runnabilityNeutral;
+    // Scale 0-100 runnability to 0-15 scoring points
+    if (runnability >= 80) return runnabilityMaxWeight; // 15
+    if (runnability >= 60) return 12;
+    if (runnability >= 40) return 9;
+    if (runnability >= 25) return 6;
+    if (runnability >= 10) return 3;
+    return 0;
   }
-
-  /// Genre-to-runnability mapping based on Karageorghis framework
-  /// and runner community preferences.
-  static const _genreRunnabilityMap = <RunningGenre, int>{
-    // Tier 1 — Excellent: strong regular beat, 4-on-floor, high energy
-    RunningGenre.electronic: 6,
-    RunningGenre.edm: 6,
-    RunningGenre.house: 6,
-    RunningGenre.drumAndBass: 6,
-    // Tier 2 — Great: consistent tempo, upbeat, motivational
-    RunningGenre.pop: 5,
-    RunningGenre.dance: 5,
-    RunningGenre.kPop: 5,
-    RunningGenre.hipHop: 5,
-    // Tier 3 — Good: rhythmic, energetic
-    RunningGenre.rock: 4,
-    RunningGenre.punk: 4,
-    RunningGenre.latin: 4,
-    RunningGenre.funk: 4,
-    // Tier 4 — Moderate: variable rhythm or energy
-    RunningGenre.indie: 3,
-    RunningGenre.rnb: 3,
-    RunningGenre.metal: 3,
-  };
 }

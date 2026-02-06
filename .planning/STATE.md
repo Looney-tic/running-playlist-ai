@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality -- Phase 17: Curated Running Songs
+**Current focus:** v1.1 Experience Quality -- Phase 17: Curated Running Songs (complete)
 
 ## Current Position
 
 Phase: 17 of 18 (Curated Running Songs)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 17-01-PLAN.md (curated songs domain layer)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 17-02-PLAN.md (curated data layer + provider wiring)
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [█████░░░░░] 3/6
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████░░░░] 4/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23 (10 from v0.1 + 10 from v1.0 + 3 from v1.1)
+- Total plans completed: 24 (10 from v0.1 + 10 from v1.0 + 4 from v1.1)
 - Average duration: 6m
-- Total execution time: ~2.0 hours
+- Total execution time: ~2.1 hours
 
 **By Phase (v0.1):**
 
@@ -47,7 +47,7 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████�
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 16 | 2/2 | 8m | 4m |
-| 17 | 1/2 | 3m | 3m |
+| 17 | 2/2 | 11m | 6m |
 
 ## Accumulated Context
 
@@ -64,6 +64,8 @@ Full decision log in PROJECT.md Key Decisions table.
 - **Curated bonus weight is +5:** Meaningful but not dominant vs artist match (+10); user taste still controls ranking
 - **Generator receives Set<String> not List<CuratedSong>:** Keeps PlaylistGenerator pure and decoupled from curated domain
 - **Lookup key format artist|title lowercase trimmed:** O(1) Set membership checks for cross-source matching
+- **Catch-all for Supabase errors:** Supabase.instance throws AssertionError (Error, not Exception) when not initialized; catch(_) required for graceful degradation
+- **300 curated songs, 20 per genre:** Even distribution exceeding 200-minimum across all 15 RunningGenre values
 
 ### Pending Todos
 
@@ -74,6 +76,7 @@ Full decision log in PROJECT.md Key Decisions table.
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
+- **User setup:** Create Supabase curated_songs and curated_songs_version tables with RLS (optional -- app falls back to bundled asset)
 - **Documentation gap:** Phase 14 missing VERIFICATION.md
 
 ### Blockers/Concerns
@@ -85,5 +88,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 17-01-PLAN.md -- ready for 17-02 (curated data layer)
+Stopped at: Completed 17-02-PLAN.md -- Phase 17 complete, ready for Phase 18 (Final Polish)
 Resume file: None

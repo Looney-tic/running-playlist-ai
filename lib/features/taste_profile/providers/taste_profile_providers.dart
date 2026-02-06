@@ -35,6 +35,9 @@ class TasteProfileNotifier extends StateNotifier<TasteProfile?> {
 
   /// Adds an artist if valid (non-empty, not duplicate, under max 10).
   ///
+  /// Also removes the artist from disliked artists if present
+  /// (mutual exclusivity: a favorite cannot also be disliked).
+  ///
   /// Returns true if the artist was added, false if rejected.
   Future<bool> addArtist(String artist) async {
     final trimmed = artist.trim();
@@ -49,8 +52,14 @@ class TasteProfileNotifier extends StateNotifier<TasteProfile?> {
       return false;
     }
 
+    // Mutual exclusivity: remove from disliked if present
+    final updatedDisliked = current.dislikedArtists
+        .where((a) => a.toLowerCase() != lowerTrimmed)
+        .toList();
+
     final updated = current.copyWith(
       artists: [...current.artists, trimmed],
+      dislikedArtists: updatedDisliked,
     );
     state = updated;
     await TasteProfilePreferences.save(updated);
@@ -72,6 +81,68 @@ class TasteProfileNotifier extends StateNotifier<TasteProfile?> {
   Future<void> setEnergyLevel(EnergyLevel level) async {
     final profile =
         (state ?? const TasteProfile()).copyWith(energyLevel: level);
+    state = profile;
+    await TasteProfilePreferences.save(profile);
+  }
+
+  /// Adds a disliked artist if valid (non-empty, max 10, no duplicates).
+  ///
+  /// Also removes the artist from favorites if present
+  /// (mutual exclusivity: a disliked artist cannot also be a favorite).
+  ///
+  /// Returns true if the artist was added, false if rejected.
+  Future<bool> addDislikedArtist(String artist) async {
+    final trimmed = artist.trim();
+    if (trimmed.isEmpty) return false;
+
+    final current = state ?? const TasteProfile();
+    if (current.dislikedArtists.length >= 10) return false;
+
+    // Case-insensitive duplicate check
+    final lowerTrimmed = trimmed.toLowerCase();
+    if (current.dislikedArtists.any((a) => a.toLowerCase() == lowerTrimmed)) {
+      return false;
+    }
+
+    // Mutual exclusivity: remove from favorites if present
+    final updatedFavorites = current.artists
+        .where((a) => a.toLowerCase() != lowerTrimmed)
+        .toList();
+
+    final updated = current.copyWith(
+      dislikedArtists: [...current.dislikedArtists, trimmed],
+      artists: updatedFavorites,
+    );
+    state = updated;
+    await TasteProfilePreferences.save(updated);
+    return true;
+  }
+
+  /// Removes a disliked artist by exact string match.
+  Future<void> removeDislikedArtist(String artist) async {
+    final current = state;
+    if (current == null) return;
+    final updated = current.copyWith(
+      dislikedArtists:
+          current.dislikedArtists.where((a) => a != artist).toList(),
+    );
+    state = updated;
+    await TasteProfilePreferences.save(updated);
+  }
+
+  /// Sets the vocal preference.
+  Future<void> setVocalPreference(VocalPreference pref) async {
+    final profile =
+        (state ?? const TasteProfile()).copyWith(vocalPreference: pref);
+    state = profile;
+    await TasteProfilePreferences.save(profile);
+  }
+
+  /// Sets the tempo variance tolerance.
+  Future<void> setTempoVarianceTolerance(
+      TempoVarianceTolerance tolerance) async {
+    final profile = (state ?? const TasteProfile())
+        .copyWith(tempoVarianceTolerance: tolerance);
     state = profile;
     await TasteProfilePreferences.save(profile);
   }

@@ -38,7 +38,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/playlist',
-        builder: (context, state) => const PlaylistScreen(),
+        builder: (context, state) => PlaylistScreen(
+          autoGenerate: state.uri.queryParameters['auto'] == 'true',
+        ),
       ),
       GoRoute(
         path: '/playlist-history',

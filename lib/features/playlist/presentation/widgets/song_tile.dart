@@ -16,6 +16,9 @@ class SongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      leading: song.runningQuality != null && song.runningQuality! >= 20
+          ? const Icon(Icons.star, size: 20, color: Colors.amber)
+          : null,
       title: Text(
         song.title,
         maxLines: 1,

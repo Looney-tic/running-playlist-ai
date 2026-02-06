@@ -8,6 +8,7 @@ import 'package:running_playlist_ai/features/playlist/presentation/widgets/song_
 import 'package:running_playlist_ai/features/playlist/providers/playlist_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
+import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
 
 /// Screen for generating and displaying a BPM-matched playlist.
 ///
@@ -17,11 +18,36 @@ import 'package:running_playlist_ai/features/run_plan/providers/run_plan_provide
 /// - Loading: shows progress indicator
 /// - Loaded: shows playlist grouped by segment with song cards
 /// - Error: shows error message with retry button
-class PlaylistScreen extends ConsumerWidget {
-  const PlaylistScreen({super.key});
+///
+/// Supports [autoGenerate] to trigger playlist generation on mount
+/// when navigated from the home screen quick-regenerate card.
+class PlaylistScreen extends ConsumerStatefulWidget {
+  const PlaylistScreen({this.autoGenerate = false, super.key});
+
+  /// When true, automatically triggers playlist generation on mount
+  /// if a run plan exists.
+  final bool autoGenerate;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlaylistScreen> createState() => _PlaylistScreenState();
+}
+
+class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoGenerate) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final runPlan = ref.read(runPlanNotifierProvider);
+        if (runPlan != null) {
+          ref.read(playlistGenerationProvider.notifier).generatePlaylist();
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final generationState = ref.watch(playlistGenerationProvider);
     final runPlan = ref.watch(runPlanNotifierProvider);
 
@@ -250,15 +276,18 @@ class _IdleView extends StatelessWidget {
   }
 }
 
-/// Displays the generated playlist grouped by segment.
-class _PlaylistView extends StatelessWidget {
+/// Displays the generated playlist grouped by segment with cadence nudge.
+class _PlaylistView extends ConsumerWidget {
   const _PlaylistView({required this.playlist, required this.onRegenerate});
 
   final Playlist playlist;
   final VoidCallback onRegenerate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strideState = ref.watch(strideNotifierProvider);
+    final cadence = strideState.cadence.round();
+
     if (playlist.songs.isEmpty) {
       return Center(
         child: Padding(
@@ -311,6 +340,62 @@ class _PlaylistView extends StatelessWidget {
                 onPressed: onRegenerate,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Regenerate'),
+              ),
+            ],
+          ),
+        ),
+        // Cadence nudge row
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: () => ref
+                    .read(strideNotifierProvider.notifier)
+                    .nudgeCadence(-3),
+                icon: const Icon(Icons.remove),
+                tooltip: '-3 spm',
+                iconSize: 20,
+              ),
+              IconButton(
+                onPressed: () => ref
+                    .read(strideNotifierProvider.notifier)
+                    .nudgeCadence(-1),
+                icon: const Icon(Icons.remove),
+                tooltip: '-1 spm',
+                iconSize: 16,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  '$cadence spm',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => ref
+                    .read(strideNotifierProvider.notifier)
+                    .nudgeCadence(1),
+                icon: const Icon(Icons.add),
+                tooltip: '+1 spm',
+                iconSize: 16,
+              ),
+              IconButton(
+                onPressed: () => ref
+                    .read(strideNotifierProvider.notifier)
+                    .nudgeCadence(3),
+                icon: const Icon(Icons.add),
+                tooltip: '+3 spm',
+                iconSize: 20,
               ),
             ],
           ),

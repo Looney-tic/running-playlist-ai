@@ -24,12 +24,18 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
   final _selectedGenres = <RunningGenre>{};
   final _artists = <String>[];
   EnergyLevel _selectedEnergyLevel = EnergyLevel.balanced;
+  VocalPreference _selectedVocalPreference = VocalPreference.noPreference;
+  TempoVarianceTolerance _selectedTempoVarianceTolerance =
+      TempoVarianceTolerance.moderate;
+  final _dislikedArtists = <String>[];
   final _artistController = TextEditingController();
+  final _dislikedArtistController = TextEditingController();
   bool _initialized = false;
 
   @override
   void dispose() {
     _artistController.dispose();
+    _dislikedArtistController.dispose();
     super.dispose();
   }
 
@@ -51,6 +57,11 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
             ..clear()
             ..addAll(profile.artists);
           _selectedEnergyLevel = profile.energyLevel;
+          _selectedVocalPreference = profile.vocalPreference;
+          _selectedTempoVarianceTolerance = profile.tempoVarianceTolerance;
+          _dislikedArtists
+            ..clear()
+            ..addAll(profile.dislikedArtists);
         });
       });
     }
@@ -158,6 +169,99 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
                 setState(() => _selectedEnergyLevel = selected.first);
               },
             ),
+            const SizedBox(height: 24),
+
+            // -- Vocal Preference selector --
+            Text('Vocal Preference', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<VocalPreference>(
+              segments: const [
+                ButtonSegment(
+                  value: VocalPreference.noPreference,
+                  label: Text('No Preference'),
+                  icon: Icon(Icons.remove),
+                ),
+                ButtonSegment(
+                  value: VocalPreference.preferVocals,
+                  label: Text('Prefer Vocals'),
+                  icon: Icon(Icons.mic),
+                ),
+                ButtonSegment(
+                  value: VocalPreference.preferInstrumental,
+                  label: Text('Instrumental'),
+                  icon: Icon(Icons.music_off),
+                ),
+              ],
+              selected: {_selectedVocalPreference},
+              onSelectionChanged: (selected) {
+                setState(() => _selectedVocalPreference = selected.first);
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // -- Tempo Tolerance selector --
+            Text('Tempo Matching', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<TempoVarianceTolerance>(
+              segments: const [
+                ButtonSegment(
+                  value: TempoVarianceTolerance.strict,
+                  label: Text('Strict'),
+                  icon: Icon(Icons.gps_fixed),
+                ),
+                ButtonSegment(
+                  value: TempoVarianceTolerance.moderate,
+                  label: Text('Moderate'),
+                  icon: Icon(Icons.adjust),
+                ),
+                ButtonSegment(
+                  value: TempoVarianceTolerance.loose,
+                  label: Text('Loose'),
+                  icon: Icon(Icons.all_inclusive),
+                ),
+              ],
+              selected: {_selectedTempoVarianceTolerance},
+              onSelectionChanged: (selected) {
+                setState(
+                    () => _selectedTempoVarianceTolerance = selected.first);
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // -- Disliked Artists input --
+            Text('Disliked Artists', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Songs by these artists will be excluded (${_dislikedArtists.length}/10)',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            if (_dislikedArtists.isNotEmpty) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: _dislikedArtists.map((artist) {
+                  return InputChip(
+                    label: Text(artist),
+                    onDeleted: () {
+                      setState(() => _dislikedArtists.remove(artist));
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (_dislikedArtists.length < 10)
+              TextField(
+                controller: _dislikedArtistController,
+                decoration: const InputDecoration(
+                  labelText: 'Add disliked artist',
+                  hintText: 'Type artist name and press enter',
+                  border: OutlineInputBorder(),
+                ),
+                textInputAction: TextInputAction.done,
+                onSubmitted: _addDislikedArtist,
+              ),
             const SizedBox(height: 32),
 
             // -- Save button --
@@ -192,11 +296,35 @@ class _TasteProfileScreenState extends ConsumerState<TasteProfileScreen> {
     }
   }
 
+  void _addDislikedArtist(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+
+    // Case-insensitive duplicate check
+    final lowerTrimmed = trimmed.toLowerCase();
+    if (_dislikedArtists.any((a) => a.toLowerCase() == lowerTrimmed)) {
+      _dislikedArtistController.clear();
+      return;
+    }
+
+    if (_dislikedArtists.length < 10) {
+      setState(() {
+        _dislikedArtists.add(trimmed);
+        // Mutual exclusivity: remove from favorites if present
+        _artists.removeWhere((a) => a.toLowerCase() == lowerTrimmed);
+      });
+      _dislikedArtistController.clear();
+    }
+  }
+
   void _saveProfile() {
     final profile = TasteProfile(
       genres: _selectedGenres.toList(),
       artists: List.of(_artists),
       energyLevel: _selectedEnergyLevel,
+      vocalPreference: _selectedVocalPreference,
+      tempoVarianceTolerance: _selectedTempoVarianceTolerance,
+      dislikedArtists: List.of(_dislikedArtists),
     );
     ref.read(tasteProfileNotifierProvider.notifier).setProfile(profile);
 

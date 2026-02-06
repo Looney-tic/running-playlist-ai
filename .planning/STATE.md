@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 20 of 21 (Profile Polish)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-06 -- Phase 19 complete (2/2 plans)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 20-01-PLAN.md
 
-Progress: v0.1-v1.1 complete (26 plans) | v1.2: [===.......] 2/6
+Progress: v0.1-v1.1 complete (26 plans) | v1.2: [====......] 3/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 2 from v1.2 + 2 quick tasks)
+- Total plans completed: 29 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 3 from v1.2 + 2 quick tasks)
 - Average duration: 6m
-- Total execution time: ~2.3 hours
+- Total execution time: ~2.4 hours
 
 **By Phase (v1.1 -- most recent):**
 
@@ -48,6 +48,7 @@ Recent decisions affecting current work:
 - Zero new dependencies for v1.2 -- all features build on existing stack
 - Onboarding flag pre-loaded in main.dart before GoRouter init (sync redirect)
 - shufflePlaylist() reuses songPool with new Random seed (no API re-fetch)
+- All enum fromJson methods have orElse fallbacks; lists use tryFromJson+whereType filtering (20-01)
 
 ### Pending Todos
 
@@ -58,11 +59,11 @@ Recent decisions affecting current work:
 ### Blockers/Concerns
 
 - ~~Regeneration race condition on cold start~~ (FIXED in Phase 19)
-- Enum deserializers lack orElse fallbacks -- crash risk on corrupt data (Phase 20 target)
+- ~~Enum deserializers lack orElse fallbacks -- crash risk on corrupt data~~ (FIXED in 20-01)
 - GetSongBPM API rate limits and danceability field availability unconfirmed
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Phase 19 complete, ready for Phase 20
+Stopped at: Completed 20-01-PLAN.md
 Resume file: None

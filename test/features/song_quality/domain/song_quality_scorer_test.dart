@@ -714,6 +714,207 @@ void main() {
       expect(SongQualityScorer.curatedBonusWeight, equals(5));
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // Disliked artist penalty
+  // ──────────────────────────────────────────────────────
+  group('Disliked artist penalty', () {
+    test('song by a disliked artist gets -15 penalty', () {
+      final profile = TasteProfile(dislikedArtists: ['Drake']);
+      final dislikedScore = SongQualityScorer.score(
+        song: _song(artistName: 'Drake'),
+        tasteProfile: profile,
+      );
+      final neutralScore = SongQualityScorer.score(
+        song: _song(artistName: 'Unknown'),
+        tasteProfile: profile,
+      );
+      expect(dislikedScore - neutralScore, equals(-15));
+    });
+
+    test('bidirectional substring: disliked "Drake" matches "Drake feat. Rihanna"',
+        () {
+      final profile = TasteProfile(dislikedArtists: ['Drake']);
+      final score = SongQualityScorer.score(
+        song: _song(artistName: 'Drake feat. Rihanna'),
+        tasteProfile: profile,
+      );
+      final neutralScore = SongQualityScorer.score(
+        song: _song(artistName: 'Unknown'),
+        tasteProfile: profile,
+      );
+      expect(score - neutralScore, equals(-15));
+    });
+
+    test('bidirectional substring: disliked "Drake feat. Rihanna" matches "Drake"',
+        () {
+      final profile =
+          TasteProfile(dislikedArtists: ['Drake feat. Rihanna']);
+      final score = SongQualityScorer.score(
+        song: _song(artistName: 'Drake'),
+        tasteProfile: profile,
+      );
+      final neutralScore = SongQualityScorer.score(
+        song: _song(artistName: 'Unknown'),
+        tasteProfile: profile,
+      );
+      expect(score - neutralScore, equals(-15));
+    });
+
+    test('song by a non-disliked artist gets 0 penalty', () {
+      final profile = TasteProfile(dislikedArtists: ['Drake']);
+      final score = SongQualityScorer.score(
+        song: _song(artistName: 'Eminem'),
+        tasteProfile: profile,
+      );
+      final noProfileScore = SongQualityScorer.score(
+        song: _song(artistName: 'Eminem'),
+        tasteProfile: const TasteProfile(),
+      );
+      expect(score, equals(noProfileScore));
+    });
+
+    test('empty dislikedArtists list: no penalty applied', () {
+      final profile = TasteProfile(dislikedArtists: []);
+      final score = SongQualityScorer.score(
+        song: _song(artistName: 'Drake'),
+        tasteProfile: profile,
+      );
+      final noProfileScore = SongQualityScorer.score(
+        song: _song(artistName: 'Drake'),
+        tasteProfile: const TasteProfile(),
+      );
+      expect(score, equals(noProfileScore));
+    });
+
+    test('null tasteProfile: no penalty applied', () {
+      final score = SongQualityScorer.score(
+        song: _song(artistName: 'Drake'),
+        tasteProfile: null,
+      );
+      final score2 = SongQualityScorer.score(
+        song: _song(artistName: 'Unknown'),
+        tasteProfile: null,
+      );
+      expect(score, equals(score2));
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Tempo variance tolerance scoring
+  // ──────────────────────────────────────────────────────
+  group('Tempo variance tolerance scoring', () {
+    test('strict: exact BPM gets exactBpmWeight (3)', () {
+      final profile = TasteProfile(
+        tempoVarianceTolerance: TempoVarianceTolerance.strict,
+      );
+      final exactScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.exact),
+        tasteProfile: profile,
+      );
+      final halfTimeScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: profile,
+      );
+      // exact gets 3, halfTime gets 0 under strict -> diff = 3
+      expect(exactScore - halfTimeScore, equals(3));
+    });
+
+    test('strict: half-time song gets 0', () {
+      final profile = TasteProfile(
+        tempoVarianceTolerance: TempoVarianceTolerance.strict,
+      );
+      // Compare with null profile (moderate default) where halfTime gets 1
+      final strictScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: profile,
+      );
+      final moderateScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: null,
+      );
+      // strict halfTime=0, moderate halfTime=1 -> diff = -1
+      expect(strictScore - moderateScore, equals(-1));
+    });
+
+    test('moderate: exact BPM gets exactBpmWeight (3)', () {
+      final profile = TasteProfile(
+        tempoVarianceTolerance: TempoVarianceTolerance.moderate,
+      );
+      final exactScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.exact),
+        tasteProfile: profile,
+      );
+      final halfTimeScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: profile,
+      );
+      // exact=3, halfTime=1 -> diff = 2
+      expect(exactScore - halfTimeScore, equals(2));
+    });
+
+    test('moderate: half-time song gets tempoVariantWeight (1)', () {
+      final profile = TasteProfile(
+        tempoVarianceTolerance: TempoVarianceTolerance.moderate,
+      );
+      final moderateScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: profile,
+      );
+      final nullScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: null,
+      );
+      // Both should give halfTime=1 -> same score
+      expect(moderateScore, equals(nullScore));
+    });
+
+    test('loose: exact BPM gets exactBpmWeight (3)', () {
+      final profile = TasteProfile(
+        tempoVarianceTolerance: TempoVarianceTolerance.loose,
+      );
+      final exactScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.exact),
+        tasteProfile: profile,
+      );
+      final halfTimeScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: profile,
+      );
+      // exact=3, halfTime=2 -> diff = 1
+      expect(exactScore - halfTimeScore, equals(1));
+    });
+
+    test('loose: half-time song gets looseTempoVariantWeight (2)', () {
+      final profile = TasteProfile(
+        tempoVarianceTolerance: TempoVarianceTolerance.loose,
+      );
+      final looseScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: profile,
+      );
+      final nullScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: null,
+      );
+      // loose halfTime=2, null/moderate halfTime=1 -> diff = 1
+      expect(looseScore - nullScore, equals(1));
+    });
+
+    test('null tasteProfile: moderate behavior (unchanged from current)', () {
+      final nullScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: null,
+      );
+      final moderateScore = SongQualityScorer.score(
+        song: _song(matchType: BpmMatchType.halfTime),
+        tasteProfile: const TasteProfile(
+          tempoVarianceTolerance: TempoVarianceTolerance.moderate,
+        ),
+      );
+      expect(nullScore, equals(moderateScore));
+    });
+  });
 }
 
 /// Helper to compute the danceability score difference between two values.

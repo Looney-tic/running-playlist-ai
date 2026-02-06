@@ -4,7 +4,7 @@
 
 - **v0.1 Foundation** - Phases 1-10 (shipped 2026-02-05)
 - **v1.0 Standalone Playlist Generator** - Phases 11-15 (shipped 2026-02-05)
-- **v1.1 Experience Quality** - Phases 16-18 (in progress)
+- **v1.1 Experience Quality** - Phases 16-18 (shipped 2026-02-06)
 
 ## Phases
 
@@ -60,13 +60,13 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 </details>
 
-### v1.1 Experience Quality (In Progress)
+### v1.1 Experience Quality - SHIPPED 2026-02-06
 
 **Milestone Goal:** Make generated playlists genuinely great for running -- not just BPM-matched, but songs that are proven good running songs, matched to the user's taste, with frictionless stride adjustment and repeat generation.
 
 - [x] **Phase 16: Scoring Foundation** - Composite quality scoring using danceability, genre, energy, and artist diversity
 - [x] **Phase 17: Curated Running Songs** - Bundled dataset of verified running songs with remote update capability
-- [ ] **Phase 18: UX Refinements** - Cadence nudge, one-tap regeneration, quality indicators, and extended taste preferences
+- [x] **Phase 18: UX Refinements** - Cadence nudge, one-tap regeneration, quality indicators, and extended taste preferences
 
 #### Phase 16: Scoring Foundation
 **Goal**: Generated playlists rank songs by running suitability -- not just BPM proximity -- using danceability, genre match, energy alignment, and artist diversity
@@ -111,8 +111,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 18-01-PLAN.md -- TDD: TasteProfile model extension, SongQualityScorer disliked-artist + tempo-variance scoring, StrideNotifier.nudgeCadence
-- [ ] 18-02-PLAN.md -- UI: Quality badges, cadence nudge widgets, quick-regenerate card, taste profile screen extensions, auto-trigger wiring
+- [x] 18-01-PLAN.md -- TDD: TasteProfile model extension, SongQualityScorer disliked-artist + tempo-variance scoring, StrideNotifier.nudgeCadence
+- [x] 18-02-PLAN.md -- UI: Quality badges, cadence nudge widgets, quick-regenerate card, taste profile screen extensions, auto-trigger wiring
 
 ## Progress
 
@@ -131,4 +131,4 @@ Plans:
 | 15. History | v1.0 | 2/2 | Complete | 2026-02-05 |
 | 16. Scoring Foundation | v1.1 | 2/2 | Complete | 2026-02-05 |
 | 17. Curated Songs | v1.1 | 2/2 | Complete | 2026-02-06 |
-| 18. UX Refinements | v1.1 | 0/? | Not started | - |
+| 18. UX Refinements | v1.1 | 2/2 | Complete | 2026-02-06 |

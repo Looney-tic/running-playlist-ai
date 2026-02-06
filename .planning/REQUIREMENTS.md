@@ -21,10 +21,10 @@
 
 ## UX & Flow
 
-- [ ] **UX-01**: User can adjust cadence by +/- 2-3 BPM from the playlist or home screen without re-entering stride calculator
-- [ ] **UX-02**: Returning user can regenerate a playlist for their last run with one tap from the home screen
-- [ ] **UX-03**: Playlist UI shows a quality indicator (badge/icon) for songs with high runnability or curated status
-- [ ] **UX-04**: User can set additional taste preferences: vocal preference, tempo variance tolerance, and disliked artists
+- [x] **UX-01**: User can adjust cadence by +/- 2-3 BPM from the playlist or home screen without re-entering stride calculator
+- [x] **UX-02**: Returning user can regenerate a playlist for their last run with one tap from the home screen
+- [x] **UX-03**: Playlist UI shows a quality indicator (badge/icon) for songs with high runnability or curated status
+- [x] **UX-04**: User can set additional taste preferences: vocal preference, tempo variance tolerance, and disliked artists
 
 ## Traceability
 
@@ -40,10 +40,10 @@
 | CURA-02 | Phase 17 | Complete |
 | CURA-03 | Phase 17 | Complete |
 | CURA-04 | Phase 17 | Complete |
-| UX-01 | Phase 18 | Pending |
-| UX-02 | Phase 18 | Pending |
-| UX-03 | Phase 18 | Pending |
-| UX-04 | Phase 18 | Pending |
+| UX-01 | Phase 18 | Complete |
+| UX-02 | Phase 18 | Complete |
+| UX-03 | Phase 18 | Complete |
+| UX-04 | Phase 18 | Complete |
 
 ## Future (v1.2+)
 

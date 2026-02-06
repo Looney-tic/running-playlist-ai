@@ -10,20 +10,26 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 
 ## Current State
 
-**Shipped:** v1.1 Experience Quality (2026-02-06)
-**Codebase:** ~5,000 LOC Dart (lib), ~4,000 LOC tests, 332 tests passing
+**Shipped:** v1.2 Polish & Profiles (2026-02-06)
+**Codebase:** ~7,618 LOC Dart (lib), ~5,830 LOC tests
 
 **What works end-to-end:**
 - Stride calculator (pace + height -> cadence, optional calibration)
 - Run planner (steady, warm-up/cool-down, intervals with per-segment BPM)
 - Run plan library (multiple saved plans, selection)
 - Taste profile (genre picker, artist list, energy level, vocal pref, disliked artists, persisted)
+- Multiple named taste profiles with quick switching from playlist screen
 - 5,066 curated songs with runnability scores (crowd-sourced + feature-based)
 - Playlist generation (BPM-matched, runnability-scored, taste-filtered, artist-diverse)
+- Instant shuffle/regenerate reusing song pool (no API re-fetch)
 - Quality badges and cadence nudge in playlist UI
 - One-tap regeneration from home screen
 - External play links (Spotify/YouTube URLs via url_launcher)
 - Playlist history (auto-save, list view, detail view, swipe-to-delete)
+- Guided onboarding flow for first-time users (4 steps -> first playlist)
+- Context-aware home screen with empty states for missing profile/plan
+- Safe enum deserialization with orElse fallbacks (corrupt data resilience)
+- Delete confirmation dialogs on destructive actions
 
 ## Requirements
 
@@ -44,27 +50,21 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Extended taste profiling: vocal preference, tempo variance tolerance, disliked artists, decade preferences -- v1.1
 - ✓ Cadence nudge: +/- buttons on playlist and home screen for post-run adjustment -- v1.1
 - ✓ One-tap regeneration: returning users generate new playlist from home screen -- v1.1
-
-## Current Milestone: v1.2 Polish & Profiles
-
-**Goal:** Make the app feel complete for daily use — multiple taste profiles for different run types, reliable regeneration, and a guided first-run experience.
-
-**Target features:**
-- Multiple named taste profiles with quick switching from playlist screen
-- Fix playlist regeneration/shuffle bug (store run plan in generation state)
-- Onboarding flow that guides new users to their first playlist
-
-### Active
-
-- [ ] Multi taste profiles: users can create, name, and switch between taste profiles for different run types
-- [ ] Playlist regeneration: shuffle/regenerate works reliably without provider state issues
-- [ ] Onboarding: new users get guided through creating their first run plan + taste profile to generate a playlist
+- ✓ Instant shuffle/regenerate: reuses song pool with new random seed, no API re-fetch -- v1.2
+- ✓ Cold-start reliability: playlist generation works without null state crashes (readiness guards) -- v1.2
+- ✓ Profile-aware regeneration: switching run plan or taste profile updates next generation -- v1.2
+- ✓ Delete confirmation: destructive profile actions require user confirmation -- v1.2
+- ✓ Corrupt data resilience: enum deserializers have orElse fallbacks preventing crash on unknown values -- v1.2
+- ✓ Multi-profile lifecycle: create, edit, delete, switch, persist verified with integration tests -- v1.2
+- ✓ Guided onboarding: first-run users see welcome -> genres -> pace -> auto-generate first playlist -- v1.2
+- ✓ Skip-friendly onboarding: any step can be skipped with sensible defaults preserved -- v1.2
+- ✓ Context-aware home screen: adapts based on whether user has profiles and run plans configured -- v1.2
 
 ### Out of Scope
 
 - Spotify OAuth integration -- Deferred until Developer Dashboard available; current approach works without it
 - Spotify library import for taste profile -- Running music taste differs from general listening; questionnaire is better
-- Spotify playlist export -- Deferred; external play links sufficient for v1.0
+- Spotify playlist export -- Deferred; external play links sufficient for now
 - Apple Music / other streaming services -- Architecture allows future expansion
 - Social features (sharing runs, leaderboards) -- Not core to the playlist value
 - GPS tracking / live run monitoring -- This is a playlist tool, not a running tracker
@@ -107,9 +107,14 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | Playlist.id nullable String? | Backward compat with pre-history JSON; auto-assigned on generation | ✓ Good |
 | unawaited() auto-save | Fire-and-forget after UI state is set; doesn't block playlist display | ✓ Good |
 | Shared widget extraction | SegmentHeader/SongTile used by both PlaylistScreen and HistoryDetailScreen | ✓ Good |
-
 | Runnability scoring (crowd + features) | 5,066 songs with 0-100 runnability; replaces flat curated bonus in scorer | ✓ Good |
 | curatedRunnability Map<String,int> | Lookup runnability values during scoring, not just set membership | ✓ Good |
+| Completer-based ensureLoaded() | Sync, idempotent readiness guards for cold-start reliability | ✓ Good |
+| shufflePlaylist() reuses songPool | Instant regeneration with new Random seed, no API re-fetch | ✓ Good |
+| orElse fallbacks on all enum fromJson | Prevents crash on corrupt/unknown enum values from older/newer app | ✓ Good |
+| Onboarding flag pre-loaded in main.dart | Sync GoRouter redirect -- no flicker, no async guard needed | ✓ Good |
+| PageView for onboarding steps | NeverScrollableScrollPhysics prevents swipe; buttons control navigation | ✓ Good |
+| Context-aware home screen | Conditional setup cards when profile/plan missing; adapts to user state | ✓ Good |
 
 ---
-*Last updated: 2026-02-06 after v1.2 milestone started*
+*Last updated: 2026-02-06 after v1.2 milestone completed*

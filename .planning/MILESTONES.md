@@ -2,6 +2,42 @@
 
 ## Completed
 
+### v1.2: Polish & Profiles (Shipped: 2026-02-06)
+
+**Delivered:** Reliable playlist regeneration with readiness guards, safe multi-profile management with delete confirmation and corrupt-data resilience, and a 4-step onboarding flow guiding new users to their first generated playlist.
+
+**Phases completed:** 19-21 (6 plans total)
+
+**Key accomplishments:**
+- Instant shuffle/regenerate with Completer-based ensureLoaded() readiness guards
+- Safe enum deserialization with orElse fallbacks surviving corrupt JSON
+- Delete confirmation dialogs + 8-test multi-profile lifecycle coverage
+- 4-step onboarding flow guiding new users to their first playlist
+- Context-aware home screen empty states adapting to profile/plan existence
+
+**Stats:**
+- 37 files created/modified
+- +3,066/-154 lines changed
+- ~7,618 LOC Dart (lib), ~5,830 LOC tests
+- 3 phases, 6 plans
+- 9 requirements delivered (100% coverage)
+
+**Git range:** `feat(19-01)` -> `feat(21-02)`
+
+**What's next:** TBD -- run `/gsd:new-milestone` to plan next milestone
+
+---
+
+### v1.1: Experience Quality (Shipped: 2026-02-06)
+
+**Delivered:** Song quality scoring with 8-dimension runnability system, 5,066 curated running songs with metadata, extended taste profiling, cadence nudge controls, and one-tap regeneration from home screen.
+
+**Phases completed:** 16-18 (6 plans total)
+
+**Git range:** `feat(16-01)` -> `feat(18-02)`
+
+---
+
 ### v1.0: Standalone Playlist Generator (Shipped: 2026-02-05)
 
 **Delivered:** Full BPM-matched playlist generation from run plan input, with taste profiling, BPM discovery via GetSongBPM API, external play links, and playlist history -- all without Spotify integration.
@@ -51,4 +87,4 @@
 **Pivot decision:** Build without Spotify integration. Use GetSongBPM API for BPM data and questionnaire-based taste profile instead.
 
 ---
-*Last updated: 2026-02-05*
+*Last updated: 2026-02-06*

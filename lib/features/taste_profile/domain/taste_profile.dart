@@ -42,16 +42,53 @@ enum RunningGenre {
       RunningGenre.values.firstWhere((e) => e.name == name);
 }
 
+/// Vocal vs instrumental preference for running music.
+enum VocalPreference {
+  noPreference,
+  preferVocals,
+  preferInstrumental;
+
+  /// Deserializes from a JSON string with fallback to [noPreference].
+  static VocalPreference fromJson(String name) =>
+      VocalPreference.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => VocalPreference.noPreference,
+      );
+}
+
+/// How strictly BPM must match the target cadence.
+///
+/// Controls scoring of half-time / double-time variants:
+/// - [strict]: only exact BPM matches score
+/// - [moderate]: variants score at reduced weight (default)
+/// - [loose]: variants score close to exact matches
+enum TempoVarianceTolerance {
+  strict,
+  moderate,
+  loose;
+
+  /// Deserializes from a JSON string with fallback to [moderate].
+  static TempoVarianceTolerance fromJson(String name) =>
+      TempoVarianceTolerance.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => TempoVarianceTolerance.moderate,
+      );
+}
+
 /// The user's running music taste preferences.
 ///
 /// Stores genre preferences (1-5 from [RunningGenre]), favorite artists
-/// (0-10 strings), and an [EnergyLevel] preference. Persisted as a single
+/// (0-10 strings), an [EnergyLevel] preference, a [VocalPreference],
+/// a [TempoVarianceTolerance], and disliked artists. Persisted as a single
 /// JSON blob via SharedPreferences.
 class TasteProfile {
   const TasteProfile({
     this.genres = const [],
     this.artists = const [],
     this.energyLevel = EnergyLevel.balanced,
+    this.vocalPreference = VocalPreference.noPreference,
+    this.tempoVarianceTolerance = TempoVarianceTolerance.moderate,
+    this.dislikedArtists = const [],
   });
 
   factory TasteProfile.fromJson(Map<String, dynamic> json) {
@@ -63,6 +100,17 @@ class TasteProfile {
           .map((a) => a as String)
           .toList(),
       energyLevel: EnergyLevel.fromJson(json['energyLevel'] as String),
+      vocalPreference: json['vocalPreference'] != null
+          ? VocalPreference.fromJson(json['vocalPreference'] as String)
+          : VocalPreference.noPreference,
+      tempoVarianceTolerance: json['tempoVarianceTolerance'] != null
+          ? TempoVarianceTolerance.fromJson(
+              json['tempoVarianceTolerance'] as String)
+          : TempoVarianceTolerance.moderate,
+      dislikedArtists: (json['dislikedArtists'] as List<dynamic>?)
+              ?.map((a) => a as String)
+              .toList() ??
+          const [],
     );
   }
 
@@ -75,21 +123,40 @@ class TasteProfile {
   /// Preferred energy level for playlists.
   final EnergyLevel energyLevel;
 
+  /// Vocal vs instrumental preference.
+  final VocalPreference vocalPreference;
+
+  /// How strictly BPM must match the target cadence.
+  final TempoVarianceTolerance tempoVarianceTolerance;
+
+  /// Artists the user wants to avoid in playlists.
+  final List<String> dislikedArtists;
+
   Map<String, dynamic> toJson() => {
         'genres': genres.map((g) => g.name).toList(),
         'artists': artists,
         'energyLevel': energyLevel.name,
+        'vocalPreference': vocalPreference.name,
+        'tempoVarianceTolerance': tempoVarianceTolerance.name,
+        'dislikedArtists': dislikedArtists,
       };
 
   TasteProfile copyWith({
     List<RunningGenre>? genres,
     List<String>? artists,
     EnergyLevel? energyLevel,
+    VocalPreference? vocalPreference,
+    TempoVarianceTolerance? tempoVarianceTolerance,
+    List<String>? dislikedArtists,
   }) {
     return TasteProfile(
       genres: genres ?? this.genres,
       artists: artists ?? this.artists,
       energyLevel: energyLevel ?? this.energyLevel,
+      vocalPreference: vocalPreference ?? this.vocalPreference,
+      tempoVarianceTolerance:
+          tempoVarianceTolerance ?? this.tempoVarianceTolerance,
+      dislikedArtists: dislikedArtists ?? this.dislikedArtists,
     );
   }
 }

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 19 - Regeneration Reliability (v1.2)
+**Current focus:** Phase 20 - Profile Polish (v1.2)
 
 ## Current Position
 
-Phase: 19 of 21 (Regeneration Reliability)
+Phase: 20 of 21 (Profile Polish)
 Plan: 0 of 2 in current phase
 Status: Ready to plan
-Last activity: 2026-02-06 -- Roadmap created for v1.2 (3 phases, 9 requirements)
+Last activity: 2026-02-06 -- Phase 19 complete (2/2 plans)
 
-Progress: v0.1-v1.1 complete (26 plans) | v1.2: [..........] 0/6
+Progress: v0.1-v1.1 complete (26 plans) | v1.2: [===.......] 2/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 2 quick tasks)
+- Total plans completed: 28 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 2 from v1.2 + 2 quick tasks)
 - Average duration: 6m
 - Total execution time: ~2.3 hours
 
@@ -57,12 +57,12 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- Regeneration race condition on cold start (Phase 19 target)
+- ~~Regeneration race condition on cold start~~ (FIXED in Phase 19)
 - Enum deserializers lack orElse fallbacks -- crash risk on corrupt data (Phase 20 target)
 - GetSongBPM API rate limits and danceability field availability unconfirmed
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Created v1.2 roadmap (3 phases: 19-21)
+Stopped at: Phase 19 complete, ready for Phase 20
 Resume file: None

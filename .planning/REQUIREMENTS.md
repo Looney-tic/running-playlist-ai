@@ -9,9 +9,9 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 
 ### Regeneration Reliability
 
-- [ ] **REGEN-01**: Shuffle/regenerate reuses stored song pool with a new random seed — instant, no API re-fetch
-- [ ] **REGEN-02**: Playlist generation works reliably on cold start without null state crashes (race condition fix)
-- [ ] **REGEN-03**: When user changes run plan or taste profile via inline selector, next generate uses the updated selection
+- [x] **REGEN-01**: Shuffle/regenerate reuses stored song pool with a new random seed — instant, no API re-fetch
+- [x] **REGEN-02**: Playlist generation works reliably on cold start without null state crashes (race condition fix)
+- [x] **REGEN-03**: When user changes run plan or taste profile via inline selector, next generate uses the updated selection
 
 ### Profile Polish
 
@@ -49,9 +49,9 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REGEN-01 | Phase 19 | Pending |
-| REGEN-02 | Phase 19 | Pending |
-| REGEN-03 | Phase 19 | Pending |
+| REGEN-01 | Phase 19 | Done |
+| REGEN-02 | Phase 19 | Done |
+| REGEN-03 | Phase 19 | Done |
 | PROF-01 | Phase 20 | Pending |
 | PROF-02 | Phase 20 | Pending |
 | PROF-03 | Phase 20 | Pending |

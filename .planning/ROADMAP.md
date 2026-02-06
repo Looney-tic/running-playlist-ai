@@ -5,7 +5,7 @@
 - **v0.1 Foundation** - Phases 1-10 (shipped 2026-02-05)
 - **v1.0 Standalone Playlist Generator** - Phases 11-15 (shipped 2026-02-05)
 - **v1.1 Experience Quality** - Phases 16-18 (shipped 2026-02-06)
-- **v1.2 Polish & Profiles** - Phases 19-21 (in progress)
+- **v1.2 Polish & Profiles** - Phases 19-21 (shipped 2026-02-06)
 
 ## Phases
 
@@ -70,13 +70,14 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 </details>
 
-### v1.2 Polish & Profiles (In Progress)
+<details>
+<summary>v1.2 Polish & Profiles (Phases 19-21) - SHIPPED 2026-02-06</summary>
 
-**Milestone Goal:** Make the app feel complete for daily use -- multiple taste profiles for different run types, reliable regeneration, and a guided first-run experience.
+- [x] Phase 19: Regeneration Reliability (2/2 plans)
+- [x] Phase 20: Profile Polish (2/2 plans)
+- [x] Phase 21: Onboarding (2/2 plans)
 
-- [ ] **Phase 19: Regeneration Reliability** - Shuffle/regenerate works instantly and reliably across cold starts and input changes
-- [ ] **Phase 20: Profile Polish** - Multi-profile flows are hardened with confirmation dialogs, safe deserialization, and test coverage
-- [ ] **Phase 21: Onboarding** - New users are guided from first launch to first playlist in under 60 seconds
+</details>
 
 ## Phase Details
 
@@ -120,8 +121,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md -- Onboarding data layer, GoRouter redirect, and multi-step onboarding flow screens
-- [ ] 21-02-PLAN.md -- Home screen context-aware empty states for missing profile/plan
+- [x] 21-01-PLAN.md -- Onboarding data layer, GoRouter redirect, and multi-step onboarding flow screens
+- [x] 21-02-PLAN.md -- Home screen context-aware empty states for missing profile/plan
 
 ## Progress
 
@@ -143,4 +144,4 @@ Plans:
 | 18. UX Refinements | v1.1 | 2/2 | Complete | 2026-02-06 |
 | 19. Regeneration Reliability | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 20. Profile Polish | v1.2 | 2/2 | Complete | 2026-02-06 |
-| 21. Onboarding | v1.2 | 0/2 | Not started | - |
+| 21. Onboarding | v1.2 | 2/2 | Complete | 2026-02-06 |

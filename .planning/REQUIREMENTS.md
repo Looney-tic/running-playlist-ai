@@ -21,9 +21,9 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 
 ### Onboarding
 
-- [ ] **ONBD-01**: First-run users see a guided flow: welcome → pick genres → set pace → auto-generate first playlist
-- [ ] **ONBD-02**: User can skip any onboarding step and proceed with sensible defaults
-- [ ] **ONBD-03**: Home screen adapts based on whether user has profiles and run plans configured (context-aware empty states)
+- [x] **ONBD-01**: First-run users see a guided flow: welcome → pick genres → set pace → auto-generate first playlist
+- [x] **ONBD-02**: User can skip any onboarding step and proceed with sensible defaults
+- [x] **ONBD-03**: Home screen adapts based on whether user has profiles and run plans configured (context-aware empty states)
 
 ## Future (v1.3+)
 
@@ -55,9 +55,9 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 | PROF-01 | Phase 20 | Done |
 | PROF-02 | Phase 20 | Done |
 | PROF-03 | Phase 20 | Done |
-| ONBD-01 | Phase 21 | Pending |
-| ONBD-02 | Phase 21 | Pending |
-| ONBD-03 | Phase 21 | Pending |
+| ONBD-01 | Phase 21 | Done |
+| ONBD-02 | Phase 21 | Done |
+| ONBD-03 | Phase 21 | Done |
 
 **Coverage:**
 - v1.2 requirements: 9 total
@@ -66,4 +66,4 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 
 ---
 *Requirements defined: 2026-02-06*
-*Last updated: 2026-02-06 after roadmap creation*
+*Last updated: 2026-02-06 after Phase 21 complete*

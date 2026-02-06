@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 Phase: 18 of 18 (UX Refinements)
 Plan: 2 of 2 in current phase
 Status: v1.1 Milestone complete, verified (17/17 must-haves across both plans)
-Last activity: 2026-02-06 -- Phase 18 verified, v1.1 milestone complete
+Last activity: 2026-02-06 - Completed quick task 002: Implement runnability scoring system for songs
 
 Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████████] 6/6
 
@@ -96,6 +96,12 @@ Full decision log in PROJECT.md Key Decisions table.
 - GetSongBPM API rate limits and coverage gaps unknown until runtime validation
 - build_runner code-gen partially broken with Dart 3.10 (monitor package updates)
 - Danceability field availability from GetSongBPM API unconfirmed -- scoring gracefully degrades to neutral when absent
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 002 | Implement runnability scoring system for songs | 2026-02-06 | 6adfe0a | [002-implement-runnability-scoring-system-for](./quick/002-implement-runnability-scoring-system-for/) |
 
 ## Session Continuity
 

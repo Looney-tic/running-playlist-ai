@@ -60,6 +60,27 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Skip-friendly onboarding: any step can be skipped with sensible defaults preserved -- v1.2
 - ✓ Context-aware home screen: adapts based on whether user has profiles and run plans configured -- v1.2
 
+## Current Milestone: v1.3 Song Feedback & Freshness
+
+**Goal:** Let users teach the app their taste through song feedback, and choose between fresh variety or taste-optimized playlists.
+
+**Target features:**
+- Like/dislike on every song in playlist view and post-run review
+- Feedback library screen showing all liked/disliked songs, editable
+- Scoring integration: liked songs score higher, disliked songs penalized/filtered
+- Taste learning: analyze feedback patterns to discover implicit preferences (genre, artist, BPM trends)
+- Freshness toggle: user preference between "keep it fresh" (deprioritize recent) vs "optimize for taste"
+- Freshness tracking: record when songs were last played/generated
+
+### Active
+
+- [ ] Song feedback: users can like/dislike songs in playlist view and post-run review
+- [ ] Feedback library: browse and edit all song feedback in a dedicated screen
+- [ ] Scoring integration: feedback signals boost/penalize songs in SongQualityScorer
+- [ ] Taste learning: analyze liked/disliked songs to discover implicit preferences
+- [ ] Freshness toggle: user chooses between fresh variety vs taste-optimized playlists
+- [ ] Freshness tracking: record song play history to support freshness deprioritization
+
 ### Out of Scope
 
 - Spotify OAuth integration -- Deferred until Developer Dashboard available; current approach works without it
@@ -117,4 +138,4 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | Context-aware home screen | Conditional setup cards when profile/plan missing; adapts to user state | ✓ Good |
 
 ---
-*Last updated: 2026-02-06 after v1.2 milestone completed*
+*Last updated: 2026-02-06 after v1.3 milestone started*

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Milestone v1.2 complete -- ready for next milestone
+**Current focus:** v1.3 Song Feedback & Freshness
 
 ## Current Position
 
-Phase: All phases complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Milestone v1.2 shipped
-Last activity: 2026-02-06 -- Milestone v1.2 archived
+Status: Defining requirements
+Last activity: 2026-02-06 -- Milestone v1.3 started
 
 Progress: v0.1-v1.2 complete (32 plans across 4 milestones)
 

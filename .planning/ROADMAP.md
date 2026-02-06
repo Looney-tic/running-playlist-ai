@@ -102,11 +102,11 @@ Plans:
   1. User sees a confirmation dialog before a taste profile is permanently deleted -- accidental taps do not destroy data
   2. App loads without crash even if stored taste profile JSON contains unknown enum values from a future or older app version
   3. User can create a new profile, edit it, select it, delete a different profile, and switch back -- all persisted correctly across app restart
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: TBD
-- [ ] 20-02: TBD
+- [ ] 20-01-PLAN.md -- TDD: Safe enum deserialization with orElse fallbacks and corrupt JSON resilience
+- [ ] 20-02-PLAN.md -- Delete confirmation dialogs and multi-profile lifecycle tests
 
 ### Phase 21: Onboarding
 **Goal**: First-time users are guided through creating their first run plan and taste profile, arriving at a generated playlist without needing to discover the app's workflow themselves

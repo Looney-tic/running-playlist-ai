@@ -117,11 +117,11 @@ Plans:
   2. User can skip any onboarding step and still reach playlist generation with sensible defaults filled in
   3. After completing onboarding, the home screen shows the user's configured profile and run plan -- not an empty state prompt
   4. A returning user who has already completed onboarding never sees the onboarding flow again
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 21-01: TBD
-- [ ] 21-02: TBD
+- [ ] 21-01-PLAN.md -- Onboarding data layer, GoRouter redirect, and multi-step onboarding flow screens
+- [ ] 21-02-PLAN.md -- Home screen context-aware empty states for missing profile/plan
 
 ## Progress
 

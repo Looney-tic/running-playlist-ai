@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality -- Phase 18: UX Refinements (in progress)
+**Current focus:** v1.1 Experience Quality -- Phase 18: UX Refinements (complete)
 
 ## Current Position
 
 Phase: 18 of 18 (UX Refinements)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 18-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 18-02-PLAN.md
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████████░░] 5/6
+Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████████] 6/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25 (10 from v0.1 + 10 from v1.0 + 5 from v1.1)
+- Total plans completed: 26 (10 from v0.1 + 10 from v1.0 + 6 from v1.1)
 - Average duration: 6m
-- Total execution time: ~2.2 hours
+- Total execution time: ~2.3 hours
 
 **By Phase (v0.1):**
 
@@ -48,7 +48,7 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████�
 |-------|-------|-------|----------|
 | 16 | 2/2 | 8m | 4m |
 | 17 | 2/2 | 11m | 6m |
-| 18 | 1/2 | 4m | 4m |
+| 18 | 2/2 | 9m | 5m |
 
 ## Accumulated Context
 
@@ -71,13 +71,17 @@ Full decision log in PROJECT.md Key Decisions table.
 - **TempoVarianceTolerance fallback to moderate:** Preserves current behavior on unknown JSON string
 - **Disliked artist penalty -15:** Stronger than diversity penalty (-5), weaker than artist match (+10)
 - **Loose tempo variant weight 2:** Between moderate (1) and exact (3), narrows gap for variety-seeking users
+- **Icons.music_off for instrumental preference:** Icons.piano not available in standard Flutter material icons
+- **surfaceContainerHighest for cadence nudge:** Material 3 compliant background color for nudge row
+- **Mutual exclusivity in provider and UI:** Adding disliked artist removes from favorites at both layers
 
 ### Pending Todos
 
 - **Manual UI verification:** Phase 8 structured run types
-- **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, persistence)
-- **Manual UI verification:** Playlist generation screen (all 5 states, song tap, clipboard copy)
+- **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, vocal preference, tempo tolerance, disliked artists, persistence)
+- **Manual UI verification:** Playlist generation screen (all 5 states, song tap, clipboard copy, quality badges, cadence nudge)
 - **Manual UI verification:** Playlist history (list, detail, delete, auto-save)
+- **Manual UI verification:** Home screen (quick-regenerate card, cadence nudge, auto-trigger navigation)
 - **Cadence estimate accuracy:** Validate stride formula across full pace/height range
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
@@ -93,5 +97,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 18-01-PLAN.md (TDD domain & scoring extensions)
+Stopped at: Completed 18-02-PLAN.md (UX Refinements UI -- all v1.1 plans complete)
 Resume file: None

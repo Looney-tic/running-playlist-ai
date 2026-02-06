@@ -14,10 +14,10 @@
 
 ## Curated Running Songs
 
-- [ ] **CURA-01**: App ships with 200-500 curated running songs (verified good for running) as bundled JSON asset, covering all supported genres
-- [ ] **CURA-02**: Curated songs receive a scoring bonus in playlist generation (boost, not filter — non-curated songs still appear)
-- [ ] **CURA-03**: Curated song dataset can be updated remotely via Supabase without requiring an app store release
-- [ ] **CURA-04**: Curated dataset structure supports future expansion beyond 500 songs
+- [x] **CURA-01**: App ships with 200-500 curated running songs (verified good for running) as bundled JSON asset, covering all supported genres
+- [x] **CURA-02**: Curated songs receive a scoring bonus in playlist generation (boost, not filter — non-curated songs still appear)
+- [x] **CURA-03**: Curated song dataset can be updated remotely via Supabase without requiring an app store release
+- [x] **CURA-04**: Curated dataset structure supports future expansion beyond 500 songs
 
 ## UX & Flow
 
@@ -36,10 +36,10 @@
 | QUAL-04 | Phase 16 | Complete |
 | QUAL-05 | Phase 16 | Complete |
 | QUAL-06 | Phase 16 | Complete |
-| CURA-01 | Phase 17 | Pending |
-| CURA-02 | Phase 17 | Pending |
-| CURA-03 | Phase 17 | Pending |
-| CURA-04 | Phase 17 | Pending |
+| CURA-01 | Phase 17 | Complete |
+| CURA-02 | Phase 17 | Complete |
+| CURA-03 | Phase 17 | Complete |
+| CURA-04 | Phase 17 | Complete |
 | UX-01 | Phase 18 | Pending |
 | UX-02 | Phase 18 | Pending |
 | UX-03 | Phase 18 | Pending |

@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 Phase: 17 of 18 (Curated Running Songs)
 Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 17-02-PLAN.md (curated data layer + provider wiring)
+Status: Phase complete, verified (12/12 must-haves)
+Last activity: 2026-02-06 -- Phase 17 verified and complete
 
 Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████░░░░] 4/6
 
@@ -88,5 +88,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 17-02-PLAN.md -- Phase 17 complete, ready for Phase 18 (Final Polish)
+Stopped at: Phase 17 Curated Running Songs complete and verified -- ready for Phase 18
 Resume file: None

@@ -2,6 +2,237 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
 
 void main() {
+  // -- VocalPreference enum ---------------------------------------------------
+
+  group('VocalPreference', () {
+    test('has exactly 3 values', () {
+      expect(VocalPreference.values.length, equals(3));
+    });
+
+    test('fromJson deserializes noPreference', () {
+      expect(
+        VocalPreference.fromJson('noPreference'),
+        equals(VocalPreference.noPreference),
+      );
+    });
+
+    test('fromJson deserializes preferVocals', () {
+      expect(
+        VocalPreference.fromJson('preferVocals'),
+        equals(VocalPreference.preferVocals),
+      );
+    });
+
+    test('fromJson deserializes preferInstrumental', () {
+      expect(
+        VocalPreference.fromJson('preferInstrumental'),
+        equals(VocalPreference.preferInstrumental),
+      );
+    });
+
+    test('fromJson with unknown string falls back to noPreference', () {
+      expect(
+        VocalPreference.fromJson('unknownValue'),
+        equals(VocalPreference.noPreference),
+      );
+    });
+  });
+
+  // -- TempoVarianceTolerance enum --------------------------------------------
+
+  group('TempoVarianceTolerance', () {
+    test('has exactly 3 values', () {
+      expect(TempoVarianceTolerance.values.length, equals(3));
+    });
+
+    test('fromJson deserializes strict', () {
+      expect(
+        TempoVarianceTolerance.fromJson('strict'),
+        equals(TempoVarianceTolerance.strict),
+      );
+    });
+
+    test('fromJson deserializes moderate', () {
+      expect(
+        TempoVarianceTolerance.fromJson('moderate'),
+        equals(TempoVarianceTolerance.moderate),
+      );
+    });
+
+    test('fromJson deserializes loose', () {
+      expect(
+        TempoVarianceTolerance.fromJson('loose'),
+        equals(TempoVarianceTolerance.loose),
+      );
+    });
+
+    test('fromJson with unknown string falls back to moderate', () {
+      expect(
+        TempoVarianceTolerance.fromJson('unknownValue'),
+        equals(TempoVarianceTolerance.moderate),
+      );
+    });
+  });
+
+  // -- TasteProfile backward-compatible fromJson ------------------------------
+
+  group('TasteProfile backward-compatible fromJson', () {
+    test('JSON with only original 3 fields deserializes successfully', () {
+      final json = {
+        'genres': ['pop', 'rock'],
+        'artists': ['Dua Lipa'],
+        'energyLevel': 'balanced',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.genres, equals([RunningGenre.pop, RunningGenre.rock]));
+      expect(profile.artists, equals(['Dua Lipa']));
+      expect(profile.energyLevel, equals(EnergyLevel.balanced));
+    });
+
+    test('missing vocalPreference defaults to noPreference', () {
+      final json = {
+        'genres': <String>[],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.vocalPreference, equals(VocalPreference.noPreference));
+    });
+
+    test('missing tempoVarianceTolerance defaults to moderate', () {
+      final json = {
+        'genres': <String>[],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(
+        profile.tempoVarianceTolerance,
+        equals(TempoVarianceTolerance.moderate),
+      );
+    });
+
+    test('missing dislikedArtists defaults to empty list', () {
+      final json = {
+        'genres': <String>[],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.dislikedArtists, isEmpty);
+    });
+  });
+
+  // -- TasteProfile fromJson with all fields ----------------------------------
+
+  group('TasteProfile fromJson with all fields', () {
+    test('JSON with all 6 fields deserializes correctly', () {
+      final json = {
+        'genres': ['pop'],
+        'artists': ['Dua Lipa'],
+        'energyLevel': 'intense',
+        'vocalPreference': 'preferVocals',
+        'tempoVarianceTolerance': 'strict',
+        'dislikedArtists': ['Drake', 'Pitbull'],
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.genres, equals([RunningGenre.pop]));
+      expect(profile.artists, equals(['Dua Lipa']));
+      expect(profile.energyLevel, equals(EnergyLevel.intense));
+      expect(
+        profile.vocalPreference,
+        equals(VocalPreference.preferVocals),
+      );
+      expect(
+        profile.tempoVarianceTolerance,
+        equals(TempoVarianceTolerance.strict),
+      );
+      expect(profile.dislikedArtists, equals(['Drake', 'Pitbull']));
+    });
+  });
+
+  // -- TasteProfile toJson roundtrip with new fields --------------------------
+
+  group('TasteProfile toJson roundtrip with new fields', () {
+    test('toJson includes new fields', () {
+      final profile = TasteProfile(
+        genres: [RunningGenre.pop],
+        artists: ['Dua Lipa'],
+        energyLevel: EnergyLevel.balanced,
+        vocalPreference: VocalPreference.preferInstrumental,
+        tempoVarianceTolerance: TempoVarianceTolerance.loose,
+        dislikedArtists: ['Drake'],
+      );
+      final json = profile.toJson();
+      expect(json['vocalPreference'], equals('preferInstrumental'));
+      expect(json['tempoVarianceTolerance'], equals('loose'));
+      expect(json['dislikedArtists'], equals(['Drake']));
+    });
+
+    test('fromJson(toJson) roundtrips correctly', () {
+      final original = TasteProfile(
+        genres: [RunningGenre.pop, RunningGenre.rock],
+        artists: ['Dua Lipa', 'The Weeknd'],
+        energyLevel: EnergyLevel.intense,
+        vocalPreference: VocalPreference.preferVocals,
+        tempoVarianceTolerance: TempoVarianceTolerance.strict,
+        dislikedArtists: ['Drake', 'Pitbull'],
+      );
+      final restored = TasteProfile.fromJson(original.toJson());
+      expect(restored.genres, equals(original.genres));
+      expect(restored.artists, equals(original.artists));
+      expect(restored.energyLevel, equals(original.energyLevel));
+      expect(restored.vocalPreference, equals(original.vocalPreference));
+      expect(
+        restored.tempoVarianceTolerance,
+        equals(original.tempoVarianceTolerance),
+      );
+      expect(restored.dislikedArtists, equals(original.dislikedArtists));
+    });
+  });
+
+  // -- TasteProfile copyWith for new fields -----------------------------------
+
+  group('TasteProfile copyWith for new fields', () {
+    test('copies vocalPreference only', () {
+      const original = TasteProfile();
+      final copied = original.copyWith(
+        vocalPreference: VocalPreference.preferVocals,
+      );
+      expect(copied.vocalPreference, equals(VocalPreference.preferVocals));
+      expect(
+        copied.tempoVarianceTolerance,
+        equals(TempoVarianceTolerance.moderate),
+      );
+      expect(copied.dislikedArtists, isEmpty);
+    });
+
+    test('copies tempoVarianceTolerance only', () {
+      const original = TasteProfile();
+      final copied = original.copyWith(
+        tempoVarianceTolerance: TempoVarianceTolerance.strict,
+      );
+      expect(copied.vocalPreference, equals(VocalPreference.noPreference));
+      expect(
+        copied.tempoVarianceTolerance,
+        equals(TempoVarianceTolerance.strict),
+      );
+      expect(copied.dislikedArtists, isEmpty);
+    });
+
+    test('copies dislikedArtists only', () {
+      const original = TasteProfile();
+      final copied = original.copyWith(
+        dislikedArtists: ['Drake', 'Pitbull'],
+      );
+      expect(copied.vocalPreference, equals(VocalPreference.noPreference));
+      expect(
+        copied.tempoVarianceTolerance,
+        equals(TempoVarianceTolerance.moderate),
+      );
+      expect(copied.dislikedArtists, equals(['Drake', 'Pitbull']));
+    });
+  });
   // -- EnergyLevel enum -------------------------------------------------------
 
   group('EnergyLevel', () {

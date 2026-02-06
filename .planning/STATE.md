@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 21 of 21 (Onboarding)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-06 -- Phase 20 complete (2/2 plans)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 21-01-PLAN.md
 
-Progress: v0.1-v1.1 complete (26 plans) | v1.2: [=======...] 4/6
+Progress: v0.1-v1.1 complete (26 plans) | v1.2: [========..] 5/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 4 from v1.2 + 2 quick tasks)
+- Total plans completed: 31 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 5 from v1.2 + 2 quick tasks)
 - Average duration: 6m
-- Total execution time: ~2.4 hours
+- Total execution time: ~2.5 hours
 
 **By Phase (v1.1 -- most recent):**
 
@@ -51,6 +51,8 @@ Recent decisions affecting current work:
 - All enum fromJson methods have orElse fallbacks; lists use tryFromJson+whereType filtering (20-01)
 - Delete confirmation via AlertDialog with Cancel/Delete buttons, guarded by context.mounted (20-02)
 - Lifecycle tests use ProviderContainer with real SharedPreferences (20-02)
+- OnboardingPreferences.completedSync preloaded in main.dart; GoRouter redirect reads StateProvider synchronously (21-01)
+- PageView with NeverScrollableScrollPhysics for onboarding step navigation (21-01)
 
 ### Pending Todos
 
@@ -67,5 +69,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Phase 20 complete, ready for Phase 21
+Stopped at: Completed 21-01-PLAN.md (onboarding flow)
 Resume file: None

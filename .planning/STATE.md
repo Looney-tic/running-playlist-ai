@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 20 of 21 (Profile Polish)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 20-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 20-02-PLAN.md
 
-Progress: v0.1-v1.1 complete (26 plans) | v1.2: [====......] 3/6
+Progress: v0.1-v1.1 complete (26 plans) | v1.2: [=====.....] 4/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 3 from v1.2 + 2 quick tasks)
+- Total plans completed: 30 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 4 from v1.2 + 2 quick tasks)
 - Average duration: 6m
 - Total execution time: ~2.4 hours
 
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 - Onboarding flag pre-loaded in main.dart before GoRouter init (sync redirect)
 - shufflePlaylist() reuses songPool with new Random seed (no API re-fetch)
 - All enum fromJson methods have orElse fallbacks; lists use tryFromJson+whereType filtering (20-01)
+- Delete confirmation via AlertDialog with Cancel/Delete buttons, guarded by context.mounted (20-02)
+- Lifecycle tests use ProviderContainer with real SharedPreferences (20-02)
 
 ### Pending Todos
 
@@ -65,5 +67,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 20-01-PLAN.md
+Stopped at: Completed 20-02-PLAN.md (Phase 20 complete)
 Resume file: None

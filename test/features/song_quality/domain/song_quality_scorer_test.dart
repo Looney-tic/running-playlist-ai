@@ -682,6 +682,38 @@ void main() {
       expect(true, isTrue);
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // Curated bonus
+  // ──────────────────────────────────────────────────────
+  group('Curated bonus', () {
+    test('curated bonus adds +5 to score', () {
+      final song = _song();
+      final base = SongQualityScorer.score(song: song, isCurated: false);
+      final curated = SongQualityScorer.score(song: song, isCurated: true);
+      expect(curated - base, equals(5));
+    });
+
+    test('non-curated songs get zero curated bonus (default unchanged)', () {
+      final song = _song();
+      final defaultScore = SongQualityScorer.score(song: song);
+      final explicitFalse =
+          SongQualityScorer.score(song: song, isCurated: false);
+      expect(defaultScore, equals(explicitFalse));
+    });
+
+    test('curated bonus is additive, not multiplicative', () {
+      // Exact BPM song: base includes +3 (exact BPM) + 4 (neutral dance) + 2 (neutral energy) = 9
+      // With curated: 9 + 5 = 14
+      final song = _song(matchType: BpmMatchType.exact);
+      final curated = SongQualityScorer.score(song: song, isCurated: true);
+      expect(curated, equals(14)); // 9 base + 5 curated
+    });
+
+    test('curatedBonusWeight constant is 5', () {
+      expect(SongQualityScorer.curatedBonusWeight, equals(5));
+    });
+  });
 }
 
 /// Helper to compute the danceability score difference between two values.

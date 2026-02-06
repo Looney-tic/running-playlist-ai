@@ -43,6 +43,9 @@ class SongQualityScorer {
   /// Penalty for consecutive songs by the same artist.
   static const artistDiversityPenalty = -5;
 
+  /// Score bonus for curated (verified-good) running songs.
+  static const curatedBonusWeight = 5;
+
   /// Computes a composite score for a candidate song.
   ///
   /// Returns an integer score (higher = better fit for the playlist).
@@ -60,6 +63,7 @@ class SongQualityScorer {
     String? segmentLabel,
     String? previousArtist,
     List<RunningGenre>? songGenres,
+    bool isCurated = false,
   }) {
     var total = 0;
 
@@ -69,6 +73,7 @@ class SongQualityScorer {
     total += _energyAlignmentScore(danceability, tasteProfile, segmentLabel);
     total += _bpmMatchScore(song);
     total += _artistDiversityScore(song, previousArtist);
+    total += _curatedBonus(isCurated);
 
     return total;
   }
@@ -242,4 +247,8 @@ class SongQualityScorer {
 
     return 0;
   }
+
+  /// Curated bonus: +5 if the song is from the curated running songs dataset.
+  static int _curatedBonus(bool isCurated) =>
+      isCurated ? curatedBonusWeight : 0;
 }

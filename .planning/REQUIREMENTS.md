@@ -49,21 +49,21 @@ Requirements for v1.2 milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REGEN-01 | TBD | Pending |
-| REGEN-02 | TBD | Pending |
-| REGEN-03 | TBD | Pending |
-| PROF-01 | TBD | Pending |
-| PROF-02 | TBD | Pending |
-| PROF-03 | TBD | Pending |
-| ONBD-01 | TBD | Pending |
-| ONBD-02 | TBD | Pending |
-| ONBD-03 | TBD | Pending |
+| REGEN-01 | Phase 19 | Pending |
+| REGEN-02 | Phase 19 | Pending |
+| REGEN-03 | Phase 19 | Pending |
+| PROF-01 | Phase 20 | Pending |
+| PROF-02 | Phase 20 | Pending |
+| PROF-03 | Phase 20 | Pending |
+| ONBD-01 | Phase 21 | Pending |
+| ONBD-02 | Phase 21 | Pending |
+| ONBD-03 | Phase 21 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 9 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 9
+- Mapped to phases: 9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-06*
-*Last updated: 2026-02-06 after initial definition*
+*Last updated: 2026-02-06 after roadmap creation*

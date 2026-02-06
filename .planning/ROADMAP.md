@@ -5,6 +5,7 @@
 - **v0.1 Foundation** - Phases 1-10 (shipped 2026-02-05)
 - **v1.0 Standalone Playlist Generator** - Phases 11-15 (shipped 2026-02-05)
 - **v1.1 Experience Quality** - Phases 16-18 (shipped 2026-02-06)
+- **v1.2 Polish & Profiles** - Phases 19-21 (in progress)
 
 ## Phases
 
@@ -60,63 +61,71 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 </details>
 
-### v1.1 Experience Quality - SHIPPED 2026-02-06
+<details>
+<summary>v1.1 Experience Quality (Phases 16-18) - SHIPPED 2026-02-06</summary>
 
-**Milestone Goal:** Make generated playlists genuinely great for running -- not just BPM-matched, but songs that are proven good running songs, matched to the user's taste, with frictionless stride adjustment and repeat generation.
+- [x] Phase 16: Scoring Foundation (2/2 plans)
+- [x] Phase 17: Curated Running Songs (2/2 plans)
+- [x] Phase 18: UX Refinements (2/2 plans)
 
-- [x] **Phase 16: Scoring Foundation** - Composite quality scoring using danceability, genre, energy, and artist diversity
-- [x] **Phase 17: Curated Running Songs** - Bundled dataset of verified running songs with remote update capability
-- [x] **Phase 18: UX Refinements** - Cadence nudge, one-tap regeneration, quality indicators, and extended taste preferences
+</details>
 
-#### Phase 16: Scoring Foundation
-**Goal**: Generated playlists rank songs by running suitability -- not just BPM proximity -- using danceability, genre match, energy alignment, and artist diversity
-**Depends on**: Phase 15 (existing playlist generation pipeline)
-**Requirements**: QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-05, QUAL-06
+### v1.2 Polish & Profiles (In Progress)
+
+**Milestone Goal:** Make the app feel complete for daily use -- multiple taste profiles for different run types, reliable regeneration, and a guided first-run experience.
+
+- [ ] **Phase 19: Regeneration Reliability** - Shuffle/regenerate works instantly and reliably across cold starts and input changes
+- [ ] **Phase 20: Profile Polish** - Multi-profile flows are hardened with confirmation dialogs, safe deserialization, and test coverage
+- [ ] **Phase 21: Onboarding** - New users are guided from first launch to first playlist in under 60 seconds
+
+## Phase Details
+
+### Phase 19: Regeneration Reliability
+**Goal**: Users can shuffle and regenerate playlists instantly and reliably -- no crashes on cold start, no stale inputs after switching plans or profiles
+**Depends on**: Phase 18 (existing playlist generation and one-tap regeneration)
+**Requirements**: REGEN-01, REGEN-02, REGEN-03
 **Success Criteria** (what must be TRUE):
-  1. Generated playlist contains songs scored by a composite of runnability, taste match, and BPM accuracy -- not BPM alone
-  2. Songs with high danceability rank higher than low-danceability songs at the same BPM
-  3. No two consecutive songs in a generated playlist are by the same artist
-  4. Warm-up segments contain lower-energy songs and sprint segments contain higher-energy songs without manual user intervention
-  5. A user with "chill" energy preference gets noticeably different song rankings than a user with "intense" preference
-**Plans**: 2 plans
+  1. User can tap "shuffle" on a generated playlist and get a different song order instantly without a loading spinner or API call
+  2. User can close the app completely, reopen it, and tap "generate" from the home screen without seeing a null-state error or crash
+  3. User can switch their selected run plan or taste profile and the next generated playlist reflects the updated selection -- not a stale cached version
+**Plans**: TBD
 
 Plans:
-- [x] 16-01-PLAN.md -- TDD: SongQualityScorer with composite scoring (danceability, energy, genre, artist diversity, BPM)
-- [x] 16-02-PLAN.md -- Integration: wire scorer into PlaylistGenerator, extend BpmSong/PlaylistSong models
+- [ ] 19-01: TBD
+- [ ] 19-02: TBD
 
-#### Phase 17: Curated Running Songs
-**Goal**: App includes a curated dataset of verified-good running songs that boosts playlist quality while still including non-curated discoveries
-**Depends on**: Phase 16 (scoring algorithm must exist for curated bonus to integrate)
-**Requirements**: CURA-01, CURA-02, CURA-03, CURA-04
+### Phase 20: Profile Polish
+**Goal**: Multi-profile management is safe and verified -- destructive actions require confirmation, corrupt data degrades gracefully, and the full create/edit/delete/switch lifecycle is tested
+**Depends on**: Phase 19 (regeneration must work for profile-switch-then-generate flow)
+**Requirements**: PROF-01, PROF-02, PROF-03
 **Success Criteria** (what must be TRUE):
-  1. Generated playlists include curated songs when they match the user's BPM and taste -- and these appear higher in the ranking than equivalent non-curated songs
-  2. Non-curated songs still appear in playlists (curated data is a boost, not a filter)
-  3. Curated dataset covers all genres available in the taste profile picker
-  4. Curated song data can be refreshed from Supabase without an app store release
-**Plans**: 2 plans
+  1. User sees a confirmation dialog before a taste profile is permanently deleted -- accidental taps do not destroy data
+  2. App loads without crash even if stored taste profile JSON contains unknown enum values from a future or older app version
+  3. User can create a new profile, edit it, select it, delete a different profile, and switch back -- all persisted correctly across app restart
+**Plans**: TBD
 
 Plans:
-- [x] 17-01-PLAN.md -- TDD: CuratedSong model, curated bonus in SongQualityScorer, curatedLookupKeys in PlaylistGenerator
-- [x] 17-02-PLAN.md -- Curated dataset JSON (300 songs), CuratedSongRepository, provider wiring into playlist generation
+- [ ] 20-01: TBD
+- [ ] 20-02: TBD
 
-#### Phase 18: UX Refinements
-**Goal**: Returning users can regenerate playlists with minimal friction, fine-tune their cadence after real runs, and see which songs are highest quality at a glance
-**Depends on**: Phase 17 (quality indicators require quality data; full value requires scoring + curated foundation)
-**Requirements**: UX-01, UX-02, UX-03, UX-04
+### Phase 21: Onboarding
+**Goal**: First-time users are guided through creating their first run plan and taste profile, arriving at a generated playlist without needing to discover the app's workflow themselves
+**Depends on**: Phase 20 (onboarding creates profiles and plans -- those flows must be reliable)
+**Requirements**: ONBD-01, ONBD-02, ONBD-03
 **Success Criteria** (what must be TRUE):
-  1. User can tap +/- buttons to nudge cadence by 2-3 BPM from the playlist screen or home screen without navigating to stride calculator
-  2. Returning user can generate a new playlist for their last run configuration with a single tap from the home screen
-  3. Songs with high runnability or curated status show a visible quality indicator (badge or icon) in the playlist UI
-  4. User can set vocal preference, tempo variance tolerance, and disliked artists in the taste profile -- and these preferences affect generated playlists
-**Plans**: 2 plans
+  1. A brand-new user (no stored data) sees a guided onboarding flow on first launch -- not the regular home screen
+  2. User can skip any onboarding step and still reach playlist generation with sensible defaults filled in
+  3. After completing onboarding, the home screen shows the user's configured profile and run plan -- not an empty state prompt
+  4. A returning user who has already completed onboarding never sees the onboarding flow again
+**Plans**: TBD
 
 Plans:
-- [x] 18-01-PLAN.md -- TDD: TasteProfile model extension, SongQualityScorer disliked-artist + tempo-variance scoring, StrideNotifier.nudgeCadence
-- [x] 18-02-PLAN.md -- UI: Quality badges, cadence nudge widgets, quick-regenerate card, taste profile screen extensions, auto-trigger wiring
+- [ ] 21-01: TBD
+- [ ] 21-02: TBD
 
 ## Progress
 
-**Execution Order:** Phase 16 -> 17 -> 18
+**Execution Order:** Phase 19 -> 20 -> 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -132,3 +141,6 @@ Plans:
 | 16. Scoring Foundation | v1.1 | 2/2 | Complete | 2026-02-05 |
 | 17. Curated Songs | v1.1 | 2/2 | Complete | 2026-02-06 |
 | 18. UX Refinements | v1.1 | 2/2 | Complete | 2026-02-06 |
+| 19. Regeneration Reliability | v1.2 | 0/2 | Not started | - |
+| 20. Profile Polish | v1.2 | 0/2 | Not started | - |
+| 21. Onboarding | v1.2 | 0/2 | Not started | - |

@@ -2,47 +2,28 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-05)
+See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.2 Polish & Profiles
+**Current focus:** Phase 19 - Regeneration Reliability (v1.2)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v1.2
-Last activity: 2026-02-06 — Milestone v1.2 started
+Phase: 19 of 21 (Regeneration Reliability)
+Plan: 0 of 2 in current phase
+Status: Ready to plan
+Last activity: 2026-02-06 -- Roadmap created for v1.2 (3 phases, 9 requirements)
 
-Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████████] 6/6
+Progress: v0.1-v1.1 complete (26 plans) | v1.2: [..........] 0/6
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26 (10 from v0.1 + 10 from v1.0 + 6 from v1.1)
+- Total plans completed: 26 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 2 quick tasks)
 - Average duration: 6m
 - Total execution time: ~2.3 hours
 
-**By Phase (v0.1):**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01 | 2/2 | 36m | 18m |
-| 05 | 2/2 | 9m | 5m |
-| 06 | 2/2 | 8m | 4m |
-| 08 | 2/2 | 7m | 4m |
-
-**By Phase (v1.0):**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 11 | 1/1 | 1m | 1m |
-| 12 | 2/2 | 4m | 2m |
-| 13 | 2/2 | 7m | 4m |
-| 14 | 3/3 | 15m | 5m |
-| 15 | 2/2 | 6m | 3m |
-
-**By Phase (v1.1):**
+**By Phase (v1.1 -- most recent):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
@@ -50,61 +31,38 @@ Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [████�
 | 17 | 2/2 | 11m | 6m |
 | 18 | 2/2 | 9m | 5m |
 
+**Recent Trend:**
+- Last 6 plans (v1.1): 4m, 4m, 6m, 5m, 5m, 4m
+- Trend: Stable (~5m/plan)
+
+*Updated after each plan completion*
+
 ## Accumulated Context
 
 ### Decisions
 
 Full decision log in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
 
-- **Energy alignment proximity threshold:** 15-point proximity gives +2 partial match (avoids harsh cutoffs)
-- **Public weight constants:** All scoring weights are static const for testability and future tuning
-- **Runnability replaces curated bonus + genre runnability:** Single data-driven dimension (0-15 pts) replacing flat curated bonus (+5) and genre runnability tiers (0-6); new max composite = 46
-- **Curated runnability map:** curatedLookupKeys (Set<String>) replaced by curatedRunnability (Map<String, int>) for runnability value lookup during scoring
-- **Runnability neutral = 5:** Slightly generous neutral for API-sourced songs without curated data
-- **Bidirectional artist substring match:** Preserved exact logic from PlaylistGenerator for backward compatibility
-- **Danceability parsed as int? from API:** Handles both string and int values, forward-compatible with endpoint availability
-- **Quality metadata on PlaylistSong:** runningQuality + isEnriched for future UI quality indicators
-- **Provider layer unchanged for scoring:** SongQualityScorer invoked inside PlaylistGenerator, not injected externally
-- **Curated bonus weight is +5:** Meaningful but not dominant vs artist match (+10); user taste still controls ranking
-- **Generator receives Set<String> not List<CuratedSong>:** Keeps PlaylistGenerator pure and decoupled from curated domain
-- **Lookup key format artist|title lowercase trimmed:** O(1) Set membership checks for cross-source matching
-- **Catch-all for Supabase errors:** Supabase.instance throws AssertionError (Error, not Exception) when not initialized; catch(_) required for graceful degradation
-- **300 curated songs, 20 per genre:** Even distribution exceeding 200-minimum across all 15 RunningGenre values
-- **VocalPreference fallback to noPreference:** Safe default on unknown JSON string
-- **TempoVarianceTolerance fallback to moderate:** Preserves current behavior on unknown JSON string
-- **Disliked artist penalty -15:** Stronger than diversity penalty (-5), weaker than artist match (+10)
-- **Loose tempo variant weight 2:** Between moderate (1) and exact (3), narrows gap for variety-seeking users
-- **Icons.music_off for instrumental preference:** Icons.piano not available in standard Flutter material icons
-- **surfaceContainerHighest for cadence nudge:** Material 3 compliant background color for nudge row
-- **Mutual exclusivity in provider and UI:** Adding disliked artist removes from favorites at both layers
+- Multi-profile infrastructure already complete (TasteProfileLibraryNotifier, library screen, selectors)
+- Zero new dependencies for v1.2 -- all features build on existing stack
+- Onboarding flag pre-loaded in main.dart before GoRouter init (sync redirect)
+- shufflePlaylist() reuses songPool with new Random seed (no API re-fetch)
 
 ### Pending Todos
 
-- **Manual UI verification:** Phase 8 structured run types
-- **Manual UI verification:** Taste profile screen (genre selection, artist input, energy level, vocal preference, tempo tolerance, disliked artists, persistence)
-- **Manual UI verification:** Playlist generation screen (all 5 states, song tap, clipboard copy, quality badges, cadence nudge)
-- **Manual UI verification:** Playlist history (list, detail, delete, auto-save)
-- **Manual UI verification:** Home screen (quick-regenerate card, cadence nudge, auto-trigger navigation)
-- **Cadence estimate accuracy:** Validate stride formula across full pace/height range
-- **Pre-existing test failure:** widget_test.dart expects "Home Screen" text that no longer exists
+- **Manual UI verification:** Taste profile, playlist generation, history, home screen
+- **Pre-existing test failure:** widget_test.dart expects "Home Screen" text
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
-- **User setup:** Create Supabase curated_songs and curated_songs_version tables with RLS (optional -- app falls back to bundled asset)
-- **Documentation gap:** Phase 14 missing VERIFICATION.md
 
 ### Blockers/Concerns
 
-- GetSongBPM API rate limits and coverage gaps unknown until runtime validation
-- build_runner code-gen partially broken with Dart 3.10 (monitor package updates)
-- Danceability field availability from GetSongBPM API unconfirmed -- scoring gracefully degrades to neutral when absent
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 002 | Implement runnability scoring system for songs | 2026-02-06 | 6adfe0a | [002-implement-runnability-scoring-system-for](./quick/002-implement-runnability-scoring-system-for/) |
+- Regeneration race condition on cold start (Phase 19 target)
+- Enum deserializers lack orElse fallbacks -- crash risk on corrupt data (Phase 20 target)
+- GetSongBPM API rate limits and danceability field availability unconfirmed
 
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed quick-002 (runnability scoring system)
+Stopped at: Created v1.2 roadmap (3 phases: 19-21)
 Resume file: None

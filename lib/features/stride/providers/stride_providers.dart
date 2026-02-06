@@ -84,6 +84,17 @@ class StrideNotifier extends StateNotifier<StrideState> {
     _persist();
   }
 
+  /// Adjusts the current cadence by [deltaBpm] and persists the result.
+  ///
+  /// The new cadence is clamped to the 150-200 spm range. This uses the
+  /// calibrated cadence mechanism -- nudging is equivalent to setting a
+  /// calibrated override.
+  void nudgeCadence(int deltaBpm) {
+    final newCadence = (state.cadence + deltaBpm).clamp(150.0, 200.0);
+    state = state.copyWith(calibratedCadence: () => newCadence);
+    _persist();
+  }
+
   /// Loads saved height and calibration from SharedPreferences.
   Future<void> _loadFromPreferences() async {
     final height = await StridePreferences.loadHeight();

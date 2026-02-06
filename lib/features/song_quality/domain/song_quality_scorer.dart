@@ -43,6 +43,12 @@ class SongQualityScorer {
   /// Penalty for consecutive songs by the same artist.
   static const artistDiversityPenalty = -5;
 
+  /// Penalty for songs by an artist the user dislikes.
+  static const dislikedArtistPenalty = -15;
+
+  /// Score for half-time/double-time match under loose tempo tolerance.
+  static const looseTempoVariantWeight = 2;
+
   /// Score bonus for curated (verified-good) running songs.
   static const curatedBonusWeight = 5;
 
@@ -68,10 +74,11 @@ class SongQualityScorer {
     var total = 0;
 
     total += _artistMatchScore(song, tasteProfile);
+    total += _dislikedArtistScore(song, tasteProfile);
     total += _genreMatchScore(songGenres, tasteProfile);
     total += _danceabilityScore(danceability);
     total += _energyAlignmentScore(danceability, tasteProfile, segmentLabel);
-    total += _bpmMatchScore(song);
+    total += _bpmMatchScore(song, tasteProfile);
     total += _artistDiversityScore(song, previousArtist);
     total += _curatedBonus(isCurated);
 
@@ -229,12 +236,39 @@ class SongQualityScorer {
     };
   }
 
-  /// BPM match: +3 for exact, +1 for half-time or double-time.
-  static int _bpmMatchScore(BpmSong song) {
+  /// Disliked artist: -15 if song artist matches any disliked artist.
+  /// Case-insensitive bidirectional substring match (same as artist match).
+  static int _dislikedArtistScore(BpmSong song, TasteProfile? tasteProfile) {
+    if (tasteProfile == null || tasteProfile.dislikedArtists.isEmpty) return 0;
+
+    final songArtistLower = song.artistName.toLowerCase();
+    final dislikedLower =
+        tasteProfile.dislikedArtists.map((a) => a.toLowerCase()).toList();
+
+    if (dislikedLower.any(
+      (a) => songArtistLower.contains(a) || a.contains(songArtistLower),
+    )) {
+      return dislikedArtistPenalty;
+    }
+
+    return 0;
+  }
+
+  /// BPM match: +3 for exact, variable for half-time/double-time based on
+  /// [TempoVarianceTolerance]: strict=0, moderate=1, loose=2.
+  static int _bpmMatchScore(BpmSong song, TasteProfile? tasteProfile) {
     if (song.matchType == BpmMatchType.exact) {
       return exactBpmWeight;
     }
-    return tempoVariantWeight;
+
+    final tolerance =
+        tasteProfile?.tempoVarianceTolerance ?? TempoVarianceTolerance.moderate;
+
+    return switch (tolerance) {
+      TempoVarianceTolerance.strict => 0,
+      TempoVarianceTolerance.moderate => tempoVariantWeight,
+      TempoVarianceTolerance.loose => looseTempoVariantWeight,
+    };
   }
 
   /// Artist diversity: -5 if same artist as previous song.

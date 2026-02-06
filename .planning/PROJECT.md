@@ -10,15 +10,18 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 
 ## Current State
 
-**Shipped:** v1.0 Standalone Playlist Generator (2026-02-05)
-**Codebase:** 4,282 LOC Dart (lib), 3,924 LOC tests, 38 files, 229 tests passing
+**Shipped:** v1.1 Experience Quality (2026-02-06)
+**Codebase:** ~5,000 LOC Dart (lib), ~4,000 LOC tests, 332 tests passing
 
 **What works end-to-end:**
 - Stride calculator (pace + height -> cadence, optional calibration)
 - Run planner (steady, warm-up/cool-down, intervals with per-segment BPM)
-- Taste profile (genre picker, artist list, energy level, persisted)
-- BPM discovery (GetSongBPM API, local cache with 7-day TTL, half/double-time matching)
-- Playlist generation (BPM-matched songs assigned to run segments, scored by taste)
+- Run plan library (multiple saved plans, selection)
+- Taste profile (genre picker, artist list, energy level, vocal pref, disliked artists, persisted)
+- 5,066 curated songs with runnability scores (crowd-sourced + feature-based)
+- Playlist generation (BPM-matched, runnability-scored, taste-filtered, artist-diverse)
+- Quality badges and cadence nudge in playlist UI
+- One-tap regeneration from home screen
 - External play links (Spotify/YouTube URLs via url_launcher)
 - Playlist history (auto-save, list view, detail view, swipe-to-delete)
 
@@ -36,24 +39,26 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Play songs: external links to Spotify or YouTube for every song -- v1.0
 - ✓ Clipboard copy: copy full playlist as text -- v1.0
 - ✓ Playlist history: save, view, and delete previously generated playlists -- v1.0
+- ✓ Song quality scoring: composite runnability score (crowd-sourced + feature-based, 0-100) integrated into playlist ranking -- v1.1
+- ✓ Curated running songs: 5,066 songs with runnability, danceability, genre, BPM data -- v1.1
+- ✓ Extended taste profiling: vocal preference, tempo variance tolerance, disliked artists, decade preferences -- v1.1
+- ✓ Cadence nudge: +/- buttons on playlist and home screen for post-run adjustment -- v1.1
+- ✓ One-tap regeneration: returning users generate new playlist from home screen -- v1.1
 
-## Current Milestone: v1.1 Experience Quality
+## Current Milestone: v1.2 Polish & Profiles
 
-**Goal:** Make generated playlists genuinely great for running — not just BPM-matched, but songs that are proven good running songs, matched to the user's taste, with frictionless stride adjustment and repeat generation.
+**Goal:** Make the app feel complete for daily use — multiple taste profiles for different run types, reliable regeneration, and a guided first-run experience.
 
 **Target features:**
-- Running song quality scoring (what makes a song good for running beyond BPM)
-- Curated running song data per genre from web sources
-- Improved taste profiling specifically for running music
-- Easy post-run stride/cadence adjustment ("that was a bit fast/slow")
-- Streamlined repeat generation flow (near-instant for returning users)
+- Multiple named taste profiles with quick switching from playlist screen
+- Fix playlist regeneration/shuffle bug (store run plan in generation state)
+- Onboarding flow that guides new users to their first playlist
 
 ### Active
 
-- [ ] Song quality: playlist includes songs that are proven good for running, not just BPM-matched
-- [ ] Taste accuracy: running-specific taste profiling produces results users actually want to hear
-- [ ] Stride adjustment: easy to nudge cadence after a real run
-- [ ] Repeat flow: returning users can generate a new playlist with minimal friction
+- [ ] Multi taste profiles: users can create, name, and switch between taste profiles for different run types
+- [ ] Playlist regeneration: shuffle/regenerate works reliably without provider state issues
+- [ ] Onboarding: new users get guided through creating their first run plan + taste profile to generate a playlist
 
 ### Out of Scope
 
@@ -103,5 +108,8 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | unawaited() auto-save | Fire-and-forget after UI state is set; doesn't block playlist display | ✓ Good |
 | Shared widget extraction | SegmentHeader/SongTile used by both PlaylistScreen and HistoryDetailScreen | ✓ Good |
 
+| Runnability scoring (crowd + features) | 5,066 songs with 0-100 runnability; replaces flat curated bonus in scorer | ✓ Good |
+| curatedRunnability Map<String,int> | Lookup runnability values during scoring, not just set membership | ✓ Good |
+
 ---
-*Last updated: 2026-02-05 after v1.1 milestone started*
+*Last updated: 2026-02-06 after v1.2 milestone started*

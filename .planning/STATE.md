@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.1 Experience Quality -- MILESTONE COMPLETE
+**Current focus:** v1.2 Polish & Profiles
 
 ## Current Position
 
-Phase: 18 of 18 (UX Refinements)
-Plan: 2 of 2 in current phase
-Status: v1.1 Milestone complete, verified (17/17 must-haves across both plans)
-Last activity: 2026-02-06 - Completed quick task 002: Implement runnability scoring system for songs
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.2
+Last activity: 2026-02-06 — Milestone v1.2 started
 
 Progress: v0.1 + v1.0 complete (20 plans across 9 phases) | v1.1: [██████████] 6/6
 

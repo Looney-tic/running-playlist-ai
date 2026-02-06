@@ -1,68 +1,69 @@
-# Requirements: v1.1 Experience Quality
+# Requirements: v1.2 Polish & Profiles
 
-**Milestone:** v1.1
-**Goal:** Make generated playlists genuinely great for running — not just BPM-matched, but songs that are proven good running songs, matched to the user's taste, with frictionless stride adjustment and repeat generation.
+**Defined:** 2026-02-06
+**Core Value:** A runner opens the app, enters their run plan, and gets a playlist where every song's beat matches their footstrike cadence
 
-## Song Quality & Scoring
+## v1.2 Requirements
 
-- [x] **QUAL-01**: App computes a runnability score for each song based on danceability, beat strength, and rhythm qualities from GetSongBPM data
-- [x] **QUAL-02**: App parses danceability and acousticness from GetSongBPM `/song/` endpoint and caches results with existing TTL strategy
-- [x] **QUAL-03**: Generated playlist ranks songs using composite score combining runnability, taste match (genre, artist, energy), and BPM accuracy as separate dimensions
-- [x] **QUAL-04**: No artist appears in consecutive positions within a generated playlist
-- [x] **QUAL-05**: Warm-up segments prefer lower-energy songs, sprint segments prefer highest-energy, cool-down segments prefer calmer songs — auto-mapped from segment type
-- [x] **QUAL-06**: User's energy level preference (chill/balanced/intense) maps to preferred danceability ranges in song selection
+Requirements for v1.2 milestone. Each maps to roadmap phases.
 
-## Curated Running Songs
+### Regeneration Reliability
 
-- [x] **CURA-01**: App ships with 200-500 curated running songs (verified good for running) as bundled JSON asset, covering all supported genres
-- [x] **CURA-02**: Curated songs receive a scoring bonus in playlist generation (boost, not filter — non-curated songs still appear)
-- [x] **CURA-03**: Curated song dataset can be updated remotely via Supabase without requiring an app store release
-- [x] **CURA-04**: Curated dataset structure supports future expansion beyond 500 songs
+- [ ] **REGEN-01**: Shuffle/regenerate reuses stored song pool with a new random seed — instant, no API re-fetch
+- [ ] **REGEN-02**: Playlist generation works reliably on cold start without null state crashes (race condition fix)
+- [ ] **REGEN-03**: When user changes run plan or taste profile via inline selector, next generate uses the updated selection
 
-## UX & Flow
+### Profile Polish
 
-- [x] **UX-01**: User can adjust cadence by +/- 2-3 BPM from the playlist or home screen without re-entering stride calculator
-- [x] **UX-02**: Returning user can regenerate a playlist for their last run with one tap from the home screen
-- [x] **UX-03**: Playlist UI shows a quality indicator (badge/icon) for songs with high runnability or curated status
-- [x] **UX-04**: User can set additional taste preferences: vocal preference, tempo variance tolerance, and disliked artists
+- [ ] **PROF-01**: Deleting a taste profile shows a confirmation dialog before removal
+- [ ] **PROF-02**: All enum deserializers (RunningGenre, EnergyLevel, etc.) have orElse fallbacks to prevent crash on corrupt/unknown data
+- [ ] **PROF-03**: Multi-profile flows (create, edit, delete, switch, persist) verified with integration test coverage
 
-## Traceability
+### Onboarding
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| QUAL-01 | Phase 16 | Complete |
-| QUAL-02 | Phase 16 | Complete |
-| QUAL-03 | Phase 16 | Complete |
-| QUAL-04 | Phase 16 | Complete |
-| QUAL-05 | Phase 16 | Complete |
-| QUAL-06 | Phase 16 | Complete |
-| CURA-01 | Phase 17 | Complete |
-| CURA-02 | Phase 17 | Complete |
-| CURA-03 | Phase 17 | Complete |
-| CURA-04 | Phase 17 | Complete |
-| UX-01 | Phase 18 | Complete |
-| UX-02 | Phase 18 | Complete |
-| UX-03 | Phase 18 | Complete |
-| UX-04 | Phase 18 | Complete |
+- [ ] **ONBD-01**: First-run users see a guided flow: welcome → pick genres → set pace → auto-generate first playlist
+- [ ] **ONBD-02**: User can skip any onboarding step and proceed with sensible defaults
+- [ ] **ONBD-03**: Home screen adapts based on whether user has profiles and run plans configured (context-aware empty states)
 
-## Future (v1.2+)
+## Future (v1.3+)
 
+- Spotify OAuth + playlist export (when Developer Dashboard available)
+- Apple Music integration via MusicKit
 - Song feedback loop (heart/flag per song → scoring integration)
 - Playlist freshness tracking (penalize recently played songs)
-- Taste profile refinement from accumulated feedback
-- Expand curated dataset to 1000+ songs with community contributions
-- Spotify playlist export (when Developer Dashboard available)
+- Profile templates (pre-built profiles like "Chill Long Run", "HIIT Intervals")
+- Social playlist sharing
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Audio analysis / beat detection | Requires audio file access; GetSongBPM provides danceability |
-| AI-powered recommendations | Research-backed scoring formula is sufficient |
-| Real-time BPM adjustment | Requires streaming integration; pre-generate instead |
-| Lyric analysis | No free API, marginal benefit over danceability + genre |
-| Social playlist sharing | Requires accounts, backend, moderation |
-| Spotify OAuth integration | Developer Dashboard still blocked |
+| Spotify playlist export | Developer Dashboard still blocked as of 2026-02-06 |
+| Apple Music export | Defer to v1.3 — Spotify is higher priority when available |
+| Built-in music player | External links to Spotify/YouTube are sufficient |
+| Tutorial slideshow onboarding | Research shows action-oriented onboarding is more effective |
+| AsyncNotifier migration | Patch with guards instead — lighter change, same reliability |
+| Profile templates | Nice to have but not essential for v1.2 |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| REGEN-01 | TBD | Pending |
+| REGEN-02 | TBD | Pending |
+| REGEN-03 | TBD | Pending |
+| PROF-01 | TBD | Pending |
+| PROF-02 | TBD | Pending |
+| PROF-03 | TBD | Pending |
+| ONBD-01 | TBD | Pending |
+| ONBD-02 | TBD | Pending |
+| ONBD-03 | TBD | Pending |
+
+**Coverage:**
+- v1.2 requirements: 9 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 9
 
 ---
-*Created: 2026-02-05*
+*Requirements defined: 2026-02-06*
+*Last updated: 2026-02-06 after initial definition*

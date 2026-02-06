@@ -74,6 +74,117 @@ void main() {
     });
   });
 
+  // -- EnergyLevel enum -------------------------------------------------------
+
+  group('EnergyLevel', () {
+    test('has exactly 3 values', () {
+      expect(EnergyLevel.values.length, equals(3));
+    });
+
+    test('fromJson deserializes each value', () {
+      for (final level in EnergyLevel.values) {
+        expect(EnergyLevel.fromJson(level.name), equals(level));
+      }
+    });
+
+    test('fromJson with unknown string falls back to balanced', () {
+      expect(
+        EnergyLevel.fromJson('superHigh'),
+        equals(EnergyLevel.balanced),
+      );
+    });
+
+    test('fromJson with empty string falls back to balanced', () {
+      expect(
+        EnergyLevel.fromJson(''),
+        equals(EnergyLevel.balanced),
+      );
+    });
+  });
+
+  // -- RunningGenre enum ------------------------------------------------------
+
+  group('RunningGenre', () {
+    test('has exactly 15 values', () {
+      expect(RunningGenre.values.length, equals(15));
+    });
+
+    test('each value has a non-empty displayName', () {
+      for (final genre in RunningGenre.values) {
+        expect(genre.displayName, isNotEmpty);
+      }
+    });
+
+    test('fromJson deserializes each value', () {
+      for (final genre in RunningGenre.values) {
+        expect(RunningGenre.fromJson(genre.name), equals(genre));
+      }
+    });
+
+    test('fromJson with unknown string falls back to pop', () {
+      expect(
+        RunningGenre.fromJson('countryRock'),
+        equals(RunningGenre.pop),
+      );
+    });
+
+    test('tryFromJson returns value for known genre', () {
+      expect(
+        RunningGenre.tryFromJson('pop'),
+        equals(RunningGenre.pop),
+      );
+    });
+
+    test('tryFromJson returns value for each known genre', () {
+      for (final genre in RunningGenre.values) {
+        expect(RunningGenre.tryFromJson(genre.name), equals(genre));
+      }
+    });
+
+    test('tryFromJson returns null for unknown genre', () {
+      expect(RunningGenre.tryFromJson('countryRock'), isNull);
+    });
+
+    test('tryFromJson returns null for empty string', () {
+      expect(RunningGenre.tryFromJson(''), isNull);
+    });
+
+    test('specific display names are correct', () {
+      expect(RunningGenre.hipHop.displayName, equals('Hip-Hop / Rap'));
+      expect(
+        RunningGenre.drumAndBass.displayName,
+        equals('Drum & Bass'),
+      );
+      expect(RunningGenre.rnb.displayName, equals('R&B / Soul'));
+      expect(RunningGenre.kPop.displayName, equals('K-Pop'));
+    });
+  });
+
+  // -- MusicDecade enum -------------------------------------------------------
+
+  group('MusicDecade', () {
+    test('tryFromJson returns value for known decade', () {
+      expect(
+        MusicDecade.tryFromJson('the2010s'),
+        equals(MusicDecade.the2010s),
+      );
+    });
+
+    test('tryFromJson returns value for each known decade', () {
+      for (final decade in MusicDecade.values) {
+        expect(MusicDecade.tryFromJson(decade.name), equals(decade));
+      }
+    });
+
+    test('tryFromJson returns null for unknown decade', () {
+      expect(MusicDecade.tryFromJson('the2030s'), isNull);
+    });
+
+    test('tryFromJson returns null for empty string', () {
+      expect(MusicDecade.tryFromJson(''), isNull);
+    });
+  });
+
   // -- TasteProfile backward-compatible fromJson ------------------------------
 
   group('TasteProfile backward-compatible fromJson', () {
@@ -148,6 +259,89 @@ void main() {
         equals(TempoVarianceTolerance.strict),
       );
       expect(profile.dislikedArtists, equals(['Drake', 'Pitbull']));
+    });
+  });
+
+  // -- TasteProfile fromJson enum fallback safety -----------------------------
+
+  group('TasteProfile fromJson enum fallback safety', () {
+    test('unknown energyLevel falls back to balanced', () {
+      final json = {
+        'genres': ['pop'],
+        'artists': <String>[],
+        'energyLevel': 'superHigh',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.energyLevel, equals(EnergyLevel.balanced));
+    });
+
+    test('unknown genre in list is filtered out', () {
+      final json = {
+        'genres': ['pop', 'countryRock', 'rock'],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(
+        profile.genres,
+        equals([RunningGenre.pop, RunningGenre.rock]),
+      );
+    });
+
+    test('all unknown genres results in empty list', () {
+      final json = {
+        'genres': ['countryRock', 'tranceCore'],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.genres, isEmpty);
+    });
+
+    test('unknown decade in list is filtered out', () {
+      final json = {
+        'genres': <String>[],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+        'decades': ['the2010s', 'the2030s', 'the1990s'],
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(
+        profile.decades,
+        equals([MusicDecade.the2010s, MusicDecade.the1990s]),
+      );
+    });
+
+    test('all unknown decades results in empty list', () {
+      final json = {
+        'genres': <String>[],
+        'artists': <String>[],
+        'energyLevel': 'balanced',
+        'decades': ['the2030s', 'the2040s'],
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.decades, isEmpty);
+    });
+
+    test('mixed valid and invalid fields all degrade gracefully', () {
+      final json = {
+        'genres': ['pop', 'futureGenre'],
+        'artists': ['Artist A'],
+        'energyLevel': 'unknownLevel',
+        'vocalPreference': 'unknownPref',
+        'tempoVarianceTolerance': 'unknownTolerance',
+        'decades': ['the1980s', 'futureDecade'],
+      };
+      final profile = TasteProfile.fromJson(json);
+      expect(profile.genres, equals([RunningGenre.pop]));
+      expect(profile.artists, equals(['Artist A']));
+      expect(profile.energyLevel, equals(EnergyLevel.balanced));
+      expect(profile.vocalPreference, equals(VocalPreference.noPreference));
+      expect(
+        profile.tempoVarianceTolerance,
+        equals(TempoVarianceTolerance.moderate),
+      );
+      expect(profile.decades, equals([MusicDecade.the1980s]));
     });
   });
 
@@ -231,63 +425,6 @@ void main() {
         equals(TempoVarianceTolerance.moderate),
       );
       expect(copied.dislikedArtists, equals(['Drake', 'Pitbull']));
-    });
-  });
-  // -- EnergyLevel enum -------------------------------------------------------
-
-  group('EnergyLevel', () {
-    test('has exactly 3 values', () {
-      expect(EnergyLevel.values.length, equals(3));
-    });
-
-    test('fromJson deserializes each value', () {
-      for (final level in EnergyLevel.values) {
-        expect(EnergyLevel.fromJson(level.name), equals(level));
-      }
-    });
-
-    test('fromJson throws on invalid name', () {
-      expect(
-        () => EnergyLevel.fromJson('invalid'),
-        throwsA(isA<StateError>()),
-      );
-    });
-  });
-
-  // -- RunningGenre enum ------------------------------------------------------
-
-  group('RunningGenre', () {
-    test('has exactly 15 values', () {
-      expect(RunningGenre.values.length, equals(15));
-    });
-
-    test('each value has a non-empty displayName', () {
-      for (final genre in RunningGenre.values) {
-        expect(genre.displayName, isNotEmpty);
-      }
-    });
-
-    test('fromJson deserializes each value', () {
-      for (final genre in RunningGenre.values) {
-        expect(RunningGenre.fromJson(genre.name), equals(genre));
-      }
-    });
-
-    test('fromJson throws on invalid name', () {
-      expect(
-        () => RunningGenre.fromJson('invalid'),
-        throwsA(isA<StateError>()),
-      );
-    });
-
-    test('specific display names are correct', () {
-      expect(RunningGenre.hipHop.displayName, equals('Hip-Hop / Rap'));
-      expect(
-        RunningGenre.drumAndBass.displayName,
-        equals('Drum & Bass'),
-      );
-      expect(RunningGenre.rnb.displayName, equals('R&B / Soul'));
-      expect(RunningGenre.kPop.displayName, equals('K-Pop'));
     });
   });
 

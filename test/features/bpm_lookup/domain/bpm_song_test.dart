@@ -16,10 +16,17 @@ void main() {
       }
     });
 
-    test('fromJson throws on invalid name', () {
+    test('fromJson with unknown string falls back to exact', () {
       expect(
-        () => BpmMatchType.fromJson('invalid'),
-        throwsA(isA<StateError>()),
+        BpmMatchType.fromJson('tripleTime'),
+        equals(BpmMatchType.exact),
+      );
+    });
+
+    test('fromJson with empty string falls back to exact', () {
+      expect(
+        BpmMatchType.fromJson(''),
+        equals(BpmMatchType.exact),
       );
     });
   });
@@ -197,6 +204,18 @@ void main() {
         'title': 'Song',
         'artistName': 'Artist',
         'tempo': 170,
+      };
+      final song = BpmSong.fromJson(json);
+      expect(song.matchType, equals(BpmMatchType.exact));
+    });
+
+    test('fromJson with unknown matchType falls back to exact', () {
+      final json = {
+        'songId': 'abc',
+        'title': 'Song',
+        'artistName': 'Artist',
+        'tempo': 170,
+        'matchType': 'tripleTime',
       };
       final song = BpmSong.fromJson(json);
       expect(song.matchType, equals(BpmMatchType.exact));

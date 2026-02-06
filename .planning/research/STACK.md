@@ -1,50 +1,42 @@
-# Technology Stack: v1.1 Experience Quality
+# Technology Stack: v1.2 Profile Management & Onboarding
 
 **Project:** Running Playlist AI
-**Milestone:** v1.1 Experience Quality
-**Researched:** 2026-02-05
-**Overall confidence:** MEDIUM-HIGH
+**Milestone:** v1.2 Profile Management & Onboarding
+**Researched:** 2026-02-06
+**Overall confidence:** HIGH
 
 ---
 
 ## Scope: What This Document Covers
 
-This STACK.md covers **only the additions and changes** needed for v1.1 features. The existing v1.0 stack (Flutter 3.38, Riverpod 2.x manual providers, go_router 17, http, SharedPreferences, GetSongBPM API client, url_launcher) is validated and stable. Do not re-evaluate it.
+This STACK.md covers **only the additions and changes** needed for v1.2 features. The existing stack (Flutter 3.38, Dart 3.10, Riverpod 2.x manual providers, GoRouter 17.x, SharedPreferences 2.5.4, http, supabase_flutter, url_launcher, GetSongBPM API) is validated and stable. Do not re-evaluate it.
 
-v1.1 features that drive stack decisions:
-1. Running song quality scoring (beyond BPM matching)
-2. Curated running song data collection/storage
-3. Improved taste profiling for running music
-4. Post-run stride/cadence adjustment UX
-5. Streamlined repeat generation flow
+v1.2 features that drive stack decisions:
+1. Multiple taste profiles with naming, selection, and switching
+2. First-run onboarding flow (detection, guided setup, completion tracking)
+3. Playlist regeneration reliability (state consistency, error recovery)
 
 ---
 
-## Critical Discovery: GetSongBPM `/song/` Endpoint Has Danceability
+## Critical Discovery: Multi-Profile Infrastructure Already Exists
 
-The GetSongBPM API's `/song/` endpoint (lookup by song ID) returns **danceability**, **acousticness**, **key**, and **time_sig** in addition to BPM. The current app only uses the `/tempo/` endpoint which returns basic song metadata (title, artist, BPM, album). Since every `/tempo/` result includes a `song_id`, we can enrich songs with audio features via a follow-up `/song/` lookup.
+Before recommending any new stack additions, a thorough codebase review reveals that **the multi-profile architecture is already implemented and shipped in v1.1**:
 
-Example `/song/` response (from API docs):
-```json
-{
-  "song": {
-    "id": "o2r0L",
-    "title": "Master of Puppets",
-    "tempo": "220",
-    "time_sig": "4/4",
-    "key_of": "Em",
-    "danceability": 55,
-    "acousticness": 0,
-    "artist": {
-      "genres": ["heavy metal", "rock"]
-    }
-  }
-}
-```
+| Capability | Status | Location |
+|-----------|--------|----------|
+| Multiple taste profiles (list) | DONE | `TasteProfileLibraryNotifier` in `taste_profile_providers.dart` |
+| Named profiles | DONE | `TasteProfile.name` field exists and is editable |
+| Profile selection/switching | DONE | `selectProfile(String id)` method + `selectedProfile` getter |
+| Profile CRUD (add/edit/delete) | DONE | Full CRUD in `TasteProfileLibraryNotifier` |
+| Library UI with cards | DONE | `TasteProfileLibraryScreen` with selection, edit, delete |
+| Profile selector on playlist screen | DONE | `_TasteProfileSelector` widget with bottom sheet picker |
+| Legacy single-profile migration | DONE | `TasteProfilePreferences.loadAll()` auto-migrates |
+| Persistence of profile library | DONE | JSON array in SharedPreferences under `taste_profile_library` key |
+| Run plan library (parallel pattern) | DONE | Identical pattern in `RunPlanLibraryNotifier` |
 
-This is the single most impactful discovery for v1.1. **Danceability is a strong proxy for "running suitability"** -- research shows danceability correlates with beat strength, tempo stability, rhythm regularity, and energy. High-danceability songs with appropriate BPM are inherently better running songs.
+**This means v1.2's "multi-profile" work is NOT a new architecture effort.** It is refinement of existing infrastructure: better naming UX, onboarding to create a first profile, and ensuring selection state propagates correctly to generation.
 
-**Confidence:** MEDIUM (API docs confirmed the fields exist; rate limiting behavior on bulk `/song/` calls is unknown and must be tested)
+**Confidence:** HIGH (verified by direct codebase inspection)
 
 ---
 
@@ -52,286 +44,233 @@ This is the single most impactful discovery for v1.1. **Danceability is a strong
 
 ### No New Dependencies Required
 
-The critical insight for v1.1 is: **no new pub.dev packages are needed**. All five features can be built with the existing stack plus pure Dart domain logic and Flutter bundled assets.
+All three v1.2 features can be built with the existing stack. No new pub.dev packages needed.
 
 | Feature | Stack Approach | New Dependencies |
 |---------|---------------|-----------------|
-| Song quality scoring | Pure Dart scoring algorithm (extend `PlaylistGenerator`) | None |
-| Curated running song data | Bundled JSON asset + SharedPreferences enrichment cache | None |
-| Improved taste profiling | Extend `TasteProfile` model, new UI widgets (Flutter Material) | None |
-| Post-run stride adjustment | Extend `StrideScreen` UI with adjustment controls | None |
-| Streamlined repeat flow | Rework navigation flow in go_router + state in Riverpod | None |
+| Multi-profile refinement | Extend existing `TasteProfileLibraryNotifier` + UI polish | None |
+| Onboarding flow | GoRouter `redirect` + SharedPreferences bool flag + new screen widgets | None |
+| Regeneration reliability | Fix state management in `PlaylistGenerationNotifier` | None |
 
-**Rationale:** Adding libraries has a cost (version conflicts, maintenance burden, build time). The existing stack is sufficient. The v1.1 work is primarily domain logic and UX refinement, not infrastructure.
+**Rationale:** The existing stack is comprehensive. Onboarding is a navigation + state detection problem (GoRouter redirect + SharedPreferences). Profile management is already implemented. Regeneration reliability is a bug fix in existing provider logic. Adding libraries would create maintenance burden for zero functional gain.
 
 ---
 
-### Data Strategy: Song Quality Enrichment
+## Feature 1: Onboarding Flow
 
-**Decision: Two-tier enrichment approach**
+### First-Run Detection
 
-#### Tier 1: Bundled Curated Song List (Static Asset)
+**Decision: SharedPreferences boolean flag with GoRouter redirect**
 
-Ship a curated JSON file as a Flutter asset containing known-good running songs with pre-computed quality scores. This is the "floor" -- songs in this list are guaranteed to be good running songs.
+The standard Flutter pattern for first-run detection uses a boolean flag in SharedPreferences, checked in a GoRouter `redirect` callback.
 
-**Format:** `assets/data/curated_running_songs.json`
+```dart
+// Key for tracking onboarding completion
+static const _onboardingCompleteKey = 'onboarding_complete';
+```
 
-```json
-[
-  {
-    "title": "Lose Yourself",
-    "artist": "Eminem",
-    "bpm": 171,
-    "danceability": 72,
-    "runningScore": 95,
-    "genres": ["hip-hop"],
-    "yearAdded": 2026
+**Why GoRouter redirect (not manual navigation):**
+- GoRouter 17.x supports `redirect` as a top-level parameter on the `GoRouter` constructor
+- The redirect fires on every navigation event, ensuring the onboarding gate cannot be bypassed
+- The current router (`routerProvider`) can be extended with a redirect without restructuring existing routes
+- GoRouter's `refreshListenable` can be used to re-evaluate the redirect when onboarding completes, automatically navigating to home
+
+**Implementation pattern:**
+```dart
+GoRouter(
+  redirect: (context, state) {
+    final isOnboarded = ref.read(onboardingCompleteProvider);
+    final isOnboardingRoute = state.matchedLocation == '/onboarding';
+
+    if (!isOnboarded && !isOnboardingRoute) return '/onboarding';
+    if (isOnboarded && isOnboardingRoute) return '/';
+    return null; // no redirect
+  },
+  refreshListenable: onboardingListenable,
+  // ... existing routes
+);
+```
+
+**Onboarding state provider pattern:**
+```dart
+// Simple bool provider backed by SharedPreferences
+final onboardingCompleteProvider = StateNotifierProvider<OnboardingNotifier, bool>(
+  (ref) => OnboardingNotifier(),
+);
+```
+
+This follows the exact same async-init-in-constructor pattern used by `TasteProfileLibraryNotifier` and `RunPlanLibraryNotifier` -- call `_load()` from the constructor without awaiting.
+
+**Confidence:** HIGH (GoRouter redirect is documented, standard pattern; SharedPreferences bool flag is trivial)
+
+### Onboarding UI: No Third-Party Packages Needed
+
+**Decision: Use Flutter's built-in `PageView` + `PageController` for the step-through flow**
+
+The onboarding flow is 3-4 steps:
+1. Welcome / app purpose
+2. Create first taste profile (reuse existing `TasteProfileScreen` widgets)
+3. Create first run plan (reuse existing `RunPlanScreen` widgets)
+4. Confirm and start
+
+**Why NOT `smooth_page_indicator` or `introduction_screen`:**
+- The app already uses Material 3 design. A `LinearProgressIndicator` or `Stepper` widget from Flutter Material is sufficient for step progress indication.
+- `smooth_page_indicator` (latest: 2.0.1) adds dot-style indicators that are suited for image carousels, not form-heavy onboarding steps where a progress bar is more appropriate.
+- The onboarding screens are form-heavy (genre chips, artist input, distance picker), not swipeable image cards. A `PageView` with locked `physics: NeverScrollableScrollPhysics()` and explicit Next/Back buttons is the right UX pattern.
+- Adding a package for a few dots is not justified when `LinearProgressIndicator(value: step / totalSteps)` works.
+
+**Confidence:** HIGH (Flutter built-in widgets are well-documented and sufficient)
+
+### Onboarding Completion Criteria
+
+**Decision: Onboarding completes when at least one taste profile AND one run plan exist**
+
+This means the onboarding flow does not need its own separate completion state independent from the actual data. The check can be:
+
+```dart
+bool get isOnboardingComplete {
+  final hasProfile = tasteProfileLibrary.profiles.isNotEmpty;
+  final hasRunPlan = runPlanLibrary.plans.isNotEmpty;
+  return hasProfile && hasRunPlan;
+}
+```
+
+However, a separate `onboarding_complete` flag in SharedPreferences is still recommended because:
+- Users who delete all profiles should NOT be re-shown onboarding (they are not "first-run" users)
+- Checking two separate async-loading providers for redirect creates a race condition on cold start
+- A single bool flag loads faster than waiting for both libraries to deserialize
+
+**Confidence:** HIGH (well-established UX pattern)
+
+---
+
+## Feature 2: Multi-Profile Management Refinement
+
+### What Already Works (Do Not Rebuild)
+
+The entire multi-profile data layer and library UI is shipped. v1.2 work here is UX polish only:
+
+| Component | Status | v1.2 Work Needed |
+|-----------|--------|-----------------|
+| `TasteProfile` domain model with `id`, `name` | Complete | None |
+| `TasteProfilePreferences` persistence | Complete (library pattern with migration) | None |
+| `TasteProfileLibraryNotifier` state management | Complete (add, update, delete, select) | None |
+| `TasteProfileLibraryScreen` UI | Complete | Polish: default names, empty state messaging |
+| `TasteProfileScreen` editor | Complete (edit + new modes) | Polish: guided prompts for first profile |
+| Profile selector on playlist screen | Complete (`_TasteProfileSelector`) | None |
+
+### Profile Naming Strategy
+
+**Decision: Auto-generate meaningful default names**
+
+Current behavior: profiles without a name show `"{first genre} Mix"` or `"Taste Profile"`. This is good enough but can be improved:
+
+```dart
+String defaultProfileName(TasteProfile profile) {
+  if (profile.genres.isNotEmpty) {
+    final energy = profile.energyLevel == EnergyLevel.intense
+        ? 'High Energy'
+        : profile.energyLevel == EnergyLevel.chill
+            ? 'Chill'
+            : '';
+    final genre = profile.genres.first.displayName;
+    return '$energy $genre Mix'.trim();
   }
-]
-```
-
-**Why bundled JSON asset, not SQLite/Drift:**
-- The curated list will be ~200-500 songs. At ~150 bytes per entry, that is 30-75 KB. SharedPreferences handles this easily; SQLite is overkill.
-- No relational queries needed -- lookup is by `(title, artist)` composite key or by genre+BPM range.
-- Bundled assets require zero setup, zero migrations, zero code generation.
-- The list is read-only reference data, not user-modifiable state.
-- `rootBundle.loadString()` is async but effectively instant for files under 1 MB.
-
-**Why not Drift/SQLite:**
-- Drift adds 3 packages (drift, drift_flutter, drift_dev) plus sqlite3_flutter_libs plus code generation via build_runner.
-- Current build_runner usage (freezed, json_serializable, riverpod_generator) would need to coordinate with drift_dev generators. This adds CI complexity.
-- The data volume (~500 songs) does not justify the overhead. If the curated list grows beyond 5,000 entries or needs user-specific annotations (thumbs up/down), re-evaluate.
-- Drift 2.31.0 is the latest stable version if needed in the future.
-
-**Loading pattern:**
-```dart
-// Load once at app startup or on first playlist generation
-final jsonString = await rootBundle.loadString('assets/data/curated_running_songs.json');
-final list = (jsonDecode(jsonString) as List).cast<Map<String, dynamic>>();
-```
-
-Declare in `pubspec.yaml`:
-```yaml
-flutter:
-  assets:
-    - .env
-    - assets/data/curated_running_songs.json
-```
-
-**Confidence:** HIGH (Flutter asset loading is well-documented standard practice)
-
-#### Tier 2: API-Enriched Song Features (Dynamic)
-
-For songs NOT in the curated list (i.e., discovered live via `/tempo/` endpoint), fetch danceability from the `/song/` endpoint using the song's `song_id`. Cache the enrichment in SharedPreferences alongside the existing BPM cache.
-
-**Enrichment cache key pattern:** `song_features_{songId}` (mirrors existing `bpm_cache_{bpm}` pattern)
-
-**Rate limiting concern:** The `/tempo/` endpoint returns ~10-20 songs per BPM value. A typical playlist generation queries 3-6 unique BPMs, yielding 30-120 candidate songs. Enriching all of them would mean 30-120 additional API calls. This is problematic.
-
-**Mitigation strategy: Lazy enrichment with batch limiting**
-- Only enrich the top-N candidates (e.g., top 20 by existing score) per generation, not all candidates.
-- Use the existing 300ms inter-call delay pattern from `PlaylistGenerationNotifier._apiCallDelay`.
-- Cache enrichment results with the same 7-day TTL as BPM data.
-- Over multiple generations, the enrichment cache builds up, reducing future API calls.
-
-**Confidence:** MEDIUM (API rate limits are undocumented; the batch limiting strategy is a hypothesis that needs production validation)
-
----
-
-### Song Quality Scoring Algorithm
-
-**Decision: Weighted multi-factor score, pure Dart, no ML**
-
-The current scoring in `PlaylistGenerator._scoreAndRank` uses two factors:
-- Artist match: +10 points
-- BPM match type (exact vs half/double): +3 or +1 points
-
-v1.1 adds a **running quality dimension** to this score:
-
-| Factor | Score Range | Source | Why |
-|--------|------------|--------|-----|
-| Curated list membership | +20 | Bundled asset | Known-good running songs should be strongly preferred |
-| Danceability (0-100) | +0 to +15 (scaled) | GetSongBPM `/song/` endpoint | Research shows danceability correlates with beat strength, tempo stability, rhythm regularity -- all attributes of good running music |
-| Genre match to taste | +10 (existing) | Taste profile | Keep existing behavior |
-| Artist match | +10 (existing) | Taste profile | Keep existing behavior |
-| BPM match precision | +3 exact, +1 variant (existing) | BPM computation | Keep existing behavior |
-| Energy alignment | +5 | Taste profile energy vs song acousticness | Low acousticness + intense preference = bonus; high acousticness + chill = bonus |
-
-**Danceability scaling formula:**
-```dart
-// Scale 0-100 danceability to 0-15 score points
-// Songs below 30 danceability get 0 (likely ballads/ambient)
-// Songs above 70 get full 15 (proven danceable/driving rhythm)
-final danceScore = ((danceability - 30).clamp(0, 40) / 40 * 15).round();
-```
-
-**No ML/AI needed.** A weighted linear score is sufficient because:
-- The feature space is small (5-6 signals)
-- There is no training data to learn from
-- The curated list provides a strong baseline
-- The scoring weights can be tuned by hand based on user feedback
-- This matches the existing architecture pattern (pure Dart, no external services)
-
-**Confidence:** HIGH (algorithm design is pure domain logic; danceability as running proxy is supported by music research)
-
----
-
-### Taste Profile Improvements
-
-**Decision: Extend existing `TasteProfile` model, no new packages**
-
-Current model:
-```dart
-class TasteProfile {
-  final List<RunningGenre> genres;  // 1-5 genres
-  final List<String> artists;       // 0-10 artists
-  final EnergyLevel energyLevel;    // chill/balanced/intense
+  return 'My Profile';
 }
 ```
 
-Proposed v1.1 additions:
-```dart
-class TasteProfile {
-  // Existing fields (unchanged)
-  final List<RunningGenre> genres;
-  final List<String> artists;
-  final EnergyLevel energyLevel;
+**No new packages needed.** This is pure presentation logic.
 
-  // NEW: Running-specific preferences
-  final bool preferVocals;          // vocals vs instrumentals
-  final double tempoVarianceTolerance; // 0.0-1.0, how strict on BPM match
-  final Set<String> dislikedArtists;   // explicit exclusion list
-}
-```
+**Confidence:** HIGH (trivial string formatting)
 
-**Why `preferVocals`:** Running music preference research distinguishes between runners who want vocals (lyrics as motivation) and those who prefer instrumental/electronic (rhythm focus). This is a meaningful taste signal that affects song selection.
+### ID Generation
 
-**Why `tempoVarianceTolerance`:** Some runners want exact BPM match; others are fine with +/-5 BPM. This makes half/double-time matching configurable rather than always-on.
+The current ID generation uses `DateTime.now().millisecondsSinceEpoch.toString()`. This is sufficient for a single-user local app where profiles are created seconds apart. No need to add the `uuid` package.
 
-**Why `dislikedArtists`:** After seeing generated playlists, users need a way to say "never show me this artist again." This is more impactful than adding liked artists.
-
-**Migration:** The existing `TasteProfile.fromJson` already handles missing fields gracefully (defaults). New fields will have sensible defaults, so existing persisted profiles load without migration.
-
-**Confidence:** HIGH (pure model extension, follows existing patterns)
+**Confidence:** HIGH
 
 ---
 
-### Post-Run Stride Adjustment
+## Feature 3: Playlist Regeneration Reliability
 
-**Decision: Extend `StrideNotifier` and `StrideScreen`, no new packages**
+### Current Regeneration Issues Identified
 
-Current stride adjustment requires opening the Stride Calculator and either:
-- Changing the pace dropdown
-- Running a 30-second calibration
+Reading the `PlaylistGenerationNotifier` code reveals the following reliability concerns:
 
-v1.1 adds a simpler "nudge" mechanism:
+**Issue 1: `regeneratePlaylist()` re-fetches songs from API instead of reusing cached pool**
 
-**Implementation approach:**
-- Add `adjustCadence(int delta)` method to `StrideNotifier`
-- Surface as +/- buttons or a "that was too fast / too slow" prompt on the playlist results screen
-- Persist the adjustment as a cadence offset in `StridePreferences`
+The `regeneratePlaylist()` method calls `_fetchAllSongs(storedPlan)` which makes fresh API calls. When the user just wants a different shuffle of the same song pool, this is wasteful and can fail if the API is down. The `state.songPool` is already available from the previous generation.
 
-**No new packages required.** This is a UI/state change within the existing stride feature module.
+**Fix approach:** Add a `shufflePlaylist()` method that reuses `state.songPool` and only calls `PlaylistGenerator.generate()` with the existing pool. Reserve `regeneratePlaylist()` for when the user changes run plan or taste profile (requiring new songs).
 
-**Confidence:** HIGH (follows existing stride module patterns exactly)
+**Issue 2: State reads stale providers during regeneration**
 
----
+`generatePlaylist()` reads `runPlanNotifierProvider` and `tasteProfileNotifierProvider` at call time. If the user changed their selected profile between generating and regenerating, `regeneratePlaylist()` uses the OLD stored plan/profile from `state.runPlan` / `state.tasteProfile`, while `generatePlaylist()` uses the CURRENT selection from providers. This inconsistency can lead to confusing behavior.
 
-### Streamlined Repeat Generation Flow
+**Fix approach:** Both methods should consistently read from providers for the current selection, with `state.runPlan/tasteProfile` serving only as fallback. Alternatively, regenerate should explicitly accept parameters.
 
-**Decision: Rework navigation flow, no new packages**
+**Issue 3: No error recovery for partial API failure**
 
-Current flow for returning user:
-```
-Home -> Run Plan (review) -> Taste Profile (review) -> Generate Playlist (tap) -> Wait -> Results
-```
-That is 4 navigation steps + a button tap before seeing a playlist.
+If the API fails mid-fetch (e.g., 3 out of 6 BPM queries succeed), the entire generation falls through to the curated-only path. Songs from successful API calls are discarded.
 
-v1.1 target flow:
-```
-Home -> [Generate button with last settings summary] -> Wait -> Results
-```
-That is 1 tap from home to generation.
+**Fix approach:** Merge API results with curated fallback rather than either/or. This is a domain logic change, not a stack change.
 
-**Implementation approach:**
-- Home screen detects saved run plan + taste profile
-- Shows "Generate with [last settings]" primary CTA
-- Tapping triggers `PlaylistGenerationNotifier.generatePlaylist()` directly
-- Navigates to playlist screen which shows loading -> results
-- "Edit settings" secondary action available for changes
+**All three issues are fixable within existing Riverpod StateNotifier pattern. No new packages needed.**
 
-**No new packages required.** This is a navigation/UX restructuring using existing go_router routes and Riverpod providers.
-
-**Confidence:** HIGH (all required state is already persisted and accessible via providers)
+**Confidence:** HIGH (issues identified by direct code review; fixes are straightforward state management changes)
 
 ---
 
 ## What NOT to Add
 
 | Technology | Why Not Add |
-|------------|-------------|
-| **drift / SQLite** | Overkill for ~500 curated songs. SharedPreferences + bundled JSON asset handles the data volume. Re-evaluate if curated list exceeds 5,000 entries or user-specific song annotations are needed. |
-| **Hive / ObjectBox / Isar** | Same as drift -- unnecessary complexity for the data volume. All three add native library dependencies and code generation overhead. |
-| **dio** | The existing `http` package is sufficient. The v1.0 STACK.md recommended dio, but the actual implementation uses `http` and works fine. No reason to switch for additional API calls. |
-| **Supabase (activate it)** | Supabase is initialized but dormant. For v1.1, all data is local (curated list is bundled, enrichment cache is SharedPreferences, taste profile is SharedPreferences). Supabase adds network dependency for features that don't need it. Activate when user accounts or cross-device sync are needed. |
-| **Any ML/AI package** | Song quality scoring is a weighted linear function on 5-6 features. ML adds complexity (model size, inference time, training data requirements) for minimal benefit over hand-tuned weights. |
-| **cached_network_image** | No album art display in current UI, and v1.1 doesn't add it. Don't pre-add packages speculatively. |
-| **spotify package** | Spotify Developer Dashboard still blocked as of 2026-02-05. No Spotify integration in v1.1. |
-| **flutter_animate / animations package** | Frictionless UX does not require custom animations. Flutter Material's built-in transitions (Hero, page transitions) are sufficient. If specific animation needs arise during implementation, evaluate then. |
+|-----------|-------------|
+| **smooth_page_indicator** ^2.0.1 | Onboarding flow uses form-heavy steps, not swipeable cards. Flutter's built-in `LinearProgressIndicator` or `Stepper` is appropriate. |
+| **introduction_screen** | Over-engineered for our needs. Our onboarding must reuse existing taste profile and run plan form widgets, not display intro images. |
+| **uuid** | `DateTime.now().millisecondsSinceEpoch` is sufficient for local single-user ID generation. UUIDs add a dependency for no practical benefit at this scale. |
+| **drift / SQLite / Hive** | Data volume has not changed. SharedPreferences handles profile library (JSON array) easily. |
+| **flutter_secure_storage** (activate it) | Already in pubspec.yaml but unused. Profile data is not sensitive enough to warrant encrypted storage. |
+| **Supabase (activate it beyond init)** | Cross-device profile sync would be nice but is out of scope for v1.2. All data remains local. |
+| **auto_route** | GoRouter 17.x is already in use and supports redirect-based onboarding. No reason to switch routing packages. |
+| **riverpod_generator** (activate it) | Code-gen is broken with Dart 3.10 (documented in project memory). Continue with manual providers. |
+| **freezed** (for new models) | Existing models use hand-written `copyWith`, `fromJson`, `toJson`. This pattern is established and works. Adding freezed for new classes while existing ones are manual creates inconsistency. |
 
 ---
 
 ## Existing Stack: Confirmed Sufficient
 
-These existing packages handle all v1.1 needs without changes:
+| Package | Version | v1.2 Usage |
+|---------|---------|-----------|
+| `flutter_riverpod` | ^2.6.1 | Onboarding state provider, generation state fixes |
+| `go_router` | ^17.0.1 | `redirect` callback for onboarding gate, new `/onboarding` route |
+| `shared_preferences` | ^2.5.4 | `onboarding_complete` bool flag |
+| `http` | ^1.6.0 | Unchanged |
+| `url_launcher` | ^6.3.2 | Unchanged |
+| `supabase_flutter` | ^2.12.0 | Unchanged (init only) |
+| `flutter_dotenv` | ^6.0.0 | Unchanged |
 
-| Package | v1.1 Usage |
-|---------|-----------|
-| `flutter_riverpod` ^2.6.1 | State for enrichment cache, extended taste profile, cadence adjustment |
-| `go_router` ^17.0.1 | Streamlined navigation flow (rework existing routes) |
-| `http` ^1.6.0 | Additional `/song/` endpoint calls for danceability enrichment |
-| `shared_preferences` ^2.5.4 | Song feature enrichment cache, extended taste profile persistence |
-| `url_launcher` ^6.3.2 | Unchanged -- play links |
-| `freezed_annotation` + `json_annotation` | Data class extensions (if needed for new models) |
-| `very_good_analysis` ^7.0.0 | Linting (unchanged) |
+**Note on SharedPreferences API:** The project uses the classic `SharedPreferences` API (synchronous reads after `getInstance()`). Version 2.5.4 also offers `SharedPreferencesAsync` and `SharedPreferencesWithCache`. No reason to migrate -- the classic API is not deprecated yet and the project's usage patterns are simple enough that the newer APIs provide no benefit. If migration happens, it should be a separate effort, not mixed with v1.2 feature work.
 
----
-
-## Data Storage Strategy Summary
-
-| Data | Storage | Format | Lifetime |
-|------|---------|--------|----------|
-| Curated running songs (~500) | Bundled Flutter asset | JSON file | Permanent (updated with app releases) |
-| Song feature enrichment (danceability, etc.) | SharedPreferences | JSON per song_id, keyed `song_features_{id}` | 7-day TTL cache (matches BPM cache) |
-| Extended taste profile | SharedPreferences | JSON blob (single key, existing pattern) | Permanent (user-managed) |
-| Cadence adjustment offset | SharedPreferences | Numeric value (existing stride prefs key) | Permanent (user-managed) |
-| Disliked artists | SharedPreferences (part of taste profile) | String list in taste profile JSON | Permanent (user-managed) |
-
-**SharedPreferences size budget:**
-- Existing usage: ~50-200 KB (BPM cache, playlists, settings)
-- New enrichment cache: ~100 bytes per song x estimated 500 songs over time = ~50 KB
-- New curated list: NOT stored in SharedPreferences (bundled asset, read-only)
-- Total estimated: <500 KB -- well within SharedPreferences comfort zone (recommended < few KB per entry, but total storage is effectively unlimited on modern platforms)
-
-**Confidence:** HIGH (follows established patterns, data volumes are small)
+**Confidence:** HIGH (all versions verified against pub.dev, all patterns verified against codebase)
 
 ---
 
-## API Usage Strategy
+## Data Storage: No Changes to Strategy
 
-| Endpoint | Current Usage | v1.1 Usage | Rate Concern |
-|----------|--------------|------------|-------------|
-| `GET /tempo/?bpm={n}` | 3-6 calls per generation | Unchanged | Low (existing 300ms delay works) |
-| `GET /song/?id={id}` | Not used | Up to 20 calls per generation (top candidates only) | MEDIUM -- needs 300ms delay between calls, cache aggressively |
+| Data | Storage | v1.2 Changes |
+|------|---------|-------------|
+| Taste profile library | SharedPreferences (JSON array) | None -- already supports multiple profiles |
+| Selected profile ID | SharedPreferences (string) | None -- already persisted |
+| Run plan library | SharedPreferences (JSON array) | None |
+| Onboarding completion | SharedPreferences (bool) | NEW -- single `onboarding_complete` key |
+| BPM cache | SharedPreferences (JSON per BPM) | None |
+| Playlist history | SharedPreferences (JSON array) | None |
 
-**Total API calls per playlist generation:**
-- v1.0: 3-6 calls (BPM lookups only)
-- v1.1: 3-6 + up to 20 = 23-26 calls (with enrichment)
-- With caching: Second generation for same BPM range = 0 calls (all cached)
+**New SharedPreferences keys for v1.2:**
+- `onboarding_complete` (bool) -- that is the only new key needed.
 
-**Mitigation:** The enrichment cache means API calls are front-loaded. After a few generations, most songs in the user's BPM range will be enriched, and generation becomes near-instant (all cached).
-
-**Confidence:** MEDIUM (rate limits undocumented; strategy is sound but needs real-world testing)
+**Confidence:** HIGH
 
 ---
 
@@ -339,28 +278,43 @@ These existing packages handle all v1.1 needs without changes:
 
 | Existing File | What Changes | How |
 |--------------|-------------|-----|
-| `lib/features/bpm_lookup/domain/bpm_song.dart` | Add optional `danceability`, `acousticness`, `genres` fields | Extend `BpmSong` class, nullable fields for backward compat |
-| `lib/features/bpm_lookup/data/getsongbpm_client.dart` | Add `fetchSongById(String songId)` method | New method on existing client, returns enriched `BpmSong` |
-| `lib/features/playlist/domain/playlist_generator.dart` | Extend `_scoreAndRank` with quality factors | Add curated list lookup + danceability scoring to existing algorithm |
-| `lib/features/taste_profile/domain/taste_profile.dart` | Add `preferVocals`, `tempoVarianceTolerance`, `dislikedArtists` | Extend model with defaults, backward-compatible JSON |
-| `lib/features/taste_profile/presentation/taste_profile_screen.dart` | Add new preference UI sections | Extend existing form |
-| `lib/features/stride/providers/stride_providers.dart` | Add `adjustCadence(int delta)` | New method on existing notifier |
-| `lib/features/home/presentation/home_screen.dart` | Add quick-generate CTA | Read run plan + taste profile state, show primary button |
-| `lib/features/playlist/providers/playlist_providers.dart` | Add enrichment step before generation | Extend `_fetchAllSongs` or add parallel enrichment step |
-| `lib/features/playlist/presentation/playlist_screen.dart` | Show quality indicators on songs | Extend `SongTile` with running quality badge |
-| `pubspec.yaml` | Add asset declaration | `assets/data/curated_running_songs.json` |
+| `lib/app/router.dart` | Add `redirect` for onboarding gate + `/onboarding` route | Extend `GoRouter` constructor with redirect callback |
+| `lib/features/playlist/providers/playlist_providers.dart` | Fix regeneration to reuse song pool, fix stale state reads | Modify `regeneratePlaylist()`, add `shufflePlaylist()` |
+| `lib/features/taste_profile/presentation/taste_profile_library_screen.dart` | Polish empty state, improve default naming | Minor UI changes |
+| `lib/features/home/presentation/home_screen.dart` | Update for first-run vs returning user messaging | Conditional UI based on onboarding state |
+| `lib/main.dart` | No changes needed | GoRouter redirect handles onboarding detection |
+
+**New files to create:**
+| File | Purpose |
+|------|---------|
+| `lib/features/onboarding/data/onboarding_preferences.dart` | SharedPreferences wrapper for `onboarding_complete` flag |
+| `lib/features/onboarding/providers/onboarding_providers.dart` | `OnboardingNotifier` StateNotifier for completion state |
+| `lib/features/onboarding/presentation/onboarding_screen.dart` | Multi-step onboarding UI (PageView with embedded forms) |
+
+**These follow the exact same `features/{name}/data|domain|presentation|providers` structure as every other feature module.**
+
+---
+
+## Architecture Decision Record: Why No New Packages
+
+The v1.2 milestone is fundamentally a **UX refinement milestone**, not an infrastructure milestone. The multi-profile architecture shipped in v1.1. The onboarding pattern (bool flag + GoRouter redirect) is a 20-line addition to existing infrastructure. The regeneration fix is a state management bug fix.
+
+Adding packages for any of these introduces:
+- Version resolution conflicts with existing dependencies
+- Build time increase (especially problematic with Dart 3.10 code-gen issues)
+- Learning curve for maintainer
+- Upgrade burden for future milestones
+
+The existing Flutter + Riverpod + GoRouter + SharedPreferences stack handles everything v1.2 needs. **The right decision is zero new dependencies.**
 
 ---
 
 ## Sources
 
-- [GetSongBPM API docs](https://getsongbpm.com/api) - MEDIUM confidence (403 on direct fetch, info from search results and Perl wrapper docs)
-- [GetSongBPM `/song/` response with danceability](https://getsongbpm.com/api) - MEDIUM confidence (confirmed via multiple web sources showing example JSON with danceability field)
-- [Flutter asset loading docs](https://docs.flutter.dev/ui/assets/assets-and-images) - HIGH confidence
-- [drift 2.31.0 on pub.dev](https://pub.dev/packages/drift) - HIGH confidence (verified current version)
-- [drift_flutter 0.2.8 on pub.dev](https://pub.dev/packages/drift_flutter) - HIGH confidence (verified current version)
-- [SharedPreferences size recommendations](https://fluttermasterylibrary.com/4/11/2/4/) - MEDIUM confidence (community guidance, not official Flutter team)
-- [Running music BPM synchronization research (PLOS One)](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0208702) - HIGH confidence (peer-reviewed)
-- [Danceability and running correlation](https://runningwithdata.com/2010/10/15/danceability-and-energy.html) - LOW confidence (old blog post, but aligns with academic research)
-- [Curated running song lists (Runner's World, Cosmopolitan, KURU)](https://www.runnersworld.com/uk/training/motivation/a64724042/best-running-songs/) - MEDIUM confidence (editorial picks, useful as seed data)
+- [GoRouter redirect documentation](https://pub.dev/packages/go_router) - HIGH confidence (verified v17.1.0 changelog, redirect supported)
+- [GoRouter onboarding redirect pattern](https://dev.to/kcl/onboarding-with-go-router-in-flutter-2jd6) - MEDIUM confidence (community tutorial, but pattern is standard)
+- [SharedPreferences v2.5.4 changelog](https://pub.dev/packages/shared_preferences/changelog) - HIGH confidence (verified on pub.dev)
+- [smooth_page_indicator v2.0.1](https://pub.dev/packages/smooth_page_indicator) - HIGH confidence (verified on pub.dev, decided NOT to use)
+- [Flutter Riverpod async init pattern](https://codewithandrea.com/articles/robust-app-initialization-riverpod/) - MEDIUM confidence (community tutorial by reputable author)
+- [Flutter onboarding with Riverpod + SharedPreferences + GoRouter](https://flutterexplained.com/p/flutter-onboarding-with-riverpod) - MEDIUM confidence (community tutorial, aligns with documented APIs)
 - Existing codebase analysis (all files read directly) - HIGH confidence

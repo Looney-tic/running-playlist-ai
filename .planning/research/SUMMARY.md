@@ -1,288 +1,202 @@
 # Project Research Summary
 
-**Project:** Running Playlist AI
-**Milestone:** v1.1 Experience Quality
-**Domain:** Running music playlist generation with song quality scoring
-**Researched:** 2026-02-05
-**Confidence:** MEDIUM-HIGH
+**Project:** Running Playlist AI - v1.2 Profile Management & Onboarding
+**Domain:** Multi-profile taste management, user onboarding, playlist regeneration reliability
+**Researched:** 2026-02-06
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Running Playlist AI v1.1 focuses on improving playlist quality beyond basic BPM matching by incorporating song suitability scoring. Research reveals that successful running music apps distinguish between **objective running suitability** (beat strength, rhythmic drive, danceability) and **subjective taste matching** (genre, artist, energy preferences). The Karageorghis framework establishes that rhythm response matters more than melody, which matters more than cultural impact, which matters more than personal associations.
+v1.2 represents a UX refinement milestone building on top of fully functional v1.1 multi-profile infrastructure. The research reveals a critical discovery: the multi-profile architecture (TasteProfileLibraryNotifier, profile CRUD, selection, persistence, library UI) is already shipped. This dramatically reduces scope—v1.2 is not about building multi-profile support, but about polishing what exists and adding first-run onboarding to guide new users through the app's 3-step setup sequence (stride → run plan → taste profile → generate).
 
-The critical discovery is that GetSongBPM's `/song/` endpoint already returns `danceability` and `acousticness` fields—data points the current app completely ignores. This enables quality scoring without additional API dependencies. The recommended approach combines a two-tier enrichment strategy: (1) bundled curated song data (200-500 known-good running songs as a static JSON asset) for the quality "floor," and (2) dynamic API enrichment for danceability on non-curated songs. Crucially, no new package dependencies are required—all improvements build on the existing Flutter/Riverpod stack.
+The recommended approach is zero new dependencies. Flutter + Riverpod 2.x manual providers + GoRouter + SharedPreferences handles everything v1.2 needs. Onboarding uses GoRouter redirect with a pre-loaded flag from main.dart. Regeneration reliability is fixed by adding a shufflePlaylist() method that reuses the stored songPool instead of re-fetching from the API. The taste profile library needs only UX polish (better empty state copy, delete confirmation dialogs).
 
-The key risk is treating "good running song" as universal rather than contextual. A metalcore fan's ideal running song differs completely from a pop listener's. The architecture must separate running suitability scoring from taste matching to avoid regressing toward bland, lowest-common-denominator recommendations. Other critical pitfalls include making curated data immutable (bundle with remote update capability), over-engineering taste profiles before fixing song pool quality, and scraping copyrighted running song lists.
+Key risks center on async initialization race conditions: providers load asynchronously from SharedPreferences while screens consume them synchronously. This causes intermittent failures when users navigate to /playlist?auto=true before RunPlanLibraryNotifier finishes loading. The fix is straightforward—either persist generation inputs across cold starts or add explicit readiness guards—but must be addressed before onboarding, since the onboarding completion flow leads directly to playlist generation.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Core decision: No new dependencies needed.** All v1.1 features can be built with the existing stack plus pure Dart domain logic and Flutter bundled assets. The v1.0 stack (Flutter 3.38, Riverpod 2.x, go_router 17, http, SharedPreferences, GetSongBPM API) remains validated and stable.
+**No new dependencies required.** All v1.2 features build on the existing stack.
 
-**Core technologies for v1.1:**
-- **GetSongBPM `/song/` endpoint** — Returns danceability, acousticness, key, time signature, artist genres. Currently unused, but critical for quality scoring. Requires lazy enrichment with rate limiting (top-N candidates only, 300ms delays, aggressive caching).
-- **Bundled JSON asset** — Ships 200-500 curated running songs as `assets/curated_running_songs.json`. No SQLite/Drift needed for this data volume; SharedPreferences + rootBundle.loadString() handles it efficiently.
-- **Pure Dart scoring algorithm** — Weighted multi-factor score (danceability + genre + artist + energy + BPM). No ML/AI packages required; hand-tuned weights based on research.
-- **Existing state management** — Extend TasteProfile model, PlaylistGenerator scoring, StrideNotifier with new methods. All within current architecture patterns.
+The existing Flutter 3.38 + Dart 3.10 + Riverpod 2.x + GoRouter 17.x + SharedPreferences 2.5.4 stack is comprehensive and stable. Adding libraries for onboarding (smooth_page_indicator, introduction_screen) or profile management (uuid, drift, freezed) would create maintenance burden for zero functional gain.
 
-**What NOT to add:** drift/SQLite (overkill for <500 songs), dio (http works fine), Supabase activation (not needed for local-first features), any ML/AI packages, Spotify integration (still blocked), speculative animation libraries.
+**Core technologies:**
+- **GoRouter 17.x redirect** — First-run onboarding gate; synchronous redirect callback checks pre-loaded flag
+- **SharedPreferences** — All persistence (onboarding_complete bool, profile library JSON, run plan library JSON)
+- **Flutter PageView** — Built-in onboarding step-through UI with LinearProgressIndicator for progress
+- **Riverpod StateNotifier** — Existing TasteProfileLibraryNotifier already implements full multi-profile CRUD
 
-**Critical API strategy:** Enrichment cache (SharedPreferences, 7-day TTL) with lazy loading. Only enrich top-20 candidates per generation, not all. Over time the cache builds up and generations become near-instant.
+**Critical discovery:** Multi-profile infrastructure is not v1.2 scope—it's already done. TasteProfileLibraryNotifier, TasteProfilePreferences (with legacy migration), TasteProfileLibraryScreen, profile selector on playlist screen, and parallel RunPlanLibraryNotifier all shipped in v1.1. v1.2 is UX refinement, not architecture.
 
 ### Expected Features
 
-Research synthesized from the Karageorghis framework, 2025 groove/running studies, and competitor analysis (RockMyRun, PaceDJ, Weav).
-
 **Must have (table stakes):**
-- **Danceability-weighted scoring** — High-danceability songs at the right BPM are objectively better for running. GetSongBPM returns this; currently ignored. Users will feel the difference even if they can't articulate why.
-- **Genre-aware song scoring** — Taste profile stores genres but doesn't use them in scoring. Genre match should boost ranking.
-- **Variety within playlists** — No artist repeats in succession. Already partially implemented; needs artist-diversity constraint in scoring.
-- **Post-run cadence nudge** — Simple "+/- 2 BPM" adjustment on playlist screen or home, not forcing users back through stride calculator.
+- **Taste profile library polish** — Backend complete, needs visual consistency with run plan library cards, better empty state guidance
+- **Profile selector on playlist screen** — Already implemented (_TasteProfileSelector widget), verify selection state propagates correctly
+- **Reliable regeneration** — Fix async initialization race where generatePlaylist() reads null providers before load completes
+- **Delete confirmation dialogs** — Both libraries allow destructive delete with single tap, need confirmation for profile/plan deletion
 
-**Should have (differentiators):**
-- **Composite running quality score** — Combines danceability + genre + artist + BPM + energy into weighted score. No competitor in BPM-matching space does multi-factor scoring at this sophistication.
-- **Energy-level-to-danceability mapping** — TasteProfile.energyLevel (chill/balanced/intense) maps to preferred danceability ranges. Currently stored but unused.
-- **One-tap regeneration** — "Same run, new songs" from home screen. Current flow requires 4 navigation steps; should be 1 tap.
-- **Curated "proven running song" bonus** — Static lists per genre from Runner's World, running playlists, community recommendations. Boost in scoring, not a filter.
-- **Segment-appropriate energy** — Warm-up prefers lower energy, sprints prefer highest, cool-down prefers calm. Map automatically based on segment labels.
+**Should have (competitive advantage):**
+- **First-launch onboarding flow** — 4-screen action-oriented flow (welcome → pace → genres → auto-generate first playlist in under 60 seconds)
+- **Smart home screen** — Context-aware content based on setup state (no profiles → onboarding prompt; profiles exist → regenerate card)
+- **Profile templates/presets** — Pre-populated profiles ("High Energy Pop," "Chill Electronic," "Hip-Hop Power") reduce cold-start friction
+- **Quick-switch profile chips** — Lift existing selector widgets to home screen for one-tap profile switching
 
-**Defer (anti-features):**
-- **Audio analysis/beat detection** — Requires audio file access (unavailable), massive compute. GetSongBPM already provides danceability.
-- **AI-powered recommendations** — Overkill; research-backed scoring formula is effectively a hand-tuned model.
-- **Real-time BPM adjustment** — Requires foreground app, accelerometer, streaming integration. Weav's entire business model; patent-protected.
-- **Lyric analysis** — No free API, marginal benefit over danceability + genre.
-- **Social playlist sharing** — Requires accounts, backend, moderation. App is intentionally account-free.
+**Defer (v2+):**
+- **Account system/cloud sync** — App is intentionally local-first; export/import JSON is simpler bridge if needed
+- **Spotify profile import** — Brittle OAuth flow, API restrictions make this unreliable (Nov 2024 changes)
+- **Complex onboarding analytics** — Premature optimization; validate with 3-5 real user tests instead
 
 ### Architecture Approach
 
-**Design principle: Add a scoring layer, do not restructure.** The existing PlaylistGenerator architecture is clean and well-bounded. Song quality is a new scoring dimension injected into `_scoreAndRank`, not a new pipeline.
+The app follows a clean feature-based architecture with Riverpod 2.x manual providers (code-gen broken with Dart 3.10). Each feature has data/domain/presentation/providers layers. Persistence uses SharedPreferences with JSON serialization via static wrapper classes. Navigation uses GoRouter with flat routes and query parameters for behavior (?auto=true, ?id=xxx).
 
 **Major components:**
+1. **TasteProfileLibraryNotifier** (EXISTING) — Full CRUD + selection for multiple named profiles; loads asynchronously from SharedPreferences in constructor via fire-and-forget _load()
+2. **Onboarding flow** (NEW) — GoRouter redirect guard + OnboardingFlowScreen coordinator that checks provider state (profiles.isEmpty? → create step) and reuses existing screens
+3. **PlaylistGenerationNotifier.shufflePlaylist()** (NEW) — Fast regeneration reusing state.songPool with new Random seed instead of re-fetching from API
 
-1. **RunningQualityIndex** — Lookup structure for curated song data. Loaded once from bundled JSON asset (`rootBundle.loadString`), kept in memory via Riverpod provider. Supports exact song match (artist|title key) and artist-level fallback for genre/energy inference. ~200-500 songs = 50-200KB, well within asset limits.
-
-2. **SongQualityScorer** — Pure Dart static scoring methods. Replaces simple `_scoreAndRank` logic with weighted multi-factor score:
-   - Artist match: +10 (existing)
-   - Running quality (curated): +8 (NEW)
-   - Genre match: +6 (NEW)
-   - Energy alignment: +4 (NEW)
-   - Exact BPM: +3 (existing)
-   - Tempo variant: +1 (existing)
-
-3. **Enhanced TasteProfile** — Add `preferVocals` (bool), `tempoVarianceTolerance` (double), `dislikedArtists` (Set). Backward-compatible via fromJson defaults.
-
-4. **Stride adjustment layer** — Add `adjustCadence(int delta)` method to existing StrideNotifier. UI shows +/- buttons; persisted as cadence offset.
-
-5. **Quick regeneration state** — Cache last song pool and run plan in PlaylistGenerationNotifier. `regenerate()` method reuses cached data for instant re-generation with different shuffle.
-
-**Data flow enhancement:** PlaylistGenerationNotifier reads RunningQualityIndex → passes to PlaylistGenerator.generate() → SongQualityScorer computes composite score → songs ranked → quality indicators added to PlaylistSong model → displayed in UI.
-
-**Key decision: Curated data is a boost, not a filter.** Unknown songs still appear, just ranked lower. This prevents empty playlists for niche genres.
+**Key architectural decisions:**
+- **Onboarding flag pre-loaded in main.dart** — GoRouter redirect is synchronous; pre-load SharedPreferences bool before ProviderScope initialization to avoid async redirect pitfalls
+- **Reuse existing screens during onboarding** — TasteProfileScreen, RunPlanScreen already have full UX; onboarding shell controls navigation, no simplified "onboarding versions"
+- **Shuffle vs Generate separation** — shufflePlaylist() reuses stored songPool (instant), generatePlaylist() fetches fresh (respects current provider selections)
 
 ### Critical Pitfalls
 
-1. **Treating "good running song" as universal** — A metalcore fan's ideal differs completely from a pop listener's. Conflating running suitability (objective: beat strength, rhythm) with taste fit (subjective: genre, mood) produces bland recommendations. **Prevention:** Separate scoring dimensions explicitly. Running suitability and taste match must be independent signals, combined at generation time.
+1. **Regeneration race condition** — PlaylistGenerationNotifier reads runPlanNotifierProvider/tasteProfileNotifierProvider before their async _load() completes. On cold start, providers return null, causing "No run plan saved" error despite data existing. Fix by persisting generation inputs (runPlan, tasteProfile, songPool) across cold starts, or add explicit readiness guard before generatePlaylist().
 
-2. **Curated data that requires app store releases to update** — Bundled JSON assets are immutable after build. Errors, new songs, licensing changes require full submission cycle (days to weeks). **Prevention:** Hybrid approach—bundle baseline dataset as fallback, serve latest from Supabase/remote JSON with version checking, cache locally. Shorebird cannot update assets.
+2. **Onboarding redirect loop/flash** — GoRouter redirect is synchronous but SharedPreferences is async. Checking onboarding_complete flag inside redirect causes flash (shows home screen while loading) or infinite loop (redirect fires for /onboarding and sees stale false value). Fix by pre-loading flag in main.dart before GoRouter initialization and passing via provider override.
 
-3. **Over-engineering taste profile before fixing song pool** — Adding sub-genres, mood dimensions, decade preferences doesn't help if the GetSongBPM candidate pool is mediocre. No amount of sophisticated ranking fixes poor candidates. **Prevention:** Invert priority—curate seed database of known-good songs first (Phase 1), then improve taste profiling (Phase 2+).
+3. **Taste profile JSON migration drops data** — RunningGenre.fromJson() and EnergyLevel.fromJson() use firstWhere without orElse, throwing StateError on unknown enum values (version mismatch, future upgrade/downgrade). Fix by adding orElse fallbacks to ALL enum deserializers and wrapping loadAll() in try-catch.
 
-4. **Scraping running song lists without legal/quality considerations** — Scraping Runner's World, Cosmopolitan lists violates ToS, introduces data quality issues (promotional placements, recency bias), and creates reconciliation problems (fuzzy matching between scraped names and GetSongBPM IDs). **Prevention:** Use legitimate sources—GetSongBPM API as candidate pool + manual verification, public playlists for inspiration (not scraping), community curation model like jog.fm.
+4. **Onboarding cold-start latency** — First playlist generation after onboarding requires async load of just-saved profile, async load of just-saved plan, network fetch from GetSongBPM API, curated repository load (3-tier), and runnability data load. Multiple async operations compound, making worst first impression. Fix by pre-fetching curated data during onboarding setup or passing onboarding data directly to generator instead of save-then-reload roundtrip.
 
-5. **Designing around Spotify Audio Features that no longer exist** — Spotify deprecated Audio Features (energy, valence, loudness) in Nov 2024. Designing models assuming 7 features breaks when only 2 (danceability, acousticness) are available from GetSongBPM. **Prevention:** Design scoring exclusively around confirmed available data: GetSongBPM fields + curated manual ratings + future user feedback.
+5. **Silent error swallowing in _load()** — Both RunPlanLibraryNotifier and TasteProfileLibraryNotifier call _load() fire-and-forget in constructor with no error handling. If SharedPreferences throws or JSON parse fails, error is silently consumed and app behaves as if user has no data. Fix by adding try-catch inside _load() with error state field or migrate to AsyncNotifier with built-in error handling.
 
 ## Implications for Roadmap
 
-Based on combined research, v1.1 should be structured as 3 phases with clear dependencies.
+Based on research, v1.2 should be structured in 3 phases, not 4. The multi-profile implementation is complete—verification and polish can merge into a single phase.
 
-### Phase 1: Scoring Foundation (Must Have)
-**Rationale:** Core quality improvement. All other enhancements depend on better song selection. Research shows danceability/groove is the single most impactful signal for running music (Karageorghis hierarchy: rhythm response > musicality > cultural impact).
-
-**Delivers:**
-- Parse danceability from GetSongBPM `/song/` endpoint
-- Parse artist genres from API
-- Implement composite quality score (SongQualityScorer)
-- Integrate energy level (TasteProfile.energyLevel) into scoring
-- Artist diversity constraint (no back-to-back same artist)
-
-**Uses from STACK.md:**
-- GetSongBPM `/song/` endpoint enrichment
-- Pure Dart scoring algorithm
-- Existing http package for API calls
-- SharedPreferences for enrichment cache
-
-**Implements from ARCHITECTURE.md:**
-- SongQualityScorer class (new)
-- Enhanced PlaylistGenerator._scoreAndRank
-- Modified PlaylistGenerationNotifier (pass quality index)
-
-**Avoids from PITFALLS.md:**
-- Pitfall 1: Separates running suitability from taste matching as independent dimensions
-- Pitfall 5: Uses only confirmed available data (danceability, acousticness from GetSongBPM)
-
-**Research flag:** SKIP — Well-documented patterns. GetSongBPM API fields confirmed, scoring logic is pure domain logic.
-
----
-
-### Phase 2: Curated Data Foundation (Should Have)
-**Rationale:** Establishes quality "floor" for recommendations. Even with perfect scoring, GetSongBPM's random BPM results need curation. Research shows 200-500 manually verified songs dramatically improves perceived quality.
+### Phase 1: Regeneration Reliability Fix
+**Rationale:** Smallest scope (one new method + UI wire), no dependencies, fixes only actual bug in v1.2 scope. Good confidence builder before larger onboarding work.
 
 **Delivers:**
-- Curated running songs JSON asset (200-500 songs, manually verified)
-- CuratedSongsLoader (rootBundle + JSON parse)
-- RunningQualityIndex (in-memory lookup structure)
-- Integration with SongQualityScorer (curated bonus in composite score)
-- Baseline remote update capability (Supabase table + version check)
+- shufflePlaylist() method that reuses state.songPool with new Random seed (instant shuffle, no API calls)
+- generatePlaylist() verification that it reads current provider selections correctly
+- Fix for intermittent "No run plan" error on auto-generate after cold start
 
-**Uses from STACK.md:**
-- Bundled JSON asset (assets/curated_running_songs.json)
-- No new packages—rootBundle.loadString() for loading
-- Optional: Supabase for remote updates (already in project)
+**Addresses:** Table stakes "reliable regeneration" feature
 
-**Implements from ARCHITECTURE.md:**
-- RunningSong model
-- RunningQualityIndex class
-- runningQualityProvider (Riverpod)
-- pubspec.yaml asset declaration
+**Avoids:** Pitfall #1 (race condition) and Pitfall #5 (silent error swallowing in _load())
 
-**Avoids from PITFALLS.md:**
-- Pitfall 2: Includes remote update path from day one (hybrid: bundled baseline + Supabase/remote fetch)
-- Pitfall 3: Prioritizes song pool quality before taste sophistication
-- Pitfall 4: Manual curation from legitimate sources; no scraping copyrighted lists
+**Complexity:** Low (~30 lines of new code + test coverage)
 
-**Research flag:** MEDIUM — Needs manual data curation effort (not technical research). Sourcing strategy must be defined: which running playlists to reference, which genres to prioritize, quality rating methodology.
-
----
-
-### Phase 3: UX Refinements (Should Have)
-**Rationale:** Low-friction improvements that leverage the enhanced scoring. These are independent of each other and can be built in parallel or prioritized based on user feedback.
+### Phase 2: Multi-Profile Verification & Polish
+**Rationale:** Infrastructure exists but needs quality assurance and UX polish. Merges "verification" and "polish" into one phase since the backend is proven and only needs surface-level improvements.
 
 **Delivers:**
-- Post-run cadence nudge (+/- 2 BPM buttons)
-- One-tap regeneration from home screen
-- Segment-appropriate energy mapping (warm-up/cool-down auto-adjust)
-- Song quality indicators in UI (badge/icon for curated songs)
-- Extended TasteProfile fields (preferVocals, tempoVarianceTolerance, dislikedArtists)
+- Test coverage for TasteProfileLibraryNotifier (add, update, select, delete) and TasteProfilePreferences (persistence, legacy migration)
+- Integration tests verifying profile selection propagates correctly to playlist generation
+- Delete confirmation dialogs for both taste profiles and run plans
+- Improved empty state copy with contextual guidance
+- Verification that profile switching on playlist screen triggers correct regeneration context
 
-**Uses from STACK.md:**
-- Existing StrideNotifier extension
-- Existing go_router navigation restructure
-- Existing Riverpod state management
+**Uses:** Existing TasteProfileLibraryNotifier, TasteProfileLibraryScreen, RunPlanLibraryNotifier
 
-**Implements from ARCHITECTURE.md:**
-- StrideNotifier.adjustCadence() method
-- PlaylistGenerationNotifier.regenerate() method
-- PlaylistSong.runningQuality field
-- SongTile widget enhancement
-- TasteProfile model extension
+**Implements:** UX polish layer on top of completed multi-profile architecture
 
-**Avoids from PITFALLS.md:**
-- UX pitfall: Nudge increments are 2-3 BPM (not aggressive 5+ BPM jumps)
-- UX pitfall: Quality score is internal; only show simple badge, not raw numbers
-- UX pitfall: Quick action shows confirmation with visible parameters
+**Addresses:** Table stakes "profile library polish," "delete confirmation," "empty state guidance"
 
-**Research flag:** SKIP — Standard Flutter UI patterns. All components extend existing features.
+**Avoids:** Pitfall #3 (JSON migration edge cases), Pitfall #7 (copyWith null clearing), Pitfall #10 (profile deletion while active)
 
----
+**Complexity:** Low-Medium (mostly test writing, may surface minor bugs)
 
-### Future (v1.2+)
-Deferred features based on research:
-- Song feedback loop (heart/flag per song) → scoring integration
-- Playlist freshness tracking (penalize recently played songs)
-- Taste profile refinement from accumulated feedback
-- Expand curated dataset to 1000+ songs with community contributions
+### Phase 3: Onboarding Flow
+**Rationale:** Most new code, depends on profile/plan creation working correctly (Phase 2), introduces new feature directory and router modifications. Must come last since onboarding completion leads directly to playlist generation (depends on Phase 1 reliability fix).
 
----
+**Delivers:**
+- OnboardingPreferences (SharedPreferences wrapper for completion flag)
+- onboarding_providers.dart (StateProvider for completion state)
+- main.dart modification to pre-load flag before GoRouter initialization
+- router.dart redirect guard + /onboarding route with allow-list for onboarding sub-routes
+- OnboardingWelcomeScreen (welcome page)
+- OnboardingFlowScreen (step coordinator checking provider states: profiles.isEmpty? → create step)
+- Profile templates/presets (optional quick-start)
+- Smart home screen with context-aware content (no profiles → setup prompt, profiles exist → regenerate card)
+
+**Addresses:** Differentiators "first-launch onboarding," "smart home screen," "profile templates"
+
+**Avoids:** Pitfall #2 (redirect loop/flash), Pitfall #4 (cold-start latency), Pitfall #6 (onboarding flag desync), Pitfall #9 (partial state on back nav)
+
+**Complexity:** Medium (~150-200 lines across 4-5 new files)
 
 ### Phase Ordering Rationale
 
-- **Phase 1 before Phase 2:** Scoring algorithm must exist before curated data can provide scoring bonuses. However, Phase 1 can ship without curated data (quality improves from danceability alone). Phase 2 enhances Phase 1 but isn't a hard dependency.
+- **Regeneration fix first** because it's the only actual bug, has no dependencies, and validates the shufflePlaylist pattern before more complex work
+- **Profile verification second** because onboarding depends on profile creation working reliably; testing multi-profile edge cases uncovers issues before building on top
+- **Onboarding last** because it's the largest feature, introduces new architectural patterns (redirect guard, pre-loaded state), and its completion flow exercises both Phase 1 (generation) and Phase 2 (profile creation)
 
-- **Phase 2 before Phase 3:** UX refinements like quality indicators require quality data to exist. Cadence nudge and quick regen are independent, but make more sense once playlists are higher quality.
-
-- **Phase 1+2 are parallelizable if needed:** Different developers can work on scoring logic (Phase 1) and data curation (Phase 2) simultaneously. Integration point is clear: SongQualityScorer reads from RunningQualityIndex.
-
-- **Phase 3 items are fully parallel:** Cadence nudge, quick regen, segment energy, UI badges, and taste profile extensions have zero dependencies on each other. Prioritize by user feedback or developer preference.
-
-**Pitfall mitigation through ordering:**
-- Addressing Pitfall 3 explicitly: Song pool quality (Phase 2) comes before taste sophistication (deferred to v1.2+)
-- Addressing Pitfall 1 explicitly: Architecture separates concerns in Phase 1, data model enforces it in Phase 2
-- Addressing Pitfall 2 explicitly: Phase 2 includes remote update capability from day one
+This ordering follows dependency chain (reliability → data layer → presentation layer) and risk profile (simple fix → testing → new feature).
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 2 (Curated Data):** Requires non-technical research—data sourcing strategy, genre prioritization, quality rating methodology, manual curation workflow. Technical implementation is straightforward (JSON + loader), but data compilation is labor-intensive.
-
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Scoring Foundation):** Pure domain logic + confirmed API fields. No unknowns.
-- **Phase 3 (UX Refinements):** Standard Flutter/Riverpod patterns. All changes are extensions of existing features.
+- **Phase 1 (Regeneration):** Well-understood Riverpod StateNotifier pattern; shufflePlaylist is straightforward method addition
+- **Phase 2 (Profile Polish):** All infrastructure exists; this is QA and UI tweaks, not greenfield development
+- **Phase 3 (Onboarding):** GoRouter redirect pattern is documented; SharedPreferences pre-loading in main.dart is proven pattern (CodeWithAndrea article); no novel patterns
 
-**Critical unknowns to validate during Phase 1 implementation:**
-- GetSongBPM `/tempo/` vs `/song/` endpoint: Which returns danceability? Does `/tempo/` include it, or is a follow-up `/song/` call required? This determines API call volume and rate limiting strategy.
-- Rate limiting behavior: Can we safely make 20-30 `/song/` enrichment calls per generation with 300ms delays? Needs production testing.
+**No phases need /gsd:research-phase during planning.** All patterns are documented (GoRouter redirect, Riverpod StateNotifier, SharedPreferences pre-load, PageView onboarding). The technical approach is proven by existing run plan library pattern.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All recommendations build on existing validated stack. GetSongBPM `/song/` endpoint fields confirmed via API docs. No new package dependencies reduces risk. |
-| Features | MEDIUM-HIGH | Feature priorities grounded in peer-reviewed research (Karageorghis framework, 2025 groove study). Must-haves vs should-haves clearly distinguished. Competitor analysis validates differentiation. Confidence docked slightly because danceability as running proxy is strongly supported but not universally tested across all genres. |
-| Architecture | HIGH | Direct codebase analysis of all relevant files. Proposed changes are surgical extensions, not restructures. Integration points clearly mapped to specific files/line ranges. Clean separation of concerns (scoring, data loading, UI) reduces risk. |
-| Pitfalls | HIGH | All pitfalls grounded in domain-specific patterns (music recommendation systems), confirmed by research sources and existing v1.0 experience. Recovery strategies documented. Pitfall-to-phase mapping makes prevention actionable. |
+| Stack | HIGH | Direct codebase analysis confirms all dependencies present and stable; no new packages needed |
+| Features | MEDIUM-HIGH | Table stakes verified against existing run plan library; differentiators validated against competitor apps (Spotify, RockMyRun, PaceDJ); some features (onboarding time-to-first-playlist) estimated not measured |
+| Architecture | HIGH | Multi-profile infrastructure discovered via direct code inspection; GoRouter redirect pattern documented; SharedPreferences pre-load pattern proven in community articles |
+| Pitfalls | HIGH | Race conditions identified through direct code review (RunPlanLibraryNotifier._load() visible); GoRouter async redirect issues documented in GitHub issues #133746, #118061; JSON deserialization risks visible in taste_profile.dart |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
-The technical approach is sound and low-risk (no new dependencies, extends existing patterns). The architectural changes are well-scoped. The primary uncertainties are:
-
-1. **Data quality/sourcing** — Curated song compilation is manual labor; quality depends on curation discipline
-2. **Danceability effectiveness** — Strong research support, but needs real-world validation across diverse genres
-3. **API rate limits** — GetSongBPM's undocumented rate limits for `/song/` endpoint; mitigation strategy (lazy enrichment, aggressive caching) is sound but unproven at scale
+The research is grounded in direct codebase analysis (not inference), official documentation (GoRouter, Riverpod), and documented issues (GitHub issues, community articles). The critical discovery that multi-profile infrastructure already exists was verified by reading all relevant provider, persistence, and presentation files.
 
 ### Gaps to Address
 
-**During Phase 1 planning:**
-- Confirm whether `/tempo/` endpoint returns danceability or if `/song/` call is required. Test empirically with API before finalizing enrichment strategy.
-- Define scoring weight tuning methodology. Initial weights based on research (artist: 10, curated: 8, genre: 6, energy: 4, BPM: 3, variant: 1), but may need adjustment based on user feedback.
+**Gap 1: Onboarding completion analytics**
+Competitor time-to-first-playlist metrics are estimates from flow descriptions, not measured. The 60-second target for our onboarding is reasonable (Spotify: 30s for 3 artists, RockMyRun: 45s genre browse, PaceDJ: 60s library scan) but should be validated with real users during Phase 3.
 
-**During Phase 2 planning:**
-- Define data sourcing protocol: which public running playlists are legitimate references, manual verification checklist, quality rating rubric (1-10 scale definition).
-- Establish minimum song count per genre (suggested: 15-20 per RunningGenre enum value for balanced coverage).
-- Design Supabase schema for remote curated data: single table with version field, or more normalized structure?
+**Mitigation:** Manual testing with 3-5 users, stopwatch timing from app launch to first playlist generated. If > 90 seconds, add profile templates as default quick-start options.
 
-**During implementation:**
-- Monitor GetSongBPM API behavior with increased call volume. Adjust enrichment strategy (top-N candidates, delay timing) if rate limiting issues emerge.
-- Validate danceability correlation with actual runner preferences. A/B test if possible (danceability scoring on vs off) or gather qualitative feedback.
-- Assess SharedPreferences performance with growing enrichment cache. If >500 enriched songs cause jank, consider migration to SQLite (but unlikely—100 bytes/song * 500 = 50KB is trivial).
+**Gap 2: SharedPreferences async load timing on slow devices**
+The race condition is confirmed but its frequency on real devices (especially older Android) is unknown. It may be rare enough that the current _autoGenTriggered polling pattern is sufficient, or it may be pervasive enough to require architecture change.
 
-**Post-v1.1 validation:**
-- Does composite scoring noticeably improve playlist quality vs v1.0? Measure via user feedback or retention metrics if available.
-- Which genres benefit most from curated data? Identify coverage gaps for curation expansion in v1.2.
-- Are any Phase 3 features underutilized? Deprioritize in future roadmaps if low engagement.
+**Mitigation:** During Phase 1, add telemetry (debug logs) to measure time between provider creation and _load() completion. If > 500ms on test devices, prioritize persisting generation inputs (runPlan, tasteProfile, songPool) to SharedPreferences instead of lighter guard-based fixes.
+
+**Gap 3: Legacy single-profile migration edge cases**
+The migration from taste_profile (single) to taste_profile_library (array) is implemented and tested for happy path, but edge cases (corrupted JSON, concurrent load calls, unknown enum values) are identified but not verified in production.
+
+**Mitigation:** During Phase 2, add comprehensive test coverage for all identified edge cases (truncated JSON, unknown enum strings, rapid successive loadAll() calls) and add orElse fallbacks to RunningGenre/EnergyLevel/MusicDecade.fromJson().
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase analysis: All files in `lib/features/` — Complete analysis of existing architecture, state management patterns, data models, scoring logic
-- [Flutter asset documentation](https://docs.flutter.dev/ui/assets/assets-and-images) — Asset loading, rootBundle.loadString() patterns
-- [GetSongBPM API documentation](https://getsongbpm.com/api) — `/song/` endpoint returns danceability, acousticness, key, time signature, artist genres
-- [Spotify API deprecation](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) — Audio Features permanently removed Nov 2024
-- [PLOS One: Music synchronization and running](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0208702) — BPM matching improves efficiency by ~7%
+- Direct codebase analysis: taste_profile_providers.dart, taste_profile_preferences.dart, taste_profile_library_screen.dart, taste_profile_screen.dart, playlist_providers.dart, playlist_screen.dart, router.dart, main.dart, run_plan_providers.dart, run_plan_library_screen.dart
+- [GoRouter official docs v17.1.0](https://pub.dev/packages/go_router) — redirect callback, refreshListenable
+- [SharedPreferences v2.5.4 changelog](https://pub.dev/packages/shared_preferences/changelog)
+- [Flutter Riverpod StateNotifier pattern](https://riverpod.dev/docs/concepts/providers#statenotifierprovider)
 
 ### Secondary (MEDIUM confidence)
-- [Karageorghis framework / BMRI research](https://pmc.ncbi.nlm.nih.gov/articles/PMC3339578/) — Rhythm response > musicality > cultural impact > association hierarchy
-- [Frontiers: High-groove music boosts running speed (2025)](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2025.1586484/full) — Danceability/groove directly improves running performance and mood
-- [ScraperAPI: Web scraping legality](https://www.scraperapi.com/web-scraping/is-web-scraping-legal/) — Legal framework for data sourcing
-- [Shorebird documentation](https://docs.shorebird.dev/code-push/) — Code push limitations (cannot update assets/bundled data)
-- Runner's World, Boston Globe, KURU running song lists — Community-curated running music; useful as seed data references
-- Competitor analysis: RockMyRun (DJ curation), PaceDJ (library filtering), Weav (adaptive music) — Feature differentiation
+- [CodeWithAndrea: Robust App Initialization with Riverpod](https://codewithandrea.com/articles/robust-app-initialization-riverpod/) — AppStartupWidget pattern, eager initialization
+- [VWO Mobile App Onboarding Guide 2026](https://vwo.com/blog/mobile-app-onboarding-guide/) — Action-oriented vs tutorial onboarding, engagement metrics
+- [Plotline App Onboarding Examples 2026](https://www.plotline.so/blog/mobile-app-onboarding-examples) — Progressive disclosure patterns
+- [CleverTap App Onboarding Examples](https://clevertap.com/blog/app-onboarding/) — Spotify 3-artist pattern, MyFitnessPal goal-first pattern
+- [GoRouter onboarding redirect pattern](https://dev.to/kcl/onboarding-with-go-router-in-flutter-2jd6) — Community tutorial demonstrating pre-load pattern
 
-### Tertiary (LOW confidence)
-- [Running with Data: Danceability correlation](https://runningwithdata.com/2010/10/15/danceability-and-energy.html) — Blog post (2010) but aligns with academic research
-- jog.fm model (community voting per pace) — Observed via app store listing; methodology inferred
-- SharedPreferences size limits — Community guidance suggests <1MB practical limit; not officially documented by Flutter team
+### Tertiary (LOW confidence, needs validation)
+- Competitor time-to-first-playlist estimates (Spotify 30s, RockMyRun 45s, PaceDJ 60s) — inferred from app descriptions, not measured
+- Onboarding completion rate improvement (5x engagement, 80%+ completion) — cited from VWO research but not specific to running apps
 
 ---
-*Research completed: 2026-02-05*
+*Research completed: 2026-02-06*
 *Ready for roadmap: yes*

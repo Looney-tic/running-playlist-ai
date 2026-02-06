@@ -1,49 +1,30 @@
-# Feature Research: v1.1 Experience Quality
+# Feature Research: v1.2 Profile Management, Onboarding, and Regeneration Reliability
 
-**Domain:** Running playlist song quality, taste profiling, cadence UX, repeat generation
-**Researched:** 2026-02-05
-**Confidence:** MEDIUM-HIGH -- research-backed song quality factors; API field availability verified through documentation; UX patterns synthesized from competitor analysis and general mobile UX principles
+**Domain:** Multi-profile management, first-time user onboarding, playlist regeneration robustness
+**Researched:** 2026-02-06
+**Confidence:** MEDIUM-HIGH -- patterns verified against competitor apps and established mobile UX research; Flutter/Riverpod technical patterns verified against official documentation; codebase race conditions identified through direct code inspection
 
-## Background: What the Research Says About Running Music
+## Background: Current State and User Journey Gaps
 
-Before listing features, the evidence base matters. The app currently scores songs by BPM match + artist name match. Research identifies substantially more factors.
+The app has grown from a single-profile, single-plan prototype to a feature-rich running playlist generator. However, three user journey gaps have emerged:
 
-### The Karageorghis Framework (Peer-Reviewed, HIGH Confidence)
+### Gap 1: Taste Profile Management Is Half-Built
 
-Costas Karageorghis (Brunel University) developed the dominant model for exercise music effectiveness, validated through the Brunel Music Rating Inventory (BMRI, BMRI-2, BMRI-3). The model identifies four hierarchical factors:
+The run plan library pattern is fully implemented: users can create, name, edit, delete, and select from multiple named run plans via a dedicated library screen. The taste profile library has the same backend pattern (`TasteProfileLibraryNotifier` with `addProfile`, `updateProfile`, `selectProfile`, `deleteProfile`) and a library screen, but the user-facing experience is less polished. Both the playlist screen and the home screen already reference the taste profile library, but the flow from "first app launch with no profiles" to "pick a profile for generation" has friction.
 
-1. **Rhythm response** (most important) -- how much the music makes you want to move. Driven by tempo, beat strength, rhythmic regularity, and groove. A 170 BPM song with a weak, irregular beat is worse than a 168 BPM song with a powerful, driving rhythm.
+### Gap 2: First-Time Users Hit a Blank Wall
 
-2. **Musicality** -- pitch-related elements: harmony, melody. Uplifting harmonic structures and catchy melodies increase motivation. Think "the chorus that flips a switch."
+New users launch the app and see 5 navigation buttons with no context about what to do first. There is no onboarding, no guided setup, and no indication of the 3-step dependency chain needed before generating a playlist: (1) set up stride/cadence, (2) create a run plan, (3) create a taste profile. Users must discover this sequence by trial and error.
 
-3. **Cultural impact** -- how pervasive and recognized the music is. Familiar songs ("Chariots of Fire," "Eye of the Tiger") carry cultural associations with sport and achievement.
+The playlist screen partially compensates -- it shows "No Run Plan" with a button to create one. But by the time a user reaches that screen and bounces, their first impression is already damaged. Research consistently shows that apps with structured onboarding see 5x better engagement and 80%+ completion rates vs. apps that dump users on a blank home screen.
 
-4. **Association** -- personal memories and emotional connections to specific songs. Highly individual and impossible to algorithmically predict without explicit user feedback.
+### Gap 3: Regeneration Has Silent Failure Modes
 
-Key insight: **Rhythm response > Musicality > Cultural impact > Association.** The rhythmic "drive" of a song matters more than melody, which matters more than fame, which matters more than personal history. This hierarchy directly informs what data we should prioritize in scoring.
+The home screen "Regenerate Playlist" card navigates to `/playlist?auto=true`, which triggers `generatePlaylist()` via a `PostFrameCallback` once `runPlan != null`. But the `TasteProfileLibraryNotifier` and `RunPlanLibraryNotifier` both load asynchronously from SharedPreferences in their constructors. If the playlist screen mounts before either notifier finishes `_load()`, the state may be empty, leading to:
+- `runPlan` being null (auto-generate never fires)
+- `tasteProfile` being null (generation runs without taste preferences, falling through to a default empty profile)
 
-### What "Groove" Means (2025 Research, HIGH Confidence)
-
-A 2025 study (Frontiers in Sports and Active Living) found that **high-groove music boosts self-selected running speed AND positive mood** in female university students. "Groove" is the sensation of wanting to move to the music -- it correlates with danceability, rhythmic regularity, and beat strength. This is not the same as energy or tempo; a slow funk track can have high groove while a fast metal track might have low groove.
-
-**Implication for our app:** Danceability is a proxy for groove. GetSongBPM already returns a `danceability` field (integer, likely 0-100 scale) on the `/song/` endpoint. This is the single most impactful data point we are currently ignoring.
-
-### Synchronization Benefits (HIGH Confidence)
-
-Research consistently shows that running synchronized to music's beat improves efficiency by ~7% (less oxygen required for same work output). This validates the core BPM-matching approach but also means: songs with **strong, clear beats** are more effective than songs with complex, syncopated rhythms at the same BPM.
-
-### Motivational Song Characteristics (MEDIUM Confidence)
-
-Across multiple studies, motivational running music is characterized by:
-- Fast tempo (120-180 BPM for running -- already handled)
-- Strong, driving rhythm with clear downbeats
-- Positive or empowering lyrics ("associations with triumph or overcoming adversity")
-- Uplifting harmonic structure (major key, bright timbre)
-- Cultural associations with sport, movement, or achievement
-
-### The "Freshness" Factor (MEDIUM Confidence)
-
-Research suggests the brain habituates to repeated musical stimuli. Swapping 2-3 songs per week keeps the playlist "alive." This validates the regeneration feature and argues against playing the exact same playlist every run.
+This is an async initialization race condition. It manifests inconsistently, making it hard to reproduce but real for users.
 
 ---
 
@@ -51,138 +32,231 @@ Research suggests the brain habituates to repeated musical stimuli. Swapping 2-3
 
 ### Table Stakes (Users Expect These)
 
-Features that v1.1 must deliver to fulfill the "experience quality" promise. Without these, the app generates playlists that are technically BPM-correct but feel mediocre.
+Features that v1.2 must deliver. Without these, the app feels incomplete to anyone who uses it beyond a single session.
 
 | Feature | Why Expected | Complexity | Dependencies | Notes |
 |---------|--------------|------------|--------------|-------|
-| **Danceability-weighted scoring** | A song with high danceability/groove at the right BPM is objectively better for running than one with low danceability. Research is unambiguous on this. Users will feel the difference even if they cannot articulate why. | LOW | Requires fetching danceability from GetSongBPM `/song/` endpoint per candidate, OR extracting it if the `/tempo/` endpoint includes it. Need to verify which endpoint returns the field. | GetSongBPM API returns `danceability` as integer (e.g. 55 for "Master of Puppets"). Currently `BpmSong.fromApiJson` ignores this field entirely. Adding it to the model and scoring pipeline is straightforward. |
-| **Genre-aware song scoring** | Currently taste profile stores genres but they are not used in scoring. If a user picks "Electronic" and "Hip-Hop," songs from those genres should rank higher than random genre matches. | LOW | GetSongBPM `/song/` endpoint returns artist genres (e.g. `["heavy metal", "rock"]`). The `/tempo/` endpoint may return this too. Taste profile already stores `List<RunningGenre>`. | Need genre mapping: RunningGenre enum values -> GetSongBPM genre strings. Fuzzy matching required (e.g. "electronic" matches "electropop", "edm", "house"). |
-| **Variety within playlists** | Users expect to not hear the same artist twice in a row, and to get different songs on regeneration. Currently shuffle + used-song tracking partially handles this. | LOW | Existing `usedSongIds` set. Existing shuffle-within-tier logic. | Add artist-diversity constraint: after selecting a song by Artist X, penalize the next song by Artist X. This is a scoring tweak, not a new feature. |
-| **Post-run cadence nudge ("too fast / too slow")** | After running with a playlist, users need a dead-simple way to adjust cadence for next time. The current flow requires going back to stride screen, re-entering pace, recalculating. Too many steps. | LOW-MEDIUM | Depends on stride calculator, run plan, and regeneration flow. | A simple "+/- 2 BPM" nudge on the playlist result screen or home screen. Persisted as an offset to the calculated cadence. Does not replace stride calculator for initial setup. |
+| **Taste profile library screen (polish)** | Users who have the run plan library pattern already expect the same experience for taste profiles. The backend is built; the library screen exists; it needs the same card design, edit/delete affordances, and empty-state guidance as the run plan library. | LOW | Existing `TasteProfileLibraryScreen`, `TasteProfileLibraryNotifier`. | The taste profile library screen already has create/select/edit/delete. The gap is visual polish (match run plan library card style) and the empty state (guide users to create their first profile). Already mostly done from codebase inspection. |
+| **Profile selector on playlist generation screen** | When generating a playlist, users need to pick which run plan AND which taste profile to use. The playlist screen already has `_RunPlanSelector` and `_TasteProfileSelector` widgets with bottom-sheet pickers. | LOW | Existing `_RunPlanSelector`, `_TasteProfileSelector` in playlist_screen.dart. | Already implemented. This is table stakes that is essentially done. Verify it works correctly with the library pattern and that switching profiles triggers regeneration context update. |
+| **Reliable regeneration (fix race condition)** | Users expect "Regenerate Playlist" to work 100% of the time. The current async initialization race means it silently fails when providers have not finished loading. | MEDIUM | `RunPlanLibraryNotifier._load()`, `TasteProfileLibraryNotifier._load()`, `PlaylistGenerationNotifier.generatePlaylist()`, SharedPreferences async loading. | The fix requires ensuring providers are loaded before the playlist screen consumes them. Two approaches: (A) eager initialization at app startup using the Riverpod pattern from codewithandrea.com, or (B) guard the auto-generate with an explicit readiness check. Option A is cleaner. |
+| **Delete confirmation dialog** | Both run plan and taste profile library screens allow delete via a single tap. Accidental deletion of a carefully configured profile is destructive and unrecoverable. Every serious app uses a confirmation dialog for destructive actions. | LOW | Existing delete methods on both notifiers. | Standard Flutter `showDialog` with confirm/cancel. Applied to both run plan library and taste profile library screens. |
+| **Empty state guidance (per screen)** | When any library (run plans, taste profiles, playlist history) is empty, the screen should explain what goes here and provide a clear primary action to create the first item. The run plan library and taste profile library already have empty states, but they lack context about WHY the user should create one. | LOW | Existing empty state widgets in both library screens. | Improve copy from "No saved runs / Create Run" to "Create your first run plan to define your distance, pace, and segments. The app will match songs to your running cadence." Brief, purposeful, not decorative. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set this app apart. Competitors either do not offer these or implement them poorly.
+Features that go beyond what running music apps typically offer. These make the app feel genuinely thoughtful.
 
 | Feature | Value Proposition | Complexity | Dependencies | Notes |
 |---------|-------------------|------------|--------------|-------|
-| **"Running song quality" composite score** | Combine danceability + genre match + artist match + BPM closeness + energy level alignment into a single quality score. No competitor in the BPM-matching space does multi-factor scoring -- RockMyRun uses human DJs, PaceDJ just filters your library by BPM, Weav does adaptive tempo on a small curated catalog. A quality score lets us rank from the entire GetSongBPM catalog. | MEDIUM | Requires danceability data, genre data, existing artist match, existing BPM match type. Energy level from taste profile (chill/balanced/intense) should map to preferred danceability ranges. | This is the core v1.1 deliverable. The scoring formula replaces the current simple `_artistMatchScore + _exactMatchScore` system with a weighted multi-factor score. |
-| **Energy-level-to-danceability mapping** | The taste profile already captures energy preference (chill/balanced/intense). Map this to preferred danceability ranges: chill = 20-50, balanced = 40-70, intense = 60-100. Songs matching the preferred range get a scoring bonus. | LOW | Danceability data from API. EnergyLevel from taste profile (already exists). | Currently EnergyLevel is stored but never used in playlist generation. This gives it actual teeth. Simple range check in the scoring function. |
-| **One-tap regeneration from home screen** | Returning users should be able to generate a new playlist in one tap. "Same run, new songs." The app remembers their last run plan + taste profile + cadence. No re-entry needed. Just tap and go. | LOW-MEDIUM | Run plan persistence (exists). Taste profile persistence (exists). Playlist generation (exists). | The current flow: Home -> Playlist tab -> tap Generate. For returning users, a prominent "Generate Playlist" action on the home screen that uses the last-saved run plan. One tap, not three screens. |
-| **Curated "proven running song" bonus lists** | Maintain per-genre lists of songs that are community-verified as great running songs (from Runner's World lists, popular running playlists on Spotify, Reddit r/running recommendations). Songs on these lists get a scoring bonus. | MEDIUM | Requires maintaining static data (song title + artist pairs per genre). Matched against GetSongBPM results by title+artist fuzzy match. | RockMyRun pays DJs to curate. PaceDJ has no curation. We can get 80% of the value by scraping/compiling public "best running songs" lists and embedding them as a static asset. Updated quarterly. |
-| **Segment-appropriate energy mapping** | Warm-up segments should prefer lower danceability/energy songs. Cool-down segments should prefer lower energy. Sprint intervals should prefer highest energy. Map segment type to energy preference automatically. | LOW | Run plan segment labels (exists). Danceability data. | Segment labels already distinguish "Warm-up", "Main", "Cool-down", "Sprint", "Recovery". Use label to override the global energy preference per segment. |
-| **"Songs I liked" feedback loop** | Let users heart/flag individual songs in generated playlists. Hearted songs get boosted in future generations. Flagged songs get excluded. Builds a personal running music profile over time. | MEDIUM | Playlist display (exists). Local persistence for liked/disliked song IDs. Integration with scoring pipeline. | This captures Karageorghis's "association" factor -- the most personal, least algorithmically predictable dimension. Explicit feedback is the only reliable signal. Competitors do not do this for running-specific contexts. |
+| **First-launch onboarding flow** | Guide new users through the 3-step dependency chain (stride -> run plan -> taste profile) with a clear, motivating sequence. Research shows Spotify asks for 3 favorite artists as minimum viable personalization. Our equivalent: pick energy level and 2-3 genres. The "aha moment" is generating their first playlist. | MEDIUM | Stride calculator (exists), run plan creation (exists), taste profile creation (exists). New: an onboarding controller that tracks whether onboarding has been completed, and a multi-step flow that collects minimal input across 2-4 screens. | No competitor in the BPM-matching space (RockMyRun, PaceDJ, Weav) does structured onboarding well. RockMyRun dumps users into a genre browser. PaceDJ requires library scanning with no guidance. Structured onboarding that ends with a generated playlist in under 2 minutes is a standout experience. |
+| **Smart home screen: contextual actions** | Replace the static 5-button grid with context-aware content. (A) No profiles/plans -> show onboarding prompt. (B) Profiles + plan exist but no playlist generated yet -> show prominent "Generate Your First Playlist" card. (C) Previous playlist exists -> show regenerate card with current plan name and cadence (this already exists). Progressive disclosure rather than showing everything at once. | MEDIUM | Onboarding completion flag, run plan library state, taste profile library state, playlist history state. | The home screen currently shows the regenerate card only when a run plan exists, plus 5 static buttons. The improvement: show different content based on what the user has set up. This is the opposite of an anti-feature -- it reduces cognitive load for new users while preserving power for returning users. |
+| **Quick-switch profile from home screen** | A chip or dropdown on the home screen showing the active taste profile + run plan, tappable to switch without navigating away. "Today I want my Hip-Hop mix with my 10K plan." One look, two taps, generate. | LOW | Existing `_TasteProfileSelector` and `_RunPlanSelector` widget patterns from playlist_screen.dart. | The playlist screen already has these selectors. Lifting them to the home screen (or making them available in the regenerate card area) is a natural extension. This shortens the "returning user" flow from 3 taps to 1. |
+| **Profile templates / presets** | Offer 2-3 pre-built taste profile templates that new users can adopt and customize: "High Energy Pop," "Chill Electronic," "Hip-Hop Power." Reduces the cold-start problem where users must configure everything from scratch. | LOW | TasteProfile model (exists), addProfile method (exists). | Templates are just pre-populated TasteProfile instances. The user can edit them after adopting. This bridges the gap between "I don't know what to pick" and "I have a working profile." Spotify uses a similar pattern with starter playlists. |
+| **Onboarding skip with smart defaults** | Users who skip onboarding should still get a working experience. Create a default taste profile (balanced energy, pop + electronic genres) and a default run plan (5K steady, moderate pace) so the user can generate a playlist immediately. | LOW | Existing models and notifiers. | The opposite of forcing completion. If a user is impatient, they get reasonable defaults and can customize later. This respects both exploration-oriented and goal-oriented user types. |
+| **Provider readiness guard pattern** | Implement an `AppStartupWidget` pattern (from Riverpod best practices) that eagerly initializes SharedPreferences-backed providers at app startup and shows a loading indicator until ready. Eliminates the entire class of race conditions where widgets mount before data loads. | MEDIUM | All SharedPreferences-backed notifiers (RunPlanLibrary, TasteProfileLibrary, StrideNotifier, PlaylistHistory). GoRouter initial route. | This is an infrastructure improvement, not a user-facing feature. But it eliminates flaky behavior across the entire app. The pattern from codewithandrea.com is well-documented and fits the existing Riverpod 2.x manual provider architecture. |
 
 ### Anti-Features (Deliberately NOT Building)
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **Audio analysis / beat detection** | "Analyze songs locally to compute danceability, energy, beat strength" | Requires audio file access (not available -- app uses external links), massive compute, audio DSP libraries. GetSongBPM already provides danceability. | Use GetSongBPM's existing danceability field. Possibly supplement with Soundcharts API if coverage is poor (but at $250/mo, unlikely justified). |
-| **AI-powered song recommendations** | "Use ML to learn what songs are good for running" | Requires training data, model serving infrastructure, cold start problem. Overkill for the current app scale. The Karageorghis framework already provides a well-validated scoring model. | Implement the research-backed scoring formula. It is effectively a hand-tuned ML model based on decades of sports psychology research. |
-| **Real-time BPM adjustment during runs** | "Detect cadence changes and swap songs mid-run" | Requires foreground app, accelerometer, real-time song switching, streaming integration. Weav's entire company is built on this technology. Patent-protected adaptive music format. | Pre-generate playlist at target BPM. If the runner wants to adjust, they nudge cadence post-run and regenerate. The playlist IS the pacing tool. |
-| **Lyric analysis for motivational content** | "Scan lyrics for words like 'run', 'fight', 'power' to boost motivational songs" | No reliable free lyrics API. Copyright issues with lyrics databases. NLP analysis adds complexity. Marginal benefit over danceability + genre scoring. | Genre and danceability already correlate heavily with motivational content. Pop, hip-hop, and EDM at high danceability are almost always motivational. |
-| **Social/community playlist sharing** | "Let runners share playlists with each other" | Requires user accounts, backend infrastructure, moderation. The app is intentionally account-free. Low engagement for niche app. | Users can copy playlist text to clipboard (already exists) or share their Spotify/YouTube links directly. |
-| **Detailed per-song audio feature display** | "Show danceability, energy, key, time signature for each song" | Information overload. Runners want to run, not analyze audio metadata. Clutters the UI. | Quality score is internal. The UI shows BPM, match type, and Spotify/YouTube links. Quality is reflected in song ranking, not exposed as numbers. |
-| **Acoustic/chill song mode for recovery runs** | "Support very slow recovery runs with calm music" | GetSongBPM song pool at very low BPMs (100-120) is sparse. Chill running music is a niche use case. The stride calculator already clamps at 150 BPM. | The energy level "chill" option already exists in taste profile. It should soften the danceability preference rather than requiring a separate mode. |
+| Feature | Why It Seems Useful | Why It Is Problematic | What to Do Instead |
+|---------|--------------------|-----------------------|-------------------|
+| **Account system / cloud sync** | "Sync profiles across devices, backup data" | Requires auth infrastructure, backend, GDPR compliance, password resets. The app is intentionally account-free and local-first. Adding accounts changes the app's fundamental character and triples complexity for a feature most solo-device users will never use. | SharedPreferences local persistence is sufficient. If future cloud sync is needed, export/import as JSON file is a simpler bridge. |
+| **Profile import from Spotify** | "Auto-detect genres and artists from Spotify listening history" | Spotify API restrictions (Nov 2024) make this unreliable. Requires OAuth flow, API key management, rate limits. The data returned is increasingly limited. High implementation cost for brittle integration. | Manual artist entry is sufficient. The app already supports 10 favorite artists. Users know their own taste better than an algorithm reading play counts. |
+| **Animated onboarding tutorial screens** | "Lottie animations, page indicators, swipe-through introduction" | Over-engineered for a utility app. The user wants to generate a playlist, not watch an animated walkthrough. Tutorial-style onboarding has lower completion rates than action-oriented onboarding (Spotify model: DO something immediately, not WATCH something). | Action-oriented onboarding: each step collects actual configuration (pick genres, set pace). The user IS setting up their app, not reading about it. |
+| **Complex onboarding analytics** | "Track completion rates per step, A/B test onboarding variations" | Requires analytics SDK integration, event tracking, dashboard. Premature optimization for a v1.2 app. The onboarding flow is simple enough to validate by testing with 3-5 real users. | Manual testing with real users. If the flow takes under 2 minutes and ends with a generated playlist, it is working. |
+| **Multi-user profiles on one device** | "Family sharing -- my spouse uses the same phone for running" | Different from taste profiles. Multi-user means separate data silos for EVERYTHING (run plans, playlist history, stride data). Massive architectural change for an edge case. | Each person installs the app on their own phone. The app is free. |
+| **Profile analytics / comparison** | "Show which taste profile generates better playlists (higher quality scores)" | Encourages profile tweaking over actually running. Adds UI complexity for marginal value. The quality score is an internal optimization signal, not a user-facing metric. | Users naturally discover what works by running with different profiles and regenerating. The feedback is experiential, not numerical. |
+| **Mandatory onboarding (block app until complete)** | "Force users through setup so they get the best experience" | Violates user agency. Some users want to explore first. Forced flows have higher abandonment than optional ones. Research from Nielsen Norman Group and UserPilot consistently shows that progressive disclosure beats forced disclosure. | Onboarding is strongly encouraged (prominent on first launch) but skippable. Smart defaults ensure a functional experience even without completing setup. |
+| **Automatic profile switching based on time/location** | "Morning runs use high-energy profile, evening runs use chill" | Requires location permissions, time-of-day rules engine, edge cases (what about afternoon runs?). Complex for a niche feature. | Manual profile selection is fast enough. The quick-switch chip on the home screen makes it a single tap. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Existing v1.0 Features (solid foundation)
+First Launch (new user, no data)
     |
-    |-- BpmSong model
+    |-- [NEW] Onboarding completion flag (SharedPreferences bool)
     |       |
-    |       +-- [NEW] Add danceability field -----> [NEW] Danceability-weighted scoring
-    |       |                                              |
-    |       +-- [NEW] Add artist genres field ----> [NEW] Genre-aware scoring
-    |                                                      |
-    |-- TasteProfile (genres, artists, energy)             |
-    |       |                                              |
-    |       +-- EnergyLevel (unused currently) ---> [NEW] Energy-to-danceability mapping
-    |       |                                              |
-    |       +-- genres (unused in scoring) -------> [NEW] Genre match scoring
-    |                                                      |
-    |-- PlaylistGenerator._scoreAndRank                    |
-    |       |                                              |
-    |       +-- [REPLACE] Simple scoring ---------> [NEW] Composite quality score
-    |                                                      |
-    |-- RunPlan.segments[].label                           |
-    |       |                                              |
-    |       +-- Segment type detection -----------> [NEW] Segment-appropriate energy
+    |       +-- Check on app start ---------> Route to onboarding OR home screen
     |
-    |-- [NEW] Curated song lists (static asset)
+    |-- [NEW] Onboarding flow (2-4 screens)
     |       |
-    |       +-- Title+artist match ---------------> [NEW] "Proven running song" bonus
-    |
-    |-- [NEW] Song feedback (heart/flag)
+    |       +-- Step 1: Welcome + pace input -> Creates stride data (existing StrideNotifier)
     |       |
-    |       +-- Liked/disliked song IDs ----------> Scoring boost/penalty
-    |
-    |-- [NEW] Cadence nudge (+/- BPM)
+    |       +-- Step 2: Quick taste setup ----> Creates TasteProfile (existing notifier)
+    |       |       |
+    |       |       +-- [NEW] Profile templates (optional shortcut)
     |       |
-    |       +-- Stride offset persistence --------> RunPlan regeneration with offset
+    |       +-- Step 3: Run plan quick-setup -> Creates RunPlan (existing notifier)
+    |       |
+    |       +-- Step 4: Generate first playlist -> Navigates to playlist screen with auto=true
     |
-    |-- [NEW] One-tap regeneration
+    |-- [NEW] Smart defaults (skip handler)
             |
-            +-- Last run plan (exists) + Generate action on home screen
+            +-- Creates default TasteProfile + RunPlan if skipped
+
+Returning User (data exists)
+    |
+    |-- [NEW] AppStartupWidget (eager initialization)
+    |       |
+    |       +-- Watches all SharedPreferences-backed providers
+    |       +-- Shows loading until ready
+    |       +-- Eliminates race conditions for ALL downstream consumers
+    |
+    |-- [IMPROVED] Home screen (context-aware)
+    |       |
+    |       +-- No profiles -> "Complete your setup" card
+    |       +-- Has profiles + plan -> "Generate" or "Regenerate" card
+    |       +-- [NEW] Quick-switch chips for active profile + plan
+    |
+    |-- [EXISTING] Taste profile library (polish)
+    |       |
+    |       +-- [NEW] Delete confirmation dialogs
+    |       +-- [IMPROVED] Empty state copy
+    |
+    |-- [EXISTING] Run plan library (polish)
+    |       |
+    |       +-- [NEW] Delete confirmation dialogs
+    |       +-- [IMPROVED] Empty state copy
+    |
+    |-- [FIXED] Regeneration reliability
+            |
+            +-- Guaranteed by AppStartupWidget readiness
+            +-- No more silent null-state failures
 ```
 
 ### Dependency Notes
 
-- **Danceability scoring requires BpmSong model change:** The `danceability` field must be added to `BpmSong` and parsed from API responses. This is a prerequisite for all quality scoring improvements.
-- **Genre scoring requires genre data:** Either from the `/tempo/` endpoint (if available) or via a follow-up `/song/` call. May require an additional API call per song, which has rate-limit implications.
-- **Composite score replaces existing scoring:** The new multi-factor score replaces `_scoreAndRank` in `PlaylistGenerator`. This is a single modification point, making it low risk.
-- **Curated lists are independent:** Static JSON assets that can be compiled and shipped without any API changes.
-- **Song feedback is independent of scoring improvements:** Can be built before or after the composite score, but integrates with it.
-- **Cadence nudge is independent of song quality:** A UX feature that can be built in parallel with scoring improvements.
-- **One-tap regeneration is independent:** A home screen UX change with no scoring dependencies.
+- **AppStartupWidget is the foundation:** It must be implemented before onboarding or home screen improvements, because both depend on knowing whether providers have loaded and what state they contain. Without it, checking "has the user completed onboarding?" is itself subject to the same race condition.
+- **Onboarding depends on existing creation flows:** The onboarding wizard does not replace the stride, run plan, or taste profile screens. It provides a streamlined entry point that delegates to the existing notifiers. No new persistence layer is needed.
+- **Profile templates are independent:** They can be added before or after onboarding. If added before, onboarding can offer them as quick-start options. If added after, they appear in the taste profile library.
+- **Delete confirmations and empty state copy are independent:** Pure UI improvements with no dependencies. Can be done in any order.
+- **Home screen context-awareness depends on onboarding flag:** To show "Complete your setup," the home screen needs to know whether onboarding was completed or skipped. This requires the onboarding completion flag in SharedPreferences.
+- **Quick-switch chips reuse existing selector widgets:** The `_RunPlanSelector` and `_TasteProfileSelector` from playlist_screen.dart can be extracted to shared widgets and placed on the home screen.
 
 ---
 
-## Critical Data Question: What Does `/tempo/` Return?
+## Onboarding Design: Action-Oriented, Not Tutorial
 
-The app currently uses only the `/tempo/` endpoint to fetch songs by BPM. This endpoint returns a list of songs. The `/song/` endpoint (individual song lookup) returns `danceability`, `acousticness`, `key_of`, `time_sig`, and artist `genres`.
+Research and competitor analysis converge on one conclusion: the best onboarding gets users to their "aha moment" as fast as possible. For this app, the aha moment is hearing a playlist that matches their running pace and music taste.
 
-**Unknown (MEDIUM confidence):** Whether the `/tempo/` endpoint response includes `danceability` and artist `genres` per song, or only the basic fields (id, title, artist name, tempo).
+### What Competitors Do
 
-**This is the single most important technical question for v1.1.** If `/tempo/` already returns danceability and genres, implementation is straightforward (parse additional fields, add to scoring). If not, we need either:
-1. A follow-up `/song/{id}` call per candidate (expensive, rate-limited), OR
-2. A cache strategy where we gradually enrich songs with detail data over time
+| App | Onboarding Approach | Time to First Value | Quality |
+|-----|---------------------|---------------------|---------|
+| **Spotify** | Pick 3 artists, then immediately see personalized home | ~30 seconds | Excellent -- minimal input, maximum personalization signal |
+| **RockMyRun** | Choose activity type, browse genres, start streaming | ~45 seconds | Good -- but streaming requires subscription for full experience |
+| **PaceDJ** | Grant music library access, set target BPM, see filtered results | ~60 seconds | Decent -- but requires existing music library |
+| **Nike Run Club** | "What's your experience level?" -> guided run suggestions | ~20 seconds | Good for guided runs, no music-specific onboarding |
+| **MyFitnessPal** | Define health goal, enter metrics, see personalized plan | ~90 seconds | Good -- but longer due to data collection |
 
-**Recommendation:** Test the `/tempo/` endpoint response first. Inspect the raw JSON to see if danceability and genre fields are included. This determines the architecture of the entire scoring pipeline.
+### Recommended Approach: 4-Screen Flow
+
+**Screen 1: Welcome + Value Proposition** (5 seconds)
+- "Get the perfect running playlist in under a minute."
+- Single "Let's Go" button. Skip link at bottom.
+- No information collection -- just set expectations.
+
+**Screen 2: Running Pace** (15 seconds)
+- "How fast do you run?" Simple pace picker (min/km or min/mile).
+- Auto-calculates cadence. Shows "Your cadence: ~170 spm."
+- This replaces the full stride calculator for onboarding purposes.
+- Writes to StrideNotifier.
+
+**Screen 3: Music Taste** (20 seconds)
+- "What gets you moving?" Show genre chips + energy level selector.
+- Pre-select 2 popular genres (Pop, Electronic) as defaults.
+- Optional: offer 2-3 templates ("High Energy," "Chill Vibes," "Hip-Hop Power").
+- Minimum: pick 1 genre. Artist entry is optional (can add later).
+- Creates TasteProfile via existing notifier.
+
+**Screen 4: First Playlist** (auto-generate)
+- "Creating your playlist..." with loading animation.
+- Auto-creates a default 5K steady run plan behind the scenes.
+- Navigates to playlist screen with auto=true.
+- The user sees their first playlist within 40-60 seconds of launching the app.
+
+**Total estimated time: 40-60 seconds.** This matches or beats every competitor.
+
+### Skip Behavior
+
+If the user taps "Skip" at any point:
+- Create default stride (170 spm -- average runner cadence)
+- Create default taste profile ("Running Mix," Pop + Electronic, balanced energy)
+- Create default run plan (5K steady, 5:30/km pace)
+- Navigate to home screen (not playlist screen -- they chose to skip)
 
 ---
 
-## v1.1 Milestone Definition
+## Regeneration Reliability: Technical Analysis
 
-### Phase 1: Scoring Foundation (Must Have)
+### Current Flow (Has Race Condition)
 
-- [ ] **Parse danceability from API** -- Add `danceability` field to `BpmSong`, parse from API response
-- [ ] **Parse artist genres from API** -- Add `genres` field to `BpmSong` or artist sub-model
-- [ ] **Composite quality score** -- Replace simple scoring with weighted multi-factor score: `(danceabilityScore * 0.3) + (bpmClosenessScore * 0.25) + (genreMatchScore * 0.2) + (artistMatchScore * 0.15) + (energyAlignmentScore * 0.1)`
-- [ ] **Energy level integration** -- Map EnergyLevel to preferred danceability range, apply as scoring factor
-- [ ] **Artist diversity constraint** -- Penalize back-to-back songs by same artist
+```
+1. User taps "Regenerate Playlist" on home screen
+2. GoRouter navigates to /playlist?auto=true
+3. PlaylistScreen builds, reads runPlanNotifierProvider
+4. runPlanNotifierProvider reads runPlanLibraryProvider
+5. RunPlanLibraryNotifier was created when first watched
+6. RunPlanLibraryNotifier constructor calls _load() (async)
+7. _load() calls RunPlanPreferences.loadAll() + loadSelectedId()
+8. SharedPreferences.getInstance() returns future
+9. Meanwhile, PlaylistScreen.build() sees runPlan == null
+10. autoGenerate guard: runPlan != null is FALSE -> does not trigger
+11. User sees idle "Generate Playlist" button instead of auto-generating
+```
 
-### Phase 2: UX Improvements (Should Have)
+The race: step 9 happens before step 8 completes. The provider's state is still the initial `const RunPlanLibraryState()` (empty plans, null selectedId).
 
-- [ ] **Cadence nudge** -- "+2 / -2 BPM" buttons on playlist screen, persisted as stride offset
-- [ ] **One-tap regeneration** -- "New Playlist" action on home screen using last run plan
-- [ ] **Segment energy mapping** -- Auto-adjust energy preference by segment type (warm-up = lower, sprint = higher)
+### Same Issue for Taste Profiles
 
-### Phase 3: Personalization (Add After Validation)
+```
+PlaylistGenerationNotifier.generatePlaylist() reads:
+  final tasteProfile = ref.read(tasteProfileNotifierProvider);
 
-- [ ] **Song feedback (heart/flag)** -- Per-song like/dislike in playlist view, persisted locally
-- [ ] **Feedback integration in scoring** -- Liked songs boosted, flagged songs excluded
-- [ ] **Curated running song lists** -- Static JSON per genre, compiled from public running playlists and community lists
-- [ ] **Curated song bonus in scoring** -- Songs on curated lists get +N scoring bonus
+If TasteProfileLibraryNotifier hasn't finished _load(),
+tasteProfile is null, and generation runs with no taste filtering.
+The playlist works but ignores user preferences -- a silent quality degradation.
+```
 
-### Future (v1.2+)
+### Fix: AppStartupWidget Pattern
 
-- [ ] **Playlist freshness tracking** -- Track which songs have been played recently, penalize repetition across generations
-- [ ] **Taste profile refinement from feedback** -- Infer genre/artist preferences from accumulated heart/flag data
-- [ ] **Danceability histogram visualization** -- Show users why songs were chosen (optional, for curious users)
+The recommended fix from Riverpod documentation and CodeWithAndrea:
+
+1. Create an `appStartupProvider` that awaits all SharedPreferences-backed providers.
+2. Wrap the MaterialApp with an `AppStartupWidget` that shows a loading screen until all providers report ready.
+3. Downstream widgets can safely use `requireValue` or trust that providers have loaded.
+
+This is not speculative -- it is the documented Riverpod pattern for exactly this class of problem. Complexity is MEDIUM because it touches the app's root widget and router setup, but the change is well-contained and eliminates all current and future SharedPreferences race conditions in one shot.
+
+### Alternative: Guard in PlaylistScreen
+
+A lighter fix: add a readiness check in the PlaylistScreen auto-generate logic.
+
+```
+// Wait for providers to be ready before auto-generating
+final libraryState = ref.watch(runPlanLibraryProvider);
+final runPlan = libraryState.selectedPlan;
+// Only auto-gen when plan is actually loaded (not just "null because loading")
+```
+
+This fixes the symptom but not the root cause. New screens with similar patterns will hit the same issue. The AppStartupWidget approach is recommended.
+
+---
+
+## MVP Recommendation
+
+For v1.2 MVP, prioritize in this order:
+
+1. **AppStartupWidget / provider readiness** (fixes regeneration reliability -- the only current BUG)
+2. **Delete confirmation dialogs** (quick win, prevents data loss)
+3. **First-launch onboarding flow** (biggest UX improvement for new users)
+4. **Smart home screen** (context-aware content for both new and returning users)
+5. **Profile templates** (reduces cold-start friction during onboarding)
+
+Defer to post-v1.2:
+- **Quick-switch chips on home screen:** Nice UX polish but the playlist screen already has selectors. Not critical.
+- **Export/import profiles:** Only relevant if users ask for it. No evidence of demand yet.
 
 ---
 
@@ -190,37 +264,33 @@ The app currently uses only the `/tempo/` endpoint to fetch songs by BPM. This e
 
 | Feature | User Value | Implementation Cost | Priority | Rationale |
 |---------|------------|---------------------|----------|-----------|
-| Danceability-weighted scoring | HIGH | LOW | P1 | Biggest quality jump for least effort. Data likely already available. |
-| Genre-aware scoring | HIGH | LOW | P1 | Genres exist in taste profile but are unused in scoring. Direct fix. |
-| Energy level integration | MEDIUM | LOW | P1 | EnergyLevel is already stored, just not used. Quick win. |
-| Composite quality score | HIGH | MEDIUM | P1 | Combines above factors. The core v1.1 deliverable. |
-| Artist diversity | MEDIUM | LOW | P1 | Prevents repetitive-feeling playlists. Simple scoring penalty. |
-| One-tap regeneration | HIGH | LOW | P2 | Massive UX improvement for returning users. Low code effort. |
-| Cadence nudge | MEDIUM | LOW | P2 | Solves a real post-run friction point. Small UI addition. |
-| Segment energy mapping | MEDIUM | LOW | P2 | Natural extension of energy integration. |
-| Song feedback (heart/flag) | HIGH | MEDIUM | P2 | Enables personalization over time. Requires UI + persistence. |
-| Curated running song lists | MEDIUM | MEDIUM | P3 | Requires data compilation effort. High value but not automated. |
-| Feedback scoring integration | MEDIUM | LOW | P3 | Depends on feedback feature. Simple once feedback exists. |
-| Playlist freshness tracking | LOW | MEDIUM | P3 | Nice-to-have. Shuffle already provides some variety. |
+| AppStartupWidget (race condition fix) | HIGH | MEDIUM | P0 | Only actual bug. Silent failures erode trust. |
+| Delete confirmation dialogs | MEDIUM | LOW | P1 | Prevents accidental data loss. 10 minutes of work. |
+| Empty state copy improvements | LOW | LOW | P1 | Quick copy changes, no logic. |
+| Onboarding flow (4 screens) | HIGH | MEDIUM | P1 | Biggest impact on new user retention. |
+| Smart home screen (context-aware) | HIGH | MEDIUM | P1 | Complements onboarding. Returning users benefit too. |
+| Profile templates / presets | MEDIUM | LOW | P2 | Pre-populated profiles, simple implementation. |
+| Quick-switch chips on home screen | MEDIUM | LOW | P2 | Reuses existing selector widgets. Polish feature. |
+| Onboarding skip with smart defaults | MEDIUM | LOW | P2 | Respects user agency. Simple default creation. |
 
 ---
 
-## Competitor Feature Analysis
+## Competitor Feature Analysis: Profile & Onboarding
 
-| Feature | RockMyRun | PaceDJ | Weav Run | Spotify Running (retired) | Our Approach (v1.1) |
-|---------|-----------|--------|----------|---------------------------|---------------------|
-| **Song quality beyond BPM** | DJ-curated mixes (human quality) | None (filters user's library) | ~500 curated adaptive songs | Algorithm-selected (deprecated) | Multi-factor scoring: danceability + genre + artist + energy + BPM closeness |
-| **Running-specific taste** | Genre/mood/activity filters | Uses whatever is in your library | Curated playlists by vibe | Based on Spotify listening history | Questionnaire (genres, artists, energy level) with feedback loop |
-| **Cadence adjustment** | Real-time via accelerometer/HR | Manual BPM target | Real-time via accelerometer (Match My Stride mode) | Real-time (deprecated) | Post-run nudge (+/- BPM) with persisted offset |
-| **Quick regeneration** | Always streaming, no "generation" step | Filter results update live | Always streaming | N/A | One-tap from home screen using last run plan |
-| **Song feedback** | Implicit (skip = dislike) | None | None documented | Implicit (Spotify signals) | Explicit heart/flag per song |
-| **Multi-segment playlists** | "Stations build in BPM during workout" | Basic interval support | Two modes (Match Stride / Fixed Tempo) | Single tempo | Full segment-based: warm-up, main, cool-down, intervals with per-segment energy |
+| Feature | RockMyRun | PaceDJ | Weav Run | This App (v1.1) | This App (v1.2 target) |
+|---------|-----------|--------|----------|-----------------|----------------------|
+| **Multiple taste profiles** | Single implicit profile (listening history) | No profiles (scans library) | No profiles (curated catalog) | Backend built, library screen exists, selectors on playlist screen | Polished library, templates, quick-switch |
+| **Onboarding flow** | Genre browser on first launch | BPM target picker | Basic genre/mood picker | None (5 buttons on blank screen) | 4-screen action-oriented flow ending with generated playlist |
+| **Time to first playlist** | ~60s (streaming starts) | ~120s (library scan + BPM set) | ~45s (pick genre + go) | ~180s (discover stride -> plan -> profile -> generate) | ~60s (onboarding pace -> genre -> auto-generate) |
+| **Empty state handling** | Not applicable (always has streaming content) | "No songs match" with BPM adjustment | "Browse playlists" catalog | Basic "No saved X" + create button | Contextual guidance explaining WHY and WHAT to do |
+| **Regeneration reliability** | Always streaming (no regeneration concept) | Instant re-filter | Always streaming | Race condition on auto-generate | Guaranteed via eager initialization |
+| **Profile switching** | Not applicable | Not applicable | Not applicable | Bottom-sheet picker on playlist screen | Bottom-sheet + quick-switch chips on home screen |
 
-### Competitive Positioning
+### Competitive Positioning for v1.2
 
-RockMyRun's advantage is human curation by professional DJs, but it locks users into their ecosystem and a subscription. PaceDJ's advantage is using your own library, but it offers no quality scoring. Weav's advantage is real-time adaptive music, but with only ~500 songs.
+The v1.2 improvements target the app's weakest area: first impressions. Currently, the app has strong generation quality (8-factor scoring, curated song database, segment-aware playlists) but poor discoverability of that quality. A new user might never generate a playlist because they do not understand the setup sequence.
 
-**Our unique position:** We score the entire GetSongBPM catalog using research-backed quality factors, generate complete segment-aware playlists pre-run, and let users play on any platform. No subscription needed for core functionality. No lock-in to a proprietary player.
+After v1.2: a new user generates their first personalized, BPM-matched playlist within 60 seconds of launching the app. That is competitive with RockMyRun and Weav, and faster than PaceDJ -- while offering a richer personalization system (multiple named taste profiles) that no competitor has.
 
 ---
 
@@ -228,45 +298,43 @@ RockMyRun's advantage is human curation by professional DJs, but it locks users 
 
 | Finding | Confidence | Source | Notes |
 |---------|------------|--------|-------|
-| Danceability/groove matters more than BPM precision | HIGH | Karageorghis framework + 2025 Frontiers study | Multiple peer-reviewed sources agree |
-| Rhythm response > Musicality > Cultural impact > Association | HIGH | BMRI-2 validated instrument (Karageorghis 2006) | Well-established hierarchy |
-| GetSongBPM `/song/` endpoint returns danceability | HIGH | API documentation example shows `"danceability": 55` | Verified from multiple documentation sources |
-| GetSongBPM `/tempo/` endpoint returns danceability | LOW | Not explicitly documented for this specific endpoint | Must test empirically -- this is the critical unknown |
-| GetSongBPM `/song/` endpoint returns artist genres | HIGH | API example shows `"genres": ["heavy metal", "rock"]` | Verified |
-| Soundcharts as alternative audio features source | MEDIUM | Pricing starts at $250/mo after 1000 free requests | Likely overkill; GetSongBPM may suffice |
-| Spotify audio features API is permanently deprecated | HIGH | Multiple sources (Spotify blog, TechCrunch, community) | No alternative from Spotify |
-| Energy level mapping to danceability ranges | MEDIUM | Inference from research (not directly studied) | Reasonable extrapolation but not validated |
-| Curated lists improve perceived quality | MEDIUM | Runner's World, community playlists exist | Anecdotal + face validity, not experimentally tested |
+| Action-oriented onboarding outperforms tutorial-style | HIGH | VWO, UserPilot, CleverTap research, Spotify pattern analysis | Multiple sources converge |
+| 3-5 genre picks are optimal minimum for taste capture | MEDIUM | Inferred from Spotify's "pick 3 artists" pattern | Spotify validated this with data science; genre equivalent is reasonable |
+| Riverpod eager initialization pattern fixes race conditions | HIGH | Riverpod official docs, CodeWithAndrea article | Documented pattern for exactly this problem class |
+| SharedPreferences async load causes current race condition | HIGH | Direct code inspection of `_load()` in both notifiers | Identified specific code path |
+| Delete confirmation is table stakes for destructive actions | HIGH | Standard mobile UX convention | Universal across iOS and Android design guidelines |
+| Progressive disclosure improves new-user experience | HIGH | Nielsen Norman Group, Carbon Design System | Well-established UX principle |
+| Profile templates reduce cold-start friction | MEDIUM | Inferred from Spotify starter playlists, MyFitnessPal goal templates | Analogous pattern, not directly studied for this domain |
+| 60-second time-to-first-playlist is competitive | MEDIUM | Estimated from competitor flows | Competitor timings are approximate from WebSearch descriptions, not timed |
 
 ---
 
 ## Sources
 
-### Peer-Reviewed Research
-- [Music in the exercise domain: review and synthesis (Part I)](https://pmc.ncbi.nlm.nih.gov/articles/PMC3339578/) -- Karageorghis framework, BMRI factors, rhythm response hierarchy
-- [High-groove music boosts running speed and mood (2025)](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2025.1586484/full) -- Groove/danceability directly improves running
-- [Music preference influence on exercise performance](https://pmc.ncbi.nlm.nih.gov/articles/PMC8167645/) -- Motivation, dissociation, affect mechanisms
-- [Effects of music on anaerobic performance and motivation (2025)](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2025.1518359/full) -- Music significantly increases motivation
-- [BMRI-2 validation](https://pubmed.ncbi.nlm.nih.gov/16815785/) -- 6-item scale, motivational quotients 6-42
-- [Psychology of workout music (Scientific American)](https://www.scientificamerican.com/article/psychology-workout-music/) -- Rhythm response, lyrical cadence, emotional engagement
+### Onboarding & UX Research
+- [VWO Mobile App Onboarding Guide 2026](https://vwo.com/blog/mobile-app-onboarding-guide/) -- Best practices, engagement metrics, personalization strategies
+- [Plotline App Onboarding Examples 2026](https://www.plotline.so/blog/mobile-app-onboarding-examples) -- Action-oriented vs tutorial onboarding comparison
+- [UserPilot Frictionless Onboarding](https://userpilot.com/blog/mobile-app-onboarding/) -- Progressive disclosure, skip behavior, smart defaults
+- [CleverTap App Onboarding Examples](https://clevertap.com/blog/app-onboarding/) -- Spotify artist-pick pattern, MyFitnessPal goal-first pattern
+- [Nielsen Norman Group Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/) -- Cognitive load reduction, gradual complexity revelation
+- [Carbon Design System Empty States](https://carbondesignsystem.com/patterns/empty-states-pattern/) -- Actionable empty states, contextual guidance
 
-### API and Technical
-- [GetSongBPM API documentation](https://getsongbpm.com/api) -- Song endpoint fields including danceability, acousticness, genres
-- [Spotify API deprecation announcement](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) -- Audio features removed Nov 2024
-- [Spotify API restriction analysis 2026](https://voclr.it/news/why-spotify-has-restricted-its-api-access-what-changed-and-why-it-matters-in-2026/) -- No alternatives from Spotify
-- [Soundcharts Audio Features API](https://soundcharts.com/en/audio-features-api) -- Alternative for energy, valence, danceability ($250/mo)
+### Flutter & Riverpod Technical
+- [CodeWithAndrea: Robust App Initialization with Riverpod](https://codewithandrea.com/articles/robust-app-initialization-riverpod/) -- AppStartupWidget pattern, eager initialization, requireValue
+- [Riverpod Official: Eager Initialization](https://riverpod.dev/docs/how_to/eager_initialization) -- ConsumerWidget pattern for preloading providers
+- [Vibe Studio: Multi-Step Onboarding in Flutter](https://vibe-studio.ai/insights/how-to-build-a-multi-step-onboarding-flow-in-flutter) -- PageView + PageController pattern, SharedPreferences completion flag
 
 ### Competitor Analysis
-- [RockMyRun official site](https://www.rockmyrun.com/) -- Body-Driven Music, DJ curation, genre/mood filtering
-- [PaceDJ official site](https://www.pacedj.com/) -- BPM-based library filtering, half/double tempo
-- [Weav Run (Runner's World review)](https://www.runnersworld.com/runners-stories/a32257227/running-app-weav-improves-cadence-stride/) -- Adaptive music 100-240 BPM, ~500 songs
-- [Weav Music adaptive technology](https://medium.com/@weavmusic/whats-so-adaptive-about-our-music-bc9190772890) -- Stem-based adaptive remixing
+- [RockMyRun Official](https://www.rockmyrun.com/) -- Body-Driven Music, genre browsing, subscription model
+- [PaceDJ Official](https://www.pacedj.com/) -- Library BPM scanning, manual tempo target
+- [Weav Run (Runner's World)](https://www.runnersworld.com/runners-stories/a32257227/running-app-weav-improves-cadence-stride/) -- Adaptive music, ~500 songs, Match My Stride mode
+- [DRmare Spotify Running Alternatives](https://www.drmare.com/spotify-music/spotify-running-alternative.html) -- Feature comparison across running music apps
 
-### Running Playlist Curation
-- [Runner's World best running songs 2025](https://www.runnersworld.com/runners-stories/a69547480/top-running-songs-2025/) -- Community-sourced running music picks
-- [Boston Globe marathon playlist 2025](https://www.bostonglobe.com/2025/03/28/arts/boston-marathon-2025-runner-playlist-best-songs/) -- Running club curated songs
-- [KURU 100 best running songs](https://www.kurufootwear.com/blogs/articles/best-running-songs) -- Community-compiled running music list
+### Empty State & Progressive Disclosure
+- [Toptal Empty State UX](https://www.toptal.com/designers/ux/empty-state-ux-design) -- Empty states as opportunity for guidance
+- [Mobbin Empty State Pattern](https://mobbin.com/glossary/empty-state) -- Best practices with examples from real apps
+- [NNGroup Designing Empty States](https://www.nngroup.com/articles/empty-state-interface-design/) -- Complex application empty state guidelines
 
 ---
-*Feature research for: v1.1 Experience Quality -- Running Playlist AI*
-*Researched: 2026-02-05*
+*Feature research for: v1.2 Profile Management, Onboarding, and Regeneration Reliability -- Running Playlist AI*
+*Researched: 2026-02-06*

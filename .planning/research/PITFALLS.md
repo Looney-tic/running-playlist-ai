@@ -1,246 +1,393 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Adding song quality scoring, curated content, and recommendation improvements to an existing running playlist app (v1.1 Experience Quality)
-**Researched:** 2026-02-05
-**Confidence:** HIGH (domain-specific, grounded in existing codebase analysis + research literature)
+**Domain:** Adding multi-profile management, onboarding flow, and regeneration reliability to an existing Flutter/Riverpod running playlist app (v1.2)
+**Researched:** 2026-02-06
+**Confidence:** HIGH (grounded in existing codebase analysis, documented Flutter/Riverpod issues, and proven patterns from run plan library)
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Treating "Good Running Song" as an Objective, Universal Property
+Mistakes that cause rewrites, data loss, or fundamental UX breakage.
+
+### Pitfall 1: Regeneration Race Condition -- Reading Provider State Before Async Load Completes
 
 **What goes wrong:**
-The team builds a single "running quality score" (e.g., 0-100) for each song and treats it as ground truth. A song scored 85/100 is presented as objectively better for running than one scored 60/100. But "good for running" is deeply personal: a metalcore fan's ideal 170 BPM running song is completely different from a pop listener's. The score conflates two orthogonal dimensions -- *running suitability* (rhythmic drive, energy consistency, beat clarity) with *taste fit* (genre, mood, familiarity). When these are merged into one number, the system recommends bland, lowest-common-denominator songs that nobody actually loves running to.
+`generatePlaylist()` calls `ref.read(runPlanNotifierProvider)` which reads from `RunPlanLibraryNotifier`, whose constructor fires `_load()` asynchronously. Between the notifier's construction (state = empty `RunPlanLibraryState`) and `_load()` completing (state populated from SharedPreferences), `runPlanNotifierProvider` returns `null`. If `generatePlaylist()` is called during this window -- which happens with auto-generate via `?auto=true` -- the user sees "No run plan saved. Please create a run plan first." despite having a saved run plan.
+
+The current mitigation in `PlaylistScreen` is a `_autoGenTriggered` flag with a condition `runPlan != null && !generationState.isLoading`, which polls via Riverpod rebuilds until the run plan becomes non-null. This works for the initial auto-generate, but `regeneratePlaylist()` has a different path: it checks `state.runPlan` (the stored plan from the last generation), and falls back to `generatePlaylist()` when that is null. After a hot restart or cold start, `state.runPlan` is always null because `PlaylistGenerationState` is not persisted.
 
 **Why it happens:**
-It feels elegant to have one score. The scoring function is easier to test with a single output. And early testing with the developer's own taste confirms it "works." But taste diversity means a universal score will always regress toward inoffensive pop.
-
-**How to avoid:**
-Separate the concerns explicitly. Build two independent scoring dimensions:
-1. **Running suitability score** -- Objective-ish properties: beat consistency/stability, rhythmic drive (strong downbeats), energy sustain (not too many quiet sections), tempo match quality. These are genre-agnostic.
-2. **Taste match score** -- Already exists in `PlaylistGenerator._scoreAndRank()` as artist matching and BPM exactness bonuses. Extend with genre affinity, energy level preference.
-
-Multiply or combine at playlist generation time, not at data ingestion time. A song can have high running suitability but low taste match (or vice versa). The user's playlist should prioritize songs high in both.
-
-**Warning signs:**
-- Your curated "top running songs" list looks like a generic pop workout playlist
-- Test users in different genres report the same songs being recommended
-- The scoring model has no input from the taste profile
-- Songs with niche genre appeal consistently score low
-
-**Phase to address:**
-Song quality scoring design phase -- the data model and scoring architecture must separate these concerns from the start. Retrofitting is expensive because curated data entries with baked-in single scores need to be re-evaluated.
-
-**Confidence:** HIGH -- this is the fundamental design trap in music recommendation systems. Research confirms "danceability and energy are not indicative of personal preference regardless of geography" (Spotify audio features research). Jog.fm solved this via community voting per pace, not per song quality.
-
----
-
-### Pitfall 2: Curated Data That Cannot Be Updated Without an App Store Release
-
-**What goes wrong:**
-The team bundles a curated running song database as a JSON asset file in the Flutter app bundle. The data ships with the app. To add new songs, fix errors, or respond to licensing changes, a full app store submission is required. The curated data becomes stale within weeks, and the update cycle (dev -> review -> release -> user update) takes days to weeks.
-
-**Why it happens:**
-Bundled JSON is the simplest approach -- it requires no backend, no network requests, and works offline. The current app already uses SharedPreferences for all persistence, so "just add a JSON file" feels consistent with the existing architecture. Supabase is initialized but barely used.
+`StateNotifier` constructors cannot be `async`. The pattern `_load()` (fire-and-forget async in constructor) creates a temporal gap where state is in its initial empty/default value. This is a well-known Riverpod pitfall. The notifier *will* eventually have the right data, but any code that `ref.read()` during the gap gets stale data.
 
 **Consequences:**
-- New popular songs cannot be added without an app update
-- Errors in curated data (wrong BPM, wrong genre tag, removed song) persist until the next release
-- Genre coverage gaps require a full release cycle to fix
-- If GetSongBPM removes or changes a song ID, the curated data references break silently
+- "Shuffle" button after cold start fails silently (falls through to `generatePlaylist()` which may see null run plan)
+- Home screen quick-regenerate card (`/playlist?auto=true`) intermittently fails on slow devices
+- The error message ("No run plan saved") is misleading -- the plan exists, it just hasn't loaded yet
 
-**How to avoid:**
-Use a hybrid approach:
-1. **Bundle a baseline dataset** as a Flutter asset for offline/first-launch experience
-2. **Serve the latest version from Supabase** (or any remote source) on app start, with a version number
-3. **Cache the remote version locally** with SharedPreferences or local file storage
-4. **Fall through gracefully**: remote -> local cache -> bundled baseline
-
-This pattern is standard for mobile content apps. Supabase is already in the project and can host a simple `curated_songs` table or a versioned JSON endpoint. The existing `BpmCachePreferences` pattern (TTL-based caching in SharedPreferences) can be reused.
-
-Shorebird (Flutter code push) can update Dart code without app store releases but *cannot* update assets or bundled data files. Remote data is the correct solution.
+**Prevention:**
+1. **Store the run plan and taste profile in `PlaylistGenerationState` and persist them.** When the user taps "Shuffle," the regeneration should use the stored plan from the last generation, not re-read from providers. This is partially implemented (state has `runPlan` and `tasteProfile` fields) but the state is not persisted across cold starts.
+2. **Guard `generatePlaylist()` with an async readiness check.** Before reading `runPlanNotifierProvider`, await the library load. This can be done by converting to `AsyncNotifierProvider` or by adding a `Future<void> ensureLoaded()` method to the library notifiers.
+3. **Show a loading state, not an error, when providers are still initializing.** The playlist screen should distinguish "no run plan exists" from "run plan hasn't loaded yet."
 
 **Warning signs:**
-- Team discussion about "we'll just push an update" when data errors are found
-- No version number on the curated dataset
-- No network fetch path for curated data
-- All test scenarios assume the bundled data is current
+- "No run plan saved" error appears after app restart even though run plans exist
+- Intermittent failures on slow devices or in debug mode
+- Tests pass because they pre-seed provider state, masking the async gap
+
+**Detection:**
+Add a cold-start integration test: restart app, immediately navigate to `/playlist?auto=true`, verify playlist generates successfully.
 
 **Phase to address:**
-Data layer architecture phase -- before populating the curated database, decide the storage and update strategy. Building the curator tool before the delivery mechanism wastes effort.
+Regeneration reliability phase -- this must be fixed before onboarding or profile management, because onboarding completion leads directly to playlist generation, which will hit this same race condition.
 
-**Confidence:** HIGH -- confirmed by Flutter documentation (assets are immutable after build) and Shorebird documentation (cannot update non-Dart resources). This is a well-known mobile app pattern.
+**Confidence:** HIGH -- the race condition is visible in the current code: `RunPlanLibraryNotifier` constructor calls `_load()` without awaiting, and `generatePlaylist()` calls `ref.read()` synchronously.
 
 ---
 
-### Pitfall 3: Over-Engineering the Taste Profile When the Real Problem Is Song Pool Quality
+### Pitfall 2: Onboarding Redirect Loop or Flash When go_router Redirect Depends on Async State
 
 **What goes wrong:**
-The team invests heavily in sophisticated taste profiling -- adding sub-genres, mood dimensions, decade preferences, vocal style preferences, instrument preferences -- while the underlying song pool from GetSongBPM API remains the same. No amount of taste profiling sophistication helps if the candidate songs at 170 BPM are mostly obscure tracks the user has never heard of and would never choose to run to.
+The onboarding flow needs to redirect first-time users (no taste profile, no run plan) to an onboarding screen instead of the home screen. The natural implementation adds a `redirect` callback to `GoRouter` that checks SharedPreferences for an `onboarding_completed` flag. But SharedPreferences is async, and go_router's redirect fires synchronously on every navigation event.
 
-The v1.0 `PlaylistGenerator` scores songs by artist match (+10) and BPM exactness (+3/+1). Adding 15 more taste dimensions to this scoring function produces a more complex model that outputs the same mediocre results, because the problem is not in the ranking -- it's in the candidate pool.
+Three failure modes emerge:
+1. **Flash of wrong screen:** The redirect returns `null` (no redirect) while SharedPreferences loads, showing the home screen briefly before redirecting to onboarding.
+2. **Infinite redirect loop:** The redirect checks `onboardingCompleted == false` and redirects to `/onboarding`, but the redirect fires again for the `/onboarding` route and sees the same false value (still loading), creating a loop. go_router has a redirect limit (default 5) and throws `RangeError`.
+3. **Black screen:** When using `async` redirect, go_router may show a black/empty screen while waiting for the async operation to complete.
 
 **Why it happens:**
-Taste profiling is "fun" engineering work. It's fully within the app's control (no external dependencies). It feels productive. Meanwhile, improving the song pool requires data sourcing, curation effort, and external research -- less glamorous work.
+go_router's `redirect` callback was not designed for async initialization checks. It runs on every navigation, including the initial route resolution. Combining it with async SharedPreferences creates a timing dependency that is easy to get wrong.
+
+**Prevention:**
+1. **Load onboarding status before `GoRouter` initializes.** In `main()`, read the onboarding flag from SharedPreferences and pass it as a parameter to the router provider. This eliminates the async dependency inside redirect.
+   ```dart
+   // In main():
+   final prefs = await SharedPreferences.getInstance();
+   final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+   ```
+2. **Use a splash/loading screen as the initial route** that waits for all async state to settle, then navigates to either onboarding or home. This avoids redirect entirely for the initial routing decision.
+3. **Exempt the onboarding route from redirect.** Always check `if (state.matchedLocation == '/onboarding') return null;` first in the redirect callback to prevent loops.
+4. **Use `refreshListenable`** on a `ChangeNotifier` that fires when onboarding state changes, rather than checking SharedPreferences inside redirect.
+
+**Warning signs:**
+- Users report seeing the home screen flash before onboarding appears
+- Crash logs show `RangeError` with "too many redirects" message
+- Black screen on app launch in release mode (not visible in hot reload)
+
+**Detection:**
+Test on a fresh install with `SharedPreferences.clear()` before launch. Verify no screen flash. Test with simulated slow SharedPreferences (add delay in test).
+
+**Phase to address:**
+Onboarding phase -- this is the core architectural decision for the onboarding flow. Must be decided before building any onboarding UI.
+
+**Confidence:** HIGH -- documented in [go_router issue #133746](https://github.com/flutter/flutter/issues/133746) (black screen), [issue #118061](https://github.com/flutter/flutter/issues/118061) (infinite loops), and [issue #105808](https://github.com/flutter/flutter/issues/105808) (async redirect support).
+
+---
+
+### Pitfall 3: Taste Profile Migration Silently Drops Data for Edge-Case JSON Shapes
+
+**What goes wrong:**
+The migration from legacy single-profile (`taste_profile` key) to multi-profile (`taste_profile_library` key) already exists in `TasteProfilePreferences.loadAll()`. It works for the standard case. But edge cases cause silent data loss:
+
+1. **Profile without `id` field:** Legacy profiles saved before the `id` field was added deserialize with `DateTime.now().millisecondsSinceEpoch.toString()` as the ID. If `loadAll()` is called twice quickly (e.g., two providers read simultaneously), two different IDs are generated for the same profile. The `selectedId` stored in SharedPreferences points to the first ID, but the second load created a profile with a different ID, so `selectedProfile` returns `null`.
+
+2. **Profile with new enum values:** If a future version adds a new `RunningGenre` enum value and then the user downgrades the app, `RunningGenre.fromJson()` calls `firstWhere` with no `orElse` -- it throws `StateError` ("No element"), crashing the entire profile load. `EnergyLevel.fromJson()` has the same pattern. (Note: `VocalPreference.fromJson()` and `TempoVarianceTolerance.fromJson()` correctly have `orElse` fallbacks.)
+
+3. **Corrupted JSON in SharedPreferences:** If `saveAll()` is interrupted (app killed during write), the JSON may be truncated. `jsonDecode()` throws `FormatException`, and the entire profile library returns empty. No fallback to the legacy key (which was already deleted during migration).
+
+**Why it happens:**
+Migration code is tested with the happy path (one valid profile, clean JSON). Edge cases around concurrent access, version mismatches, and storage corruption are rarely tested.
 
 **Consequences:**
-- Development time spent on taste features that don't move the quality needle
-- Users re-do the taste questionnaire hoping for better results, but get the same songs
-- The app becomes more complex to use (longer questionnaire) without better output
-- The core complaint ("these songs aren't good for running") persists despite the engineering effort
+- User's taste profile silently disappears after app update
+- Playlist generates with `null` taste profile (no genre/artist preferences), producing generic results
+- User does not realize preferences are lost until they see unfamiliar songs
 
-**How to avoid:**
-Invert the priority. Fix the song pool first, taste profile second:
-1. **Phase 1**: Curate a seed database of known-good running songs per genre/BPM range. Even 50-100 verified songs per genre is transformative compared to random GetSongBPM results.
-2. **Phase 2**: Add a simple "running quality" flag or score to curated songs (binary: is/isn't a good running song, or a 1-5 rating).
-3. **Phase 3**: Only then consider taste profile improvements -- and only where the curated pool is large enough that taste differentiation matters.
-
-The current taste profile (1-5 genres, 0-10 artists, energy level) is actually well-designed for the problem size. The bottleneck is not taste understanding -- it's song selection.
+**Prevention:**
+1. **Add `orElse` fallbacks to ALL `fromJson` enum deserializers.** `RunningGenre.fromJson()`, `EnergyLevel.fromJson()`, and `MusicDecade.fromJson()` should all have `orElse` clauses that skip unknown values rather than throwing.
+2. **Wrap `loadAll()` in try-catch.** If JSON parsing fails, return `[]` rather than crashing. Log the error for debugging.
+3. **Do not delete the legacy key until the new key is confirmed written.** Move the `prefs.remove(_legacyKey)` to after `saveAll()` succeeds.
+4. **Cache the parsed profiles in memory** so `loadAll()` called multiple times returns the same objects with the same IDs.
 
 **Warning signs:**
-- The taste profile screen gets more complex but playlist satisfaction doesn't improve
-- A/B testing (if possible) shows taste profile changes have no effect on user behavior
-- User feedback mentions specific songs ("why is this in my playlist?") rather than categories
-- The team debates adding more taste dimensions before verifying the song pool is good
+- User reports "my profile is gone" after an app update
+- Analytics show taste profile is null during playlist generation for users who previously had profiles
+- `selectedProfile` returns null despite `profiles` being non-empty (ID mismatch)
+
+**Detection:**
+Unit test: serialize a profile with an unknown enum value string, verify `fromJson` does not throw. Integration test: call `loadAll()` twice in rapid succession, verify IDs match.
 
 **Phase to address:**
-This is a *prioritization* pitfall, not a technical one. The roadmap must sequence song pool quality improvement before taste profile sophistication.
+Profile management phase -- must be fixed as part of the multi-profile implementation, before any new profile features are added.
 
-**Confidence:** HIGH -- this is a well-documented pattern in recommendation systems: improving the ranker has diminishing returns when the candidate set is poor. "Garbage in, garbage out" applies directly.
+**Confidence:** HIGH -- the vulnerable code is visible in `taste_profile.dart` lines 12 and 41 (`fromJson` without `orElse`), and `taste_profile_preferences.dart` line 29 (legacy key deleted before save confirmation).
 
 ---
 
-### Pitfall 4: Scraping Running Song Lists Without Understanding Legal and Data Quality Risks
+### Pitfall 4: Onboarding Creates a "Cold Start" for Playlist Generation That Feels Broken
 
 **What goes wrong:**
-To populate the curated running song database, the team scrapes "Best Running Songs" lists from Runner's World, Cosmopolitan, timeout.com, etc. This creates three compound problems:
-1. **Legal risk**: Scraping copyrighted curated lists may violate terms of service and copyright. The scraped data is someone else's editorial work.
-2. **Data quality**: These lists mix genuine running songs with promotional placements, recency bias, and editorial preferences that may not match running suitability.
-3. **Data reconciliation**: Song names and artists from scraped lists don't always match GetSongBPM's identifiers, requiring fuzzy matching that introduces errors.
+A well-designed onboarding collects a taste profile and run plan. The user completes onboarding and expects to immediately generate a playlist. But the first generation requires:
+1. Async load of the just-saved taste profile from SharedPreferences
+2. Async load of the just-saved run plan from SharedPreferences
+3. Network fetch of songs from GetSongBPM API (or curated fallback)
+4. Curated song repository load (3-tier: cache, Supabase, bundled JSON)
+5. Runnability data load from Supabase
+
+The user waits through multiple async operations on their very first interaction with the core feature. If any operation fails (network timeout, Supabase not initialized), they see an error on their first ever playlist generation. This is the worst possible first impression.
 
 **Why it happens:**
-It feels like the fastest path to "lots of data." Manually curating 500+ songs across 15 genres is tedious. Scraping automates the collection.
+Each async operation works fine in isolation. The onboarding flow and playlist generation are designed as separate features. Nobody tests the end-to-end flow: complete onboarding then immediately generate. The async operations compound, and the "happy path" in development (warm caches, fast network) masks the cold-start latency.
 
 **Consequences:**
-- ToS violations can result in legal action (unlikely for small apps, but ToS enforcement is unpredictable)
-- Scraped lists skew heavily toward English-language pop/rock, leaving genres like K-Pop, Latin, and Metal with poor coverage
-- Fuzzy matching between scraped song names and GetSongBPM IDs introduces phantom entries (song exists in curated data but can't be found via API) or wrong matches (different songs with similar names)
-- Data staleness: scraped lists from 2023 include songs that may no longer be available on streaming platforms
+- User completes onboarding, taps "Generate," waits 5-10 seconds, then sees an error
+- First-run experience is the worst experience (opposite of what onboarding should achieve)
+- User abandons the app before ever seeing a playlist
 
-**How to avoid:**
-Use legitimate data sources and manual curation:
-1. **GetSongBPM's own data**: The API returns songs by BPM. Use this as the candidate pool, then manually verify running suitability. No scraping needed.
-2. **Public playlists**: Spotify and YouTube Music public playlists tagged with "running" are user-generated and can be referenced (not scraped) for inspiration. Note song names, then look them up via GetSongBPM.
-3. **Community curation**: jog.fm's model -- users submit songs they run to -- is the gold standard. Build a lightweight song submission/voting feature for the app itself.
-4. **Manual seed curation**: Start with 20-30 personally verified running songs per genre. This is enough for a meaningful quality improvement over random BPM matching.
-
-For any data collected, store the source and date so stale entries can be identified.
+**Prevention:**
+1. **Pre-fetch during onboarding.** While the user fills in their taste profile (which takes 30-60 seconds), start loading curated songs and runnability data in the background. By the time they finish onboarding, the data is cached.
+2. **Pass onboarding data directly to the generator.** Instead of saving to SharedPreferences and then re-reading, pass the `TasteProfile` and `RunPlan` objects directly to the playlist generation screen via navigation parameters or a shared provider. This eliminates the save-then-load roundtrip.
+3. **Use curated-only generation for the first playlist.** Skip the GetSongBPM API call entirely and generate from the bundled curated dataset. This eliminates network dependency for the first impression. Future generations can use the API.
+4. **Show contextual loading.** Instead of a generic spinner, show "Finding songs in Pop, Electronic..." (using their chosen genres) to make the wait feel productive.
 
 **Warning signs:**
-- The curation plan starts with "we'll scrape X website"
-- Genre coverage is heavily skewed toward English-language pop
-- More than 10% of curated song IDs don't resolve when looked up via GetSongBPM API
-- No source attribution on curated entries
+- First playlist generation takes noticeably longer than subsequent ones
+- Error rate is highest on first generation
+- Onboarding completion rate is high but playlist generation rate is low
+
+**Detection:**
+End-to-end test: clear all data, complete onboarding, immediately generate. Measure time and success rate. Compare to generation with warm caches.
 
 **Phase to address:**
-Data sourcing phase -- must be designed before curation begins. The sourcing strategy determines the entire data pipeline architecture.
+Onboarding phase -- the generation flow immediately post-onboarding must be designed as part of the onboarding feature, not as an afterthought.
 
-**Confidence:** HIGH -- web scraping legality is well-documented; music metadata inconsistency is a known industry problem ("Copyright's critical mess: music metadata" -- Kluwer Copyright Blog).
+**Confidence:** HIGH -- the async chain is visible in `PlaylistGenerationNotifier.generatePlaylist()` (lines 101-163), which sequentially reads run plan, taste profile, fetches songs, loads curated data, and loads runnability.
 
 ---
 
-### Pitfall 5: Song Quality Score Based on Spotify Audio Features That No Longer Exist
+## Moderate Pitfalls
+
+Mistakes that cause delays, confusing behavior, or technical debt.
+
+### Pitfall 5: Multiple Taste Profiles Without Clear "Active Profile" Indicator in Generation Flow
 
 **What goes wrong:**
-The natural approach to "running quality scoring" is to use Spotify Audio Features (energy, danceability, valence, tempo, loudness) to compute a running suitability score. Every blog post and tutorial about music recommendation uses these features. But Spotify deprecated Audio Features in November 2024 and returns 403 for new apps. The team spends time designing scoring models around features they cannot actually access.
+The app already supports multiple taste profiles with a `selectedProfile`. But the playlist generation screen (`_IdleView` and `_PlaylistView`) shows selectors for run plan and taste profile that are small, subtle UI elements. When a user creates a second taste profile during onboarding or later, they may not realize which profile is active when generating. They get a playlist that doesn't match their expectations because Profile A was selected when they thought they were using Profile B.
 
-This was the critical v1.0 pitfall (#1 in the original research), but it manifests again in v1.1 in a subtler form: even if you don't plan to call Spotify's API directly, you might design a scoring model that *assumes* these features exist in your data, planning to get them "from somewhere." GetSongBPM returns `danceability` and `acousticness` but NOT energy, valence, loudness, or the full feature set. The scoring model designed around 7 features breaks when only 2 are available.
+The existing `_TasteProfileSelector` widget shows the profile name (or first 2 genres) in a compact row. After adding multi-profile management, users will switch between profiles more frequently, and the subtle selector becomes a source of confusion.
 
 **Why it happens:**
-All the recommendation system literature and blog posts reference Spotify Audio Features. They are deeply embedded in how developers think about music scoring. It's easy to design a model using them and assume "we'll source the data somehow."
+The selector pattern was designed when there was effectively one profile. Multi-profile support was added to the data layer (providers, persistence) but the UI was not redesigned around the multi-profile workflow.
 
-**How to avoid:**
-Design the scoring model exclusively around data you can actually obtain:
-- **From GetSongBPM API**: BPM, danceability, acousticness, time signature, key
-- **From curated data**: manually assigned running suitability flags, genre tags, verified BPM accuracy
-- **From user behavior**: skip rates, repeat plays, "thumbs up/down" on individual songs (future feature)
-
-Do NOT design features requiring energy, valence, or loudness unless you have a confirmed source for them. If a third-party API like SoundNet or ReccoBeats can provide these, verify it works before building features on top of it.
+**Prevention:**
+1. **Show the active profile name prominently** on the playlist generation idle screen -- not just in a selector row but as a heading or card.
+2. **Confirm profile selection when generating.** On the idle view, show which run plan + taste profile will be used, with both visible and tappable.
+3. **Auto-select the most recently edited profile** when the user returns from the taste profile editor. The current code already does this in `addProfile()` (selects new profile), but `updateProfile()` does not change selection -- this is correct for editing but confusing when the user edits Profile B while Profile A is selected.
 
 **Warning signs:**
-- Scoring model design documents reference "energy" or "valence" without a confirmed data source
-- The BpmSong model gets new fields that no API actually populates
-- Tests use hardcoded feature values that came from Spotify documentation examples
+- User creates a "Metal" profile but gets Pop songs (because their "Pop" profile was still selected)
+- Bug reports about "taste profile not working" that are actually selection confusion
+- Users always re-select the same profile before generating
+
+**Detection:**
+Usability test: ask a user to create two profiles, switch between them, and generate. Observe whether they correctly identify which profile is active.
 
 **Phase to address:**
-Scoring model design phase -- audit available data fields from GetSongBPM before designing the scoring function. The model must be grounded in accessible data.
+Profile management phase -- the UI for profile selection must be updated when adding multi-profile management.
 
-**Confidence:** HIGH -- confirmed by direct API experience in v1.0 and Spotify developer blog.
+**Confidence:** MEDIUM -- based on UX analysis of the existing selector widget. No user feedback data to confirm the confusion pattern, but the selector is objectively subtle (13px font, buried in a row of two selectors).
 
 ---
 
-## Technical Debt Patterns
+### Pitfall 6: Onboarding State Stored Separately From the Data It Guards
 
-Shortcuts that seem reasonable but create long-term problems.
+**What goes wrong:**
+A common pattern stores an `onboarding_completed` boolean in SharedPreferences, separate from the actual taste profile and run plan data. This creates a state desync: the boolean says onboarding is done, but the taste profile or run plan may not actually exist (deleted, migration failure, SharedPreferences corruption). Or conversely, the user has a taste profile from a previous version but the `onboarding_completed` flag was never set, so they see onboarding again.
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Hardcoding running quality scores in JSON | No backend needed, fast to implement | Cannot update without app release; scores become stale; no user feedback loop | MVP/prototype only, with remote update path planned |
-| Single composite score instead of separate dimensions | Simpler data model, easier to sort | Cannot tune taste vs. suitability independently; genre bias baked in | Never -- always keep running suitability and taste match separate |
-| Bundling entire curated database as Flutter asset | Offline-first, simple architecture | Stale data, large app bundle, no incremental updates | Only as fallback baseline, with remote fetch as primary path |
-| Using `SharedPreferences` for curated song data | Consistent with v1.0 patterns | SharedPreferences has a ~1MB practical limit on some platforms; poor query performance for large datasets | Acceptable for < 500 songs; migrate to SQLite/Drift if larger |
-| Estimating song duration at 210 seconds for all songs | Simple calculation, already works in v1.0 | Playlists overshoot or undershoot duration by up to 2 minutes per hour; perceived as inaccurate | Acceptable until actual duration data is available |
-| Adding taste dimensions without A/B validation | Feels like progress | Complexity without proven value; longer questionnaire without better results | Only when song pool is large enough that taste differentiation matters |
+**Why it happens:**
+It feels clean to have a single boolean flag. The alternative (checking whether a taste profile and run plan actually exist) feels like an implementation detail leaking into the routing layer.
 
-## Integration Gotchas
+**Prevention:**
+**Derive onboarding status from the data, not from a separate flag.** Instead of:
+```dart
+final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+```
 
-Common mistakes when connecting to external services in this domain.
+Use:
+```dart
+final hasProfile = (await TasteProfilePreferences.loadAll()).isNotEmpty;
+final hasRunPlan = (await RunPlanPreferences.loadAll()).isNotEmpty;
+final onboardingDone = hasProfile && hasRunPlan;
+```
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| GetSongBPM `/tempo/` endpoint | Assuming genre filtering exists on the tempo endpoint -- it does not. Songs returned are across all genres. | Filter by genre client-side after fetching. Cache broadly, filter narrowly. Accept that API calls return cross-genre results and your curation layer handles genre matching. |
-| GetSongBPM song IDs | Assuming song IDs are stable forever. IDs can change if GetSongBPM re-indexes their database. | Store song title + artist as the canonical key, use song ID as a cache optimization only. Always fall back to title/artist matching. |
-| GetSongBPM danceability/acousticness | Assuming these are on the same 0-1 scale as Spotify's deprecated features. They may use different algorithms and scales. | Treat GetSongBPM's danceability as an independent measure. Do not compare to Spotify documentation values. Calibrate thresholds empirically against known running songs. |
-| Supabase for curated data | Over-designing the schema with full relational models (songs, artists, genres, tags, votes) before having any data. | Start with a single `curated_songs` table: `id, title, artist, bpm, genre, running_quality, source, updated_at`. Normalize later only if needed. |
-| Remote JSON fetch for curated data | No versioning, so the app refetches the full dataset every launch. | Include a `version` or `last_modified` header. Only download when version > cached version. Reduces bandwidth and startup time. |
+This is always consistent with the actual app state. If the user deletes all their profiles, they see the onboarding again (which is the correct behavior). If an existing user upgrades from v1.1 (has data, no onboarding flag), they skip onboarding correctly.
 
-## Performance Traps
+**Warning signs:**
+- Existing v1.1 users see onboarding after upgrading to v1.2 despite having profiles
+- User completes onboarding, data fails to save, but the boolean was set -- they never see onboarding again and have an empty app
+- Edge case: user manually clears app data in Settings but `onboarding_completed` persists (or vice versa)
 
-Patterns that work at small scale but fail as usage grows.
+**Detection:**
+Test: set `onboarding_completed = true` but clear all profile/plan data. Verify the app handles the state correctly (shows onboarding or empty state, not a broken home screen).
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Loading entire curated song database into memory on app start | Startup lag, high memory usage on low-end Android devices | Lazy-load by genre/BPM range on demand, keep only active segment's candidates in memory | > 2,000 curated songs, or on devices with < 2GB RAM |
-| SharedPreferences storing large JSON blobs for curated data | `getString()` blocks the platform channel; noticeable jank when reading | Use SQLite/Drift for structured data > 500 entries; SharedPreferences for small config only | > 500 curated songs or > 100KB JSON |
-| Scoring all candidates on every playlist generation | Fine with 50 songs; O(n * m) with n candidates and m taste dimensions | Pre-compute running suitability scores at data ingestion time; only compute taste match at generation time | > 500 candidates per BPM value |
-| Re-fetching curated data on every app launch | Wastes bandwidth, adds latency to first playlist generation | Cache with version check; only fetch delta or full set when version mismatch | Always wasteful, but becomes user-visible with > 1MB curated dataset |
+**Phase to address:**
+Onboarding phase -- this is the first design decision for the onboarding architecture.
 
-## UX Pitfalls
+**Confidence:** HIGH -- this is a general best practice for derived state (proven pattern), and the existing codebase already uses this pattern: `runPlanNotifierProvider` returns null when no plans exist, and the playlist screen shows "No Run Plan" accordingly.
 
-Common user experience mistakes specific to this domain.
+---
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Showing a numerical "running quality score" (e.g., 85/100) next to each song | Users argue with the score ("this song is NOT an 85!"), focus on the number instead of enjoying the playlist. Creates distrust in the system. | Use quality scoring internally for ranking only. Never show the raw score to users. If anything, show a simple badge: "Popular running song" or a heart icon. |
-| Stride adjustment that changes BPM by > 5 per nudge | One "a bit fast" tap changes cadence from 170 to 160, which is a completely different song pool. The playlist changes dramatically for a minor adjustment. | Nudge in increments of 2-3 BPM. Running cadence adjustment in practice is subtle (168 vs 172, not 170 vs 160). Show the BPM changing in real-time so users understand the effect. |
-| "Quick action" repeat flow that skips the run plan screen entirely | Users who changed their run plan since last time get a playlist for outdated parameters. Confusion: "I wanted 10K today but got my usual 5K playlist." | Default to last-used parameters but always show a confirmation step with distance, pace, and run type visible. One-tap "Same run, fresh playlist" with visible parameters, not invisible defaults. |
-| Post-activity adjustment that requires re-generating the entire playlist | User just finished a run, wants to tweak cadence for next time. Being forced to wait for API calls and playlist generation is frustrating. | Save the cadence adjustment immediately (one tap: "a bit fast" / "just right" / "a bit slow"). Apply it to the *next* playlist generation. Don't re-generate the current one. |
-| Taste profile changes that silently invalidate cached/curated data | User updates genres, but the cached playlist and curated data rankings are still based on old preferences. Next playlist seems to ignore the changes. | When taste profile changes, clear relevant caches or at minimum flag that the next generation should skip cached rankings. Show "Preferences updated -- your next playlist will reflect this." |
-| Overwhelming users with new v1.1 features on upgrade | Existing v1.0 users suddenly see stride adjustment buttons, quality indicators, and a modified taste profile flow. Cognitive overload. | Introduce new features progressively. Stride adjustment appears only after the first playlist generation (contextual). Quality improvements are invisible (better ranking, same UI). |
+### Pitfall 7: Taste Profile `copyWith` Doesn't Allow Clearing Optional Fields
+
+**What goes wrong:**
+`TasteProfile.copyWith()` uses the pattern `name: name ?? this.name`. This means you cannot set `name` back to `null` once it has a value. If a user creates a profile with a name and then wants to remove the name (leaving it auto-generated), calling `copyWith(name: null)` keeps the old name.
+
+The same issue applies to any future nullable field added to TasteProfile. This is a well-known Dart `copyWith` limitation.
+
+**Why it happens:**
+The standard Dart `copyWith` pattern cannot distinguish between "parameter not provided" (should keep current value) and "parameter explicitly set to null" (should clear value). Since Dart uses `null` for both cases, the `??` fallback always preserves the existing value.
+
+**Prevention:**
+For fields that need to be clearable, use a sentinel value or a wrapper:
+```dart
+TasteProfile copyWith({
+  Object? name = _sentinel,
+  // ...
+}) {
+  return TasteProfile(
+    name: name == _sentinel ? this.name : name as String?,
+    // ...
+  );
+}
+const _sentinel = Object();
+```
+
+Alternatively, since the taste profile editor screen uses local state and constructs a new `TasteProfile` from scratch (not via `copyWith`), this is only a pitfall if future code starts using `copyWith` for profile updates.
+
+**Warning signs:**
+- User cannot remove a profile name through the UI
+- Future code uses `profile.copyWith(name: null)` and the name persists unexpectedly
+
+**Detection:**
+Unit test: create profile with name "Test", call `copyWith(name: null)`, verify name is null.
+
+**Phase to address:**
+Profile management phase -- fix when adding profile editing capabilities.
+
+**Confidence:** HIGH -- the code is visible at `taste_profile.dart` line 198-221.
+
+---
+
+### Pitfall 8: StateNotifier `_load()` Fire-and-Forget Creates Silent Error Swallowing
+
+**What goes wrong:**
+Both `RunPlanLibraryNotifier` and `TasteProfileLibraryNotifier` call `_load()` in their constructors without any error handling:
+```dart
+RunPlanLibraryNotifier() : super(const RunPlanLibraryState()) {
+    _load();
+}
+```
+
+If `_load()` throws (SharedPreferences failure, JSON parse error, platform channel error), the error is silently swallowed. The notifier stays in its initial empty state (`plans: [], selectedId: null`), and the app behaves as if the user has no saved data.
+
+**Why it happens:**
+Fire-and-forget async calls in constructors have no caller to propagate errors to. The Dart runtime logs the error to the console but the app continues with the wrong state.
+
+**Prevention:**
+1. **Add try-catch inside `_load()`** with explicit error handling -- at minimum, log the error and set an error flag in state.
+2. **Better: migrate to `AsyncNotifier`** which has built-in error state via `AsyncValue.error()`. Callers can then check `state.hasError` and show a retry option.
+3. **If staying with StateNotifier:** add a `loadError` field to the state class so the UI can distinguish "no data" from "load failed."
+
+**Warning signs:**
+- Users report "empty" app state after a crash or forced stop
+- No error reporting when SharedPreferences fails
+- Debugging becomes impossible because errors are silently consumed
+
+**Detection:**
+Unit test: mock SharedPreferences to throw, verify the notifier handles the error (does not leave state in a misleading "empty" condition).
+
+**Phase to address:**
+Regeneration reliability phase -- when fixing the async load race condition, also add error handling to `_load()`.
+
+**Confidence:** HIGH -- the fire-and-forget pattern is visible in both notifiers' constructors.
+
+---
+
+## Minor Pitfalls
+
+Mistakes that cause annoyance but are fixable without major rework.
+
+### Pitfall 9: Onboarding "Back" Navigation Leaves Partial State
+
+**What goes wrong:**
+If onboarding is a multi-step flow (e.g., step 1: taste profile, step 2: run plan), and the user completes step 1 but presses "Back" on step 2, a taste profile exists but no run plan. The onboarding is incomplete but step 1's data is already saved.
+
+On next launch, the derived onboarding check (`hasProfile && hasRunPlan`) sees no run plan and shows onboarding again. But the taste profile step is already done, so:
+- If onboarding shows all steps, the user re-does the taste profile (annoying)
+- If onboarding skips completed steps, the user sees only the run plan step (confusing -- "where's my taste profile setup?")
+
+**Prevention:**
+1. **Save onboarding data only at the end.** Keep taste profile and run plan as in-memory state during onboarding, and persist both together when the user completes the final step.
+2. **Or: make each step independently valuable.** If a user backs out after creating a taste profile, that's fine -- they can use the app with a taste profile and no run plan (current app handles this with "No Run Plan" view on the playlist screen).
+
+**Detection:**
+Test: start onboarding, complete step 1, back out at step 2, relaunch app. Verify behavior is sensible.
+
+**Phase to address:**
+Onboarding phase.
+
+**Confidence:** MEDIUM -- depends on the chosen onboarding architecture (single-screen vs. multi-step).
+
+---
+
+### Pitfall 10: Profile Deletion While It's the Active Profile for a Generated Playlist
+
+**What goes wrong:**
+The user generates a playlist with Profile A, then navigates to Taste Profiles, deletes Profile A. The `deleteProfile()` method selects the first remaining profile. But the playlist screen still shows a playlist generated with Profile A's preferences. If the user taps "Shuffle" (regenerate), the regeneration uses `state.tasteProfile` (Profile A, still in the generation state) but the providers now point to Profile B. The regenerated playlist mixes Profile A's stored state with Profile B's current provider state, depending on the code path.
+
+Currently, `regeneratePlaylist()` uses `state.tasteProfile` (the stored profile from last generation), so this is partially safe. But if the stored profile is null (cold start), it falls back to `ref.read(tasteProfileNotifierProvider)` which now returns Profile B. The behavior is inconsistent.
+
+**Prevention:**
+1. **Clear playlist generation state when the active profile changes.** Watch for profile selection changes and reset to idle state.
+2. **Or: always use the stored profile for regeneration** and only use the provider for fresh generation. This is almost the current behavior but needs the null-fallback case handled.
+
+**Detection:**
+Test: generate playlist, switch profile, tap Shuffle. Verify the regeneration uses the correct profile (either the original or the newly selected, but not a mix).
+
+**Phase to address:**
+Profile management phase.
+
+**Confidence:** MEDIUM -- the code paths are visible but the impact depends on how often users switch profiles after generating.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Regeneration reliability | Race condition: providers not loaded when `generatePlaylist()` reads them (#1) | Add async readiness guard or persist generation inputs across cold starts |
+| Regeneration reliability | Silent error swallowing in `_load()` (#8) | Add error handling to fire-and-forget async loads |
+| Onboarding flow | Redirect loop or flash when checking async onboarding state (#2) | Load onboarding state in `main()` before router init, or use splash screen |
+| Onboarding flow | Cold-start latency for first playlist generation (#4) | Pre-fetch curated data during onboarding, pass data directly to generator |
+| Onboarding flow | Separate onboarding flag desyncs from actual data (#6) | Derive onboarding status from data existence, not separate boolean |
+| Onboarding flow | Back navigation leaves partial state (#9) | Save all onboarding data at end, or make each step independently valuable |
+| Profile management | JSON deserialization crash on unknown enum values (#3) | Add `orElse` to all enum `fromJson` methods |
+| Profile management | Unclear which profile is active during generation (#5) | Make active profile prominent in generation UI |
+| Profile management | `copyWith` cannot clear nullable fields (#7) | Use sentinel pattern or construct new objects |
+| Profile management | Profile deletion while playlist uses that profile (#10) | Clear generation state on profile change |
 
 ## "Looks Done But Isn't" Checklist
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Song quality scoring:** Model produces scores, but no validation against actual runners' preferences -- verify by having 5+ runners rate 20 songs and comparing to model output
-- [ ] **Curated database:** 200 songs added, but coverage skewed to 3-4 genres -- verify minimum 15 songs per selected RunningGenre
-- [ ] **Curated database:** Songs have BPM values, but not verified against GetSongBPM IDs -- verify every curated song resolves to a valid GetSongBPM entry
-- [ ] **Curated database:** Remote fetch works, but no fallback when network unavailable -- verify app works in airplane mode with bundled baseline
-- [ ] **Stride adjustment:** +/- buttons exist, but the adjusted cadence is not persisted -- verify adjustment survives app restart
-- [ ] **Stride adjustment:** Cadence changes, but the next playlist generation still uses the old cadence -- verify the adjustment flows through to `RunPlan.segments[].targetBpm`
-- [ ] **Repeat flow:** "Generate again" button exists, but it re-uses the exact same song pool (no variety) -- verify repeat generation shuffles or cycles through different curated songs
-- [ ] **Repeat flow:** Quick action preserves last run parameters, but not the latest stride adjustment -- verify stride nudge from previous run is reflected in quick-action defaults
-- [ ] **Taste profile update:** Genres changed, but curated song filter still uses old genres until app restart -- verify real-time reactivity of genre filter in playlist generation
-- [ ] **Scoring integration:** Quality scoring works in isolation, but `PlaylistGenerator.generate()` was not updated to use it -- verify the generator actually reads and applies quality scores
+- [ ] **Regeneration fix:** "Shuffle" button works after generation, but fails on cold start because `state.runPlan` is null -- test by force-stopping app and tapping Shuffle immediately
+- [ ] **Onboarding:** Redirect works in debug mode (SharedPreferences is instant) but flashes in release on slow devices -- test with simulated delay
+- [ ] **Onboarding:** First-time user completes onboarding and generates a playlist, but the generation uses empty provider state because save-then-read hasn't completed -- test end-to-end fresh install flow
+- [ ] **Profile migration:** Legacy single-profile users upgrade smoothly, but users with corrupted JSON see empty profile list without error -- test with truncated JSON in SharedPreferences
+- [ ] **Profile migration:** `RunningGenre.fromJson` and `EnergyLevel.fromJson` crash on unknown values instead of using fallbacks -- test with unrecognized enum string
+- [ ] **Multi-profile:** Selecting a different taste profile updates the provider state, but a previously generated playlist still displays using the old profile's scoring -- verify playlist screen re-reads on profile switch
+- [ ] **Onboarding skip:** User who presses "Skip" on onboarding should reach a functional app state, not a broken state with no run plan and no taste profile -- verify skip path leads to usable home screen
+- [ ] **Back navigation:** Pressing back during multi-step onboarding does not corrupt partial state -- verify each step's state is properly managed
 
 ## Recovery Strategies
 
@@ -248,41 +395,30 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Single composite score baked into curated data | MEDIUM | Add separate `running_suitability` and `taste_relevance` columns; backfill from composite score using genre heuristics; update generator to use both |
-| Curated data bundled as immutable asset | LOW | Add Supabase table + remote fetch layer; keep bundled data as fallback; version the remote data |
-| Over-engineered taste profile | LOW | Revert to simple profile; keep extra fields but make them optional/hidden; data migration is backward-compatible since TasteProfile.fromJson handles missing fields |
-| Scraped data with legal issues | HIGH | Remove all scraped entries; rebuild from legitimate sources; audit every curated entry for source provenance |
-| Scoring model depends on unavailable audio features | MEDIUM | Strip unavailable features from model; re-weight remaining features; accept reduced model quality until alternative data source found |
-| SharedPreferences overloaded with curated data | MEDIUM | Migrate to SQLite/Drift; convert SharedPreferences entries to database rows; update all read/write paths |
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Single universal score (#1) | Scoring model design | Score has separate `runningSuitability` and `tasteMatch` dimensions in data model |
-| Immutable bundled data (#2) | Data layer architecture | Curated data can be updated via Supabase without app release; verified by changing a value remotely and seeing it in-app |
-| Over-engineering taste profile (#3) | Roadmap sequencing | Song pool quality phase completes before taste profile changes; user satisfaction measured before/after |
-| Scraping legal/quality risks (#4) | Data sourcing strategy | Every curated entry has a `source` field; no entries sourced from scraped copyrighted lists |
-| Unavailable audio features (#5) | Scoring model design | Every field in the scoring model maps to a confirmed data source; no orphan features |
-| Stride nudge too aggressive (UX) | Stride adjustment UX | Nudge increment is 2-3 BPM; tested with actual runners for feel |
-| Repeat flow with stale parameters (UX) | Quick action design | Confirmation screen shows all parameters; stride adjustment from last run is reflected |
-| Curated data genre gaps | Data curation | Minimum song count per genre verified before feature is considered complete |
+| Regeneration race condition (#1) | LOW | Add null check + retry with delay; or persist last-used run plan/profile to SharedPreferences |
+| Onboarding redirect loop (#2) | LOW | Add route guard check for onboarding path; move async check to `main()` |
+| Profile data loss from JSON parsing (#3) | MEDIUM | Add fallback `orElse` to all enum deserializers; add try-catch wrapper around `loadAll()`; cannot recover already-lost data |
+| Cold-start first generation (#4) | LOW | Add curated-only fast path for first generation; pre-warm caches during onboarding |
+| Profile selection confusion (#5) | LOW | UI change only; make profile name more prominent on generation screen |
+| Onboarding flag desync (#6) | LOW | Switch to derived state check; remove separate boolean flag |
+| copyWith null clearing (#7) | LOW | Use sentinel pattern in copyWith, or construct new objects directly |
+| Silent error in _load() (#8) | LOW | Add try-catch in `_load()`; optionally add error field to state |
+| Partial onboarding state (#9) | LOW | Persist data only at end of flow; or accept partial state gracefully |
+| Profile deletion mid-playlist (#10) | LOW | Clear generation state when active profile changes |
 
 ## Sources
 
-- [ForeverFitScience: The Science Behind Good Running Music](https://foreverfitscience.com/running/good-running-music/) -- research on music complexity and synchronization effects on running performance
-- [PLOS One: Optimizing beat synchronized running to music](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0208702) -- phase alignment and tempo matching research
-- [Kluwer Copyright Blog: Copyright's critical mess: music metadata](https://copyrightblog.kluweriplaw.com/2025/03/13/copyrights-critical-mess-music-metadata/) -- music metadata quality issues
-- [ScraperAPI: Is Web Scraping Legal? 2026 Guide](https://www.scraperapi.com/web-scraping/is-web-scraping-legal/) -- legal framework for data scraping
-- [jog.fm FAQ](https://jog.fm/pages/faq) -- community-driven running song curation model
-- [Spotify developer blog: API changes Nov 2024](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) -- Audio Features deprecation
-- [GetSongBPM API documentation](https://getsongbpm.com/api) -- available data fields and limitations
-- [Shorebird documentation](https://docs.shorebird.dev/code-push/) -- code push limitations (Dart only, no assets)
-- [Music Tomorrow: Fairness in Music Streaming Algorithms](https://www.music-tomorrow.com/blog/fairness-transparency-music-recommender-systems) -- popularity bias in recommendation systems
-- [LinkedIn: Cold Start Problem in Music Recommendation](https://www.linkedin.com/advice/0/how-do-you-deal-cold-start-problem-long-tail-music) -- cold start mitigation strategies
+- [Riverpod issue #57: Initialize StateNotifierProvider with async data](https://github.com/rrousselGit/riverpod/issues/57) -- canonical discussion of async initialization patterns
+- [Riverpod issue #2506: Race condition with AutoDisposeAsyncNotifierProvider](https://github.com/rrousselGit/riverpod/issues/2506) -- documented race condition in provider lifecycle
+- [go_router issue #133746: Black screen with async redirect](https://github.com/flutter/flutter/issues/133746) -- async redirect causes unwanted black screen
+- [go_router issue #118061: Infinite redirect loops](https://github.com/flutter/flutter/issues/118061) -- redirect loop causing stack overflow
+- [go_router issue #105808: Support asynchronous redirects](https://github.com/flutter/flutter/issues/105808) -- async redirect support discussion
+- [Flutter Explained: Onboarding with Riverpod, SharedPreferences, and GoRouter](https://flutterexplained.com/p/flutter-onboarding-with-riverpod) -- onboarding implementation pattern (with pitfalls noted)
+- [Code with Andrea: Robust App Initialization Flow with Riverpod](https://codewithandrea.com/articles/robust-app-initialization-riverpod/) -- async initialization best practices
+- [Code with Andrea: Loading/Error States with StateNotifier](https://codewithandrea.com/articles/loading-error-states-state-notifier-async-value/) -- AsyncValue pattern for StateNotifier
+- [Flutter issue #95013: SharedPreferences race condition on Android](https://github.com/flutter/flutter/issues/95013) -- data loss from concurrent SharedPreferences writes
+- [Flutter issue #53414: SharedPreferences value lost on app restart](https://github.com/flutter/flutter/issues/53414) -- persistence reliability issues
 
 ---
-*Pitfalls research for: v1.1 Experience Quality -- Running Playlist AI*
-*Researched: 2026-02-05*
+*Pitfalls research for: v1.2 Profile Management, Onboarding, and Regeneration Reliability -- Running Playlist AI*
+*Researched: 2026-02-06*

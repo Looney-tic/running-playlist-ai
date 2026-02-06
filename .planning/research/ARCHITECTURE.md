@@ -1,841 +1,576 @@
-# Architecture Patterns: v1.1 Experience Quality
+# Architecture Patterns: v1.2 Polish & Profiles
 
-**Domain:** Running song quality scoring, curated data, taste profiling improvements
-**Researched:** 2026-02-05
-**Overall confidence:** HIGH (based on direct codebase analysis + Flutter official docs)
+**Domain:** Multi taste profiles, onboarding flow, regeneration fix
+**Researched:** 2026-02-06
+**Overall confidence:** HIGH (based on direct codebase analysis of all relevant files)
 
 ---
 
 ## Current Architecture Snapshot
 
-Before defining changes, here is the exact current data flow and component map.
-
-### Current Generation Pipeline
+### Application Structure
 
 ```
-User inputs run plan
-       |
-       v
-RunPlanNotifier (persisted RunPlan in SharedPreferences)
-       |
-       v
-PlaylistGenerationNotifier.generatePlaylist()
-  1. Reads RunPlan from runPlanNotifierProvider
-  2. Reads TasteProfile from tasteProfileNotifierProvider
-  3. Calls _fetchAllSongs(runPlan) -- batch BPM fetch with cache
-  4. Calls PlaylistGenerator.generate(runPlan, songsByBpm, tasteProfile)
-       |
-       v
-PlaylistGenerator.generate() [PURE DART, SYNCHRONOUS]
-  For each RunSegment:
-    1. _collectCandidates(targetBpm, songsByBpm) -- exact + half/double
-    2. Filter out usedSongIds
-    3. _scoreAndRank(candidates, tasteProfile)
-         Score = artistMatch(+10) + exactBpm(+3) + tempoVariant(+1)
-    4. Take top N songs for segment duration
-    5. Build PlaylistSong objects
-       |
-       v
-Playlist (songs: List<PlaylistSong>) -> auto-saved to history
+lib/
+  app/
+    app.dart           -- MaterialApp.router with Riverpod
+    router.dart        -- GoRouter, flat routes, no auth guard
+  features/
+    {feature}/
+      data/            -- SharedPreferences static wrappers
+      domain/          -- Pure Dart models, enums, calculators
+      presentation/    -- Flutter screens and widgets
+      providers/       -- Riverpod StateNotifier + state classes
 ```
 
-### Current Scoring (PlaylistGenerator lines 180-219)
+**State management:** Riverpod 2.x manual providers (no code-gen). StateNotifier pattern throughout. Async load in constructor, sync mutations that fire-and-forget persistence.
 
-```dart
-score = 0
-if (artistMatch)  score += 10   // _artistMatchScore
-if (exactBpm)     score += 3    // _exactMatchScore
-if (tempoVariant) score += 1    // _tempoVariantScore
-// Shuffled first, then stable-sorted by score descending
-```
+**Persistence:** SharedPreferences via static wrapper classes. JSON serialization with `toJson()`/`fromJson()`. No database, no ORM.
 
-**The gap:** No "running quality" signal. A slow jazz ballad at 170 BPM scores identically to an energetic rock anthem at 170 BPM if neither artist matches the taste profile. Both get +3 for exact BPM match and that is the only differentiation.
+**Navigation:** GoRouter with flat routes at `/`. Query parameters for route behavior (`?auto=true`, `?id=xxx`). No shell routes, no auth guard.
 
-### Current File Map (relevant to changes)
+**Provider wiring:** `PlaylistGenerationNotifier` reads other providers via `ref.read()` at generation time. No cross-provider invalidation chains. Convenience alias providers wrap library providers (e.g., `tasteProfileNotifierProvider` -> `selectedProfile`).
 
-| File | Role | Lines |
-|------|------|-------|
-| `lib/features/playlist/domain/playlist_generator.dart` | Core scoring + assignment algorithm | 230 |
-| `lib/features/playlist/providers/playlist_providers.dart` | Orchestration: fetch songs -> generate -> save | 194 |
-| `lib/features/bpm_lookup/domain/bpm_song.dart` | Song data model from API | 112 |
-| `lib/features/playlist/domain/playlist.dart` | Output playlist + PlaylistSong models | 140 |
-| `lib/features/taste_profile/domain/taste_profile.dart` | TasteProfile model (genres, artists, energy) | 96 |
-| `lib/features/taste_profile/providers/taste_profile_providers.dart` | TasteProfile state + persistence | 99 |
-| `lib/features/stride/domain/stride_calculator.dart` | Cadence calculation from pace + height | 88 |
-| `lib/features/stride/providers/stride_providers.dart` | Stride state + persistence | 115 |
-| `lib/features/bpm_lookup/data/bpm_cache_preferences.dart` | Per-BPM cache in SharedPreferences | 71 |
-| `lib/features/playlist/presentation/widgets/song_tile.dart` | Song display widget (title, artist, BPM, play links) | 106 |
-
----
-
-## Recommended Architecture: Enhanced Generation Pipeline
-
-### Design Principle
-
-**Add a scoring layer, do not restructure.** The existing architecture is clean and well-bounded. The running quality enhancement is a new scoring dimension injected into `PlaylistGenerator._scoreAndRank`, not a new pipeline. The curated data is a new data source that feeds into scoring, not a replacement for the API.
-
-### Enhanced Data Flow
+### Provider Dependency Graph (Relevant to v1.2)
 
 ```
-User inputs run plan
-       |
-       v
-RunPlanNotifier (persisted RunPlan in SharedPreferences)
-       |
-       v
-PlaylistGenerationNotifier.generatePlaylist()
-  1. Reads RunPlan from runPlanNotifierProvider
-  2. Reads TasteProfile from tasteProfileNotifierProvider
-  3. Reads RunningQualityIndex from runningQualityProvider   <-- NEW
-  4. Calls _fetchAllSongs(runPlan) -- batch BPM fetch with cache
-  5. Calls PlaylistGenerator.generate(
-       runPlan, songsByBpm, tasteProfile,
-       qualityIndex,                                         <-- NEW PARAM
-     )
-       |
-       v
-PlaylistGenerator.generate() [PURE DART, SYNCHRONOUS]
-  For each RunSegment:
-    1. _collectCandidates(targetBpm, songsByBpm) -- exact + half/double
-    2. Filter out usedSongIds
-    3. _scoreAndRank(candidates, tasteProfile, qualityIndex)  <-- ENHANCED
-         Score = artistMatch(+10)
-               + genreMatch(+6)                               <-- NEW
-               + runningQuality(+8)                           <-- NEW
-               + energyLevelMatch(+4)                         <-- NEW
-               + exactBpm(+3)
-               + tempoVariant(+1)
-    4. Take top N songs for segment duration
-    5. Build PlaylistSong objects with qualityBadge            <-- NEW FIELD
-       |
-       v
-Playlist (songs: List<PlaylistSong>) -> auto-saved to history
+playlistGenerationProvider
+  |-- reads runPlanNotifierProvider (convenience -> runPlanLibraryProvider.selectedPlan)
+  |-- reads tasteProfileNotifierProvider (convenience -> tasteProfileLibraryProvider.selectedProfile)
+  |-- reads getSongBpmClientProvider
+  |-- reads curatedRunnabilityProvider
+  |-- reads playlistHistoryProvider (for auto-save)
+
+runPlanLibraryProvider
+  |-- RunPlanLibraryNotifier (self-loading from RunPlanPreferences)
+
+tasteProfileLibraryProvider
+  |-- TasteProfileLibraryNotifier (self-loading from TasteProfilePreferences)
+
+strideNotifierProvider
+  |-- StrideNotifier (self-loading from StridePreferences)
 ```
 
 ---
 
-## New Components Needed
+## Critical Discovery: Multi Taste Profile Library Already Exists
 
-### 1. Running Quality Index (Curated Song Database)
+Direct code examination reveals the taste profile library pattern is **already fully implemented**. This was shipped as part of v1.1 UX refinements.
 
-**Purpose:** A lookup structure that answers "Is this song known to be good for running?" and "How good?"
+### Existing Components (Already Built)
 
-**Suggested file paths:**
+| Component | File | Status |
+|-----------|------|--------|
+| `TasteProfile` domain model | `taste_profile.dart` | Has `id`, `name`, all fields, `copyWith`, JSON serialization |
+| `TasteProfileLibraryState` | `taste_profile_providers.dart` | `List<TasteProfile> profiles` + `String? selectedId` + `selectedProfile` getter |
+| `TasteProfileLibraryNotifier` | `taste_profile_providers.dart` | `addProfile`, `updateProfile`, `selectProfile`, `deleteProfile` |
+| `TasteProfilePreferences` | `taste_profile_preferences.dart` | Library persistence (`taste_profile_library` key) + legacy migration from single `taste_profile` key |
+| `TasteProfileLibraryScreen` | `taste_profile_library_screen.dart` | ListView with select, edit (via `?id=`), delete, FAB to create |
+| `TasteProfileScreen` | `taste_profile_screen.dart` | Create/edit mode with `profileId` parameter, profile name field |
+| `_TasteProfileSelector` | `playlist_screen.dart` (private widget) | Bottom sheet picker integrated in playlist generation screen |
+| Backward-compat provider | `taste_profile_providers.dart` | `tasteProfileNotifierProvider` -> `tasteProfileLibraryProvider.selectedProfile` |
 
-```
-lib/features/song_quality/
-  domain/
-    running_song.dart             # RunningSong model (songId, title, artist, quality, genre, energy)
-    running_quality_index.dart    # RunningQualityIndex class (lookup by artist+title or songId)
-    song_quality_scorer.dart      # SongQualityScorer: static scoring methods
-  data/
-    curated_songs_loader.dart     # Loads curated JSON from bundled assets
-    curated_songs_cache.dart      # Optional: SharedPreferences cache for loaded index
-  providers/
-    song_quality_providers.dart   # Riverpod providers for RunningQualityIndex
-```
+### What This Means for v1.2 Scope
 
-**Data model:**
+The "Multi Taste Profiles" feature is **architecturally complete**. The v1.2 work should focus on:
+1. Verifying the flow works correctly end-to-end (create -> select -> generate -> shuffle)
+2. Adding test coverage for the library notifier and preferences
+3. Polishing any UX gaps
 
-```dart
-/// A song known to be good for running, from curated data.
-class RunningSong {
-  const RunningSong({
-    required this.title,
-    required this.artist,
-    required this.genre,
-    required this.energy,      // 1-10 scale
-    required this.quality,     // 1-10 overall running quality
-    this.bpm,                  // Known BPM if available
-    this.tags,                 // e.g., ['power', 'steady', 'warmup', 'cooldown']
-  });
-
-  final String title;
-  final String artist;
-  final String genre;          // Aligns with RunningGenre enum
-  final int energy;
-  final int quality;
-  final int? bpm;
-  final List<String>? tags;
-}
-```
-
-**Index structure:**
-
-```dart
-/// Fast lookup for running song quality data.
-///
-/// Supports two lookup strategies:
-/// 1. Exact match by normalized "artist|title" key (primary)
-/// 2. Artist-level match for genre/energy inference (fallback)
-class RunningQualityIndex {
-  RunningQualityIndex(List<RunningSong> songs) {
-    for (final song in songs) {
-      final key = _normalize('${song.artist}|${song.title}');
-      _songIndex[key] = song;
-      _artistSongs.putIfAbsent(_normalize(song.artist), () => []).add(song);
-    }
-  }
-
-  final _songIndex = <String, RunningSong>{};
-  final _artistSongs = <String, List<RunningSong>>{};
-
-  /// Returns quality data if this exact song is in the curated set.
-  RunningSong? lookupSong(String artist, String title) { ... }
-
-  /// Returns all curated songs by this artist (for genre/energy inference).
-  List<RunningSong> lookupArtist(String artist) { ... }
-
-  static String _normalize(String s) => s.toLowerCase().trim();
-}
-```
-
-**Storage strategy: Bundled JSON asset.** Rationale:
-
-- Curated data is **static per app version** -- it ships with the app, not fetched at runtime
-- JSON asset is loaded once via `rootBundle.loadString()`, parsed into index, kept in memory
-- For ~500-2000 songs (reasonable curated set), JSON will be ~50-200KB -- well within asset limits
-- No SharedPreferences needed -- this is read-only reference data, not user state
-- Asset can be updated with each app release
-- Falls within Flutter's efficient loading path (files >10KB use optimized loading)
-
-**Asset location:**
-
-```
-assets/
-  curated_running_songs.json    # The curated dataset
-```
-
-**pubspec.yaml addition:**
-
-```yaml
-flutter:
-  assets:
-    - .env
-    - assets/curated_running_songs.json    # NEW
-```
-
-### 2. Song Quality Scorer (Enhanced Scoring Logic)
-
-**Purpose:** Replaces the simple `_scoreAndRank` method with a multi-dimensional scorer.
-
-**Suggested file path:**
-
-```
-lib/features/song_quality/domain/song_quality_scorer.dart
-```
-
-**Design:**
-
-```dart
-/// Scores a BpmSong for running quality using multiple signals.
-///
-/// This is a pure function -- no side effects, no async.
-/// Used by PlaylistGenerator._scoreAndRank as a drop-in enhancement.
-class SongQualityScorer {
-  /// Score weights (public for testing/tuning)
-  static const artistMatchWeight = 10;
-  static const runningQualityWeight = 8;   // NEW: curated running quality
-  static const genreMatchWeight = 6;        // NEW: genre from taste profile
-  static const energyMatchWeight = 4;       // NEW: energy level alignment
-  static const exactBpmWeight = 3;
-  static const tempoVariantWeight = 1;
-
-  /// Scores a single song candidate.
-  static int score({
-    required BpmSong song,
-    required TasteProfile? tasteProfile,
-    required RunningQualityIndex? qualityIndex,
-  }) {
-    var total = 0;
-
-    // 1. Artist match (existing logic, preserved)
-    total += _artistMatchScore(song, tasteProfile);
-
-    // 2. Running quality from curated index (NEW)
-    total += _runningQualityScore(song, qualityIndex);
-
-    // 3. Genre match (NEW -- uses curated data + taste profile)
-    total += _genreMatchScore(song, qualityIndex, tasteProfile);
-
-    // 4. Energy level alignment (NEW)
-    total += _energyAlignmentScore(song, qualityIndex, tasteProfile);
-
-    // 5. BPM match type (existing logic, preserved)
-    total += _bpmMatchScore(song);
-
-    return total;
-  }
-}
-```
-
-**Why a separate class instead of extending PlaylistGenerator:**
-
-- `PlaylistGenerator` stays focused on segment assignment and deduplication
-- `SongQualityScorer` is independently testable with unit tests
-- Scoring weights can be tuned without touching assignment logic
-- Future scoring signals (user feedback, popularity, etc.) add here, not to generator
-
-### 3. Enhanced TasteProfile
-
-**Purpose:** Extend the existing `TasteProfile` model to carry running-specific preferences that feed into the enhanced scorer.
-
-**Modification to existing file:** `lib/features/taste_profile/domain/taste_profile.dart`
-
-**Changes needed:**
-
-```dart
-class TasteProfile {
-  const TasteProfile({
-    this.genres = const [],
-    this.artists = const [],
-    this.energyLevel = EnergyLevel.balanced,
-    this.preferFamiliar = true,           // NEW: prefer known vs discovery
-    this.avoidedGenres = const [],         // NEW: explicit exclusions
-  });
-
-  final List<RunningGenre> genres;
-  final List<String> artists;
-  final EnergyLevel energyLevel;
-  final bool preferFamiliar;               // NEW
-  final List<RunningGenre> avoidedGenres;  // NEW
-  // ...existing copyWith, toJson, fromJson -- extend with new fields
-}
-```
-
-**Migration concern:** Existing persisted TasteProfile JSON lacks the new fields. The `fromJson` factory already uses defaults for missing keys since all fields have default values in the constructor. New fields should follow the same pattern with sensible defaults. No migration code needed -- `fromJson` will use default values for missing fields.
-
-### 4. Stride Adjustment Layer
-
-**Purpose:** Allow post-run "nudge" adjustments to cadence without full recalibration.
-
-**Modification to existing file:** `lib/features/stride/providers/stride_providers.dart`
-
-**New method on `StrideNotifier`:**
-
-```dart
-/// Adjusts cadence by a delta (e.g., +2 or -3 SPM).
-/// Sets as calibrated cadence based on current effective cadence + delta.
-void adjustCadence(double deltaSpm) {
-  final current = state.cadence;
-  final adjusted = (current + deltaSpm).clamp(150.0, 200.0);
-  state = state.copyWith(calibratedCadence: () => adjusted);
-  _persist();
-}
-```
-
-**No new files needed.** The existing `StrideState.cadence` getter already resolves calibrated vs formula-based cadence. Adjustment just sets a new calibrated value. The UI change is a new widget (e.g., "+/- buttons" on the playlist result screen or stride screen), not a new domain component.
-
-### 5. Quick Regeneration State
-
-**Purpose:** Enable one-tap regenerate with cached song pool and last-used parameters.
-
-**Modification to existing file:** `lib/features/playlist/providers/playlist_providers.dart`
-
-**Changes to `PlaylistGenerationNotifier`:**
-
-```dart
-class PlaylistGenerationNotifier
-    extends StateNotifier<PlaylistGenerationState> {
-  // ...existing fields...
-
-  /// Cached song pool from last generation (NEW)
-  Map<int, List<BpmSong>>? _lastSongPool;
-
-  /// Cached RunPlan from last generation (NEW)
-  RunPlan? _lastRunPlan;
-
-  Future<void> generatePlaylist() async {
-    // ...existing logic...
-    final songsByBpm = await _fetchAllSongs(runPlan);
-    _lastSongPool = songsByBpm;   // NEW: cache for regeneration
-    _lastRunPlan = runPlan;        // NEW: cache for regeneration
-    // ...rest of existing logic...
-  }
-
-  /// Regenerates with cached data -- near-instant, no API calls.
-  /// Falls back to full generation if cache is stale or missing.
-  Future<void> regenerate() async {
-    final runPlan = ref.read(runPlanNotifierProvider);
-    if (runPlan == null || _lastSongPool == null ||
-        _lastRunPlan != runPlan) {
-      // Cache invalid -- fall back to full generation
-      return generatePlaylist();
-    }
-
-    state = const PlaylistGenerationState.loading();
-    final tasteProfile = ref.read(tasteProfileNotifierProvider);
-
-    // Reuse cached songs, just re-run generator (different random seed)
-    final playlist = PlaylistGenerator.generate(
-      runPlan: runPlan,
-      tasteProfile: tasteProfile,
-      songsByBpm: _lastSongPool!,
-    );
-
-    state = PlaylistGenerationState.loaded(playlist);
-    unawaited(
-      ref.read(playlistHistoryProvider.notifier).addPlaylist(playlist),
-    );
-  }
-}
-```
-
-**No new files needed.** The cached song pool lives in the notifier's instance state (in-memory only, not persisted). If the app restarts, the first generation does a full fetch. Subsequent regenerates are instant.
-
-**Why not persist the song pool?** The BPM cache (`BpmCachePreferences`) already persists songs per-BPM with 7-day TTL. On app restart, `_fetchAllSongs` will hit the warm cache and return quickly. The bottleneck is only the first cold fetch. Duplicating the entire song pool in SharedPreferences would waste storage and create cache invalidation complexity.
+This significantly reduces the v1.2 scope.
 
 ---
 
-## Modified Components (Existing Files)
+## Feature Analysis: Regeneration Fix
 
-### PlaylistGenerator (lib/features/playlist/domain/playlist_generator.dart)
+### Current Behavior (Two Distinct Methods)
 
-**What changes:**
+**`generatePlaylist()` -- "Generate":**
+```dart
+// Reads CURRENT selections from providers
+final runPlan = ref.read(runPlanNotifierProvider);        // live selection
+final tasteProfile = ref.read(tasteProfileNotifierProvider); // live selection
 
-1. `generate()` signature adds optional `RunningQualityIndex? qualityIndex` parameter
-2. `_scoreAndRank()` delegates to `SongQualityScorer.score()` instead of inline scoring
-3. `_ScoredSong` class unchanged (still wraps BpmSong + int score)
+// Fetches songs from API/cache
+var songsByBpm = await _fetchAllSongs(runPlan);
 
-**Lines affected:** 60-65 (signature), 180-219 (scoring method body)
+// Generates and stores everything
+state = PlaylistGenerationState.loaded(
+  playlist,
+  songPool: songsByBpm,     // stored for replacements
+  runPlan: runPlan,          // stored for regeneration
+  tasteProfile: tasteProfile, // stored for regeneration
+);
+```
 
-**Backward compatible:** `qualityIndex` is optional/nullable. Without it, scoring falls back to existing behavior (artist + BPM match only). Existing tests pass without modification.
+**`regeneratePlaylist()` -- "Shuffle":**
+```dart
+// Uses STORED state from last generation, NOT current selections
+final storedPlan = state.runPlan;
+final tasteProfile = state.tasteProfile;
 
-### PlaylistGenerationNotifier (lib/features/playlist/providers/playlist_providers.dart)
+// RE-FETCHES songs (expensive, 300ms per unique BPM)
+var songsByBpm = await _fetchAllSongs(storedPlan);
 
-**What changes:**
+// Regenerates
+state = PlaylistGenerationState.loaded(playlist, ...);
+```
 
-1. `generatePlaylist()` reads `RunningQualityIndex` from new provider
-2. Passes `qualityIndex` to `PlaylistGenerator.generate()`
-3. Caches `_lastSongPool` and `_lastRunPlan` for quick regeneration
-4. New `regenerate()` method
+### Identified Issues
 
-**Lines affected:** 77-127 (generatePlaylist method), new method ~30 lines
+**Issue 1: Shuffle re-fetches songs unnecessarily.** The `state.songPool` is already stored from the previous generation. Shuffling should reuse this pool with a new Random seed, making it near-instant instead of waiting for API calls.
 
-### TasteProfile (lib/features/taste_profile/domain/taste_profile.dart)
+**Issue 2: Shuffle ignores provider changes.** If the user changes the selected taste profile or run plan via the inline selectors on the playlist screen, then taps "Shuffle," the old stored plan/profile are used. This is likely the "bug" -- the UX lets users change selections, but Shuffle does not respect those changes.
 
-**What changes:**
+**Issue 3: The `songPool` is already stored in state.** `PlaylistGenerationState.loaded` already carries `songPool`, `runPlan`, and `tasteProfile`. The infrastructure for pool-reuse exists but `regeneratePlaylist()` does not use it.
 
-1. Add `preferFamiliar` field (bool, default true)
-2. Add `avoidedGenres` field (List<RunningGenre>, default empty)
-3. Extend `copyWith`, `toJson`, `fromJson` for new fields
+### Recommended Architecture: Two Distinct Actions
 
-**Lines affected:** 50-95 (class body)
+**`shufflePlaylist()` (new method) -- Fast, reuses pool:**
+```
+Uses state.songPool (no API calls)
+Uses state.runPlan (stored from generation)
+Uses state.tasteProfile (stored from generation)
+Calls PlaylistGenerator.generate() with new Random seed
+Result: Different song selection from same pool, instant
+```
 
-**Migration:** No breaking change. `fromJson` handles missing keys via constructor defaults.
+**`generatePlaylist()` (existing) -- Fresh fetch, reads live providers:**
+```
+Reads runPlanNotifierProvider (current selection)
+Reads tasteProfileNotifierProvider (current selection)
+Fetches songs via API/cache
+Calls PlaylistGenerator.generate()
+Result: Fresh songs based on current selections
+```
 
-### PlaylistSong (lib/features/playlist/domain/playlist.dart)
+**UI mapping:**
+- "Shuffle" button (on loaded playlist view) -> `shufflePlaylist()`
+- "Generate Playlist" button (on idle view, or after changing selections) -> `generatePlaylist()`
+- Home screen quick-regenerate card -> `generatePlaylist()` (respects current selections)
 
-**What changes:**
+### Components Modified
 
-1. Add optional `runningQuality` field (int?, 1-10) for UI display
-2. Add optional `isVerifiedRunning` field (bool) for badge display
+| Component | Change | Lines Affected |
+|-----------|--------|---------------|
+| `PlaylistGenerationNotifier` | Add `shufflePlaylist()` method | New ~25-line method |
+| `playlist_screen.dart` | Wire "Shuffle" to `shufflePlaylist()` | ~2 lines in `_PlaylistView` |
 
-**Lines affected:** 11-59 (PlaylistSong class)
+### Components NOT Modified
 
-### SongTile (lib/features/playlist/presentation/widgets/song_tile.dart)
-
-**What changes:**
-
-1. Display running quality badge/indicator when `song.runningQuality != null`
-2. Visual distinction for curated vs API-discovered songs
-
-**Lines affected:** 17-37 (build method)
-
-### StrideNotifier (lib/features/stride/providers/stride_providers.dart)
-
-**What changes:**
-
-1. Add `adjustCadence(double deltaSpm)` method
-
-**Lines affected:** New method ~6 lines, after line 85
+| Component | Why Unchanged |
+|-----------|--------------|
+| `PlaylistGenerationState` | Already stores `songPool`, `runPlan`, `tasteProfile` |
+| `PlaylistGenerator` | Already accepts `Random? random` parameter for deterministic testing |
+| `generatePlaylist()` | Existing behavior is correct for fresh generation |
 
 ---
 
-## Component Boundaries Diagram
+## Feature Analysis: Onboarding Flow
+
+### Current State
+
+No onboarding exists. App launches directly to `HomeScreen` at `/`. New users see navigation buttons with no guidance. The `PlaylistScreen` handles missing data gracefully (shows "No Run Plan" with redirect to `/my-runs`).
+
+### Architecture Decision: GoRouter Redirect
+
+**Chosen approach: GoRouter redirect guard with pre-loaded flag.**
+
+**Why this approach:**
+- Fits existing GoRouter setup without restructuring
+- Onboarding is a standalone route, testable independently
+- Redirect cost is negligible (one boolean check per navigation)
+- Pre-loading in `main.dart` avoids async complexity in redirect
+
+**Rejected alternatives:**
+
+| Alternative | Why Not |
+|-------------|---------|
+| Conditional widget in HomeScreen | Couples onboarding to home screen, harder to test independently |
+| Initial route override | GoRouter `initialLocation` is set at provider creation; requires async await before router construction |
+| FutureProvider for flag | GoRouter redirect is synchronous; FutureProvider introduces flash of wrong content |
+
+### Onboarding Flow Design
+
+The onboarding guides new users through the minimum steps to reach their first playlist:
 
 ```
-+---------------------------------------------------------------------+
-|                        PRESENTATION LAYER                           |
-|                                                                     |
-|  PlaylistScreen    StrideScreen    TasteProfileScreen    HomeScreen  |
-|       |                |                 |                          |
-+-------+----------------+-----------------+--------------------------+
-        |                |                 |
-+-------+----------------+-----------------+--------------------------+
-|                        PROVIDER LAYER                               |
-|                                                                     |
-|  playlistGenerationProvider    strideNotifierProvider                |
-|  playlistHistoryProvider       tasteProfileNotifierProvider          |
-|  runPlanNotifierProvider       runningQualityProvider  <-- NEW      |
-|  getSongBpmClientProvider                                           |
-|                                                                     |
-+-------+----------------+-----------------+--------------------------+
-        |                |                 |
-+-------+----------------+-----------------+--------------------------+
-|                        DOMAIN LAYER                                 |
-|                                                                     |
-|  PlaylistGenerator -----> SongQualityScorer  <-- NEW               |
-|  BpmMatcher                RunningQualityIndex  <-- NEW            |
-|  StrideCalculator          RunningSong  <-- NEW                    |
-|  RunPlan / RunSegment                                              |
-|  TasteProfile (extended)                                           |
-|  BpmSong (unchanged)                                               |
-|  Playlist / PlaylistSong (extended)                                |
-|                                                                     |
-+-------+----------------+-----------------+--------------------------+
-        |                |                 |
-+-------+----------------+-----------------+--------------------------+
-|                        DATA LAYER                                   |
-|                                                                     |
-|  GetSongBpmClient (unchanged)    CuratedSongsLoader  <-- NEW      |
-|  BpmCachePreferences (unchanged) (reads bundled JSON asset)        |
-|  TasteProfilePreferences         StridePreferences                 |
-|  RunPlanPreferences              PlaylistHistoryPreferences        |
-|                                                                     |
-+---------------------------------------------------------------------+
-        |                                  |
-        v                                  v
-  GetSongBPM API               assets/curated_running_songs.json
-  (external, rate-limited)     (bundled, read-only, ships with app)
+App launch -> GoRouter redirect -> /onboarding
+
+/onboarding (welcome screen)
+  "Let's set up your first running playlist"
+  [Get Started]
+       |
+       v
+Navigate to /taste-profile (existing screen, create mode)
+  User creates first taste profile
+  Pops back to onboarding on save
+       |
+       v
+Navigate to /run-plan (existing screen)
+  User creates first run plan
+  Pops back to onboarding on save
+       |
+       v
+Navigate to /playlist?auto=true (existing screen, auto-generate)
+  First playlist generates automatically
+       |
+       v
+Set onboarding_complete = true
+Navigate to / (home screen)
 ```
 
----
+**Key design principle: Reuse existing screens.** The taste profile screen, run plan screen, and playlist screen already have full UX. The onboarding shell controls navigation between them. No simplified "onboarding versions" of these screens are needed.
 
-## Data Flow for Running Quality Score
+### Async Challenge: Pre-loading the Flag
 
-### How a curated song enters the pipeline
+GoRouter's redirect is synchronous, but SharedPreferences is async. Solution:
 
+```dart
+// main.dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load();
+  await Supabase.initialize(...);
+
+  // NEW: Pre-load onboarding flag
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        // Pass pre-loaded flag to router
+        onboardingCompleteProvider.overrideWithValue(onboardingComplete),
+      ],
+      child: const App(),
+    ),
+  );
+}
 ```
-1. App startup (or first playlist generation):
-   CuratedSongsLoader.load()
-     -> rootBundle.loadString('assets/curated_running_songs.json')
-     -> jsonDecode -> List<RunningSong>
-     -> RunningQualityIndex(songs)
-     -> Cached in runningQualityProvider (kept in memory for session)
 
-2. During PlaylistGenerator.generate():
-   For each BpmSong candidate:
-     SongQualityScorer.score(song, tasteProfile, qualityIndex)
-       -> qualityIndex.lookupSong(song.artistName, song.title)
-          MATCH: +8 points (runningQualityWeight) scaled by quality rating
-          NO MATCH: qualityIndex.lookupArtist(song.artistName)
-            ARTIST FOUND: +3 points (artist has other curated songs,
-                          infer genre/energy from their catalog)
-            NOT FOUND: +0 (song is unknown, no penalty)
+This approach is clean because:
+- `SharedPreferences.getInstance()` is already implicitly awaited by other providers loading in constructors
+- No new async patterns introduced
+- The override makes the flag synchronously available to the router
 
-3. Result: curated running songs float to top of rankings,
-   but unknown songs are never excluded -- they just rank lower.
-```
+### New Components
 
-### Key design decision: Curated data is a boost, not a filter
+| Component | Layer | Location | Purpose |
+|-----------|-------|----------|---------|
+| `OnboardingPreferences` | data | `lib/features/onboarding/data/` | Read/write `onboarding_complete` boolean |
+| `onboardingCompleteProvider` | providers | `lib/features/onboarding/providers/` | Expose flag to router + UI |
+| `OnboardingWelcomeScreen` | presentation | `lib/features/onboarding/presentation/` | Welcome page with "Get Started" |
+| `OnboardingFlowScreen` | presentation | `lib/features/onboarding/presentation/` | Step tracker + navigation coordinator |
 
-The curated index does NOT filter out songs. It only BOOSTS known-good running songs in the ranking. This is critical because:
+### Modified Components
 
-- The curated set will always be incomplete (hundreds of songs vs millions in the API)
-- Users may have niche taste not represented in curated data
-- The GetSongBPM API returns songs we have no quality data for -- they should still appear
-- A curated boost combined with taste profile matching is more robust than either alone
+| Component | Modification | Reason |
+|-----------|-------------|--------|
+| `router.dart` | Add redirect guard + `/onboarding` route | Gate new users |
+| `main.dart` | Pre-load onboarding flag, pass as provider override | Sync redirect check |
 
----
+### Router Changes
 
-## Curated Data Format
+```dart
+// router.dart
+final routerProvider = Provider<GoRouter>((ref) {
+  final onboardingComplete = ref.watch(onboardingCompleteProvider);
 
-### JSON Structure
-
-```json
-{
-  "version": 1,
-  "generated": "2026-02-05",
-  "songs": [
-    {
-      "title": "Lose Yourself",
-      "artist": "Eminem",
-      "genre": "hipHop",
-      "energy": 9,
-      "quality": 9,
-      "bpm": 171,
-      "tags": ["power", "motivation", "classic"]
+  return GoRouter(
+    initialLocation: '/',
+    redirect: (context, state) {
+      if (!onboardingComplete && state.matchedLocation == '/') {
+        return '/onboarding';
+      }
+      // Allow navigation to onboarding sub-routes
+      if (!onboardingComplete && state.matchedLocation.startsWith('/onboarding')) {
+        return null;
+      }
+      // Allow navigation to screens used during onboarding
+      if (!onboardingComplete) {
+        final allowedDuringOnboarding = [
+          '/taste-profile', '/run-plan', '/playlist', '/stride',
+        ];
+        if (allowedDuringOnboarding.any(
+          (r) => state.matchedLocation.startsWith(r)
+        )) {
+          return null;
+        }
+        return '/onboarding';
+      }
+      return null;
     },
-    {
-      "title": "Eye of the Tiger",
-      "artist": "Survivor",
-      "genre": "rock",
-      "energy": 8,
-      "quality": 10,
-      "bpm": 109,
-      "tags": ["power", "classic", "warmup"]
-    }
-  ]
-}
+    routes: [
+      // ... existing routes ...
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingFlowScreen(),
+      ),
+    ],
+  );
+});
 ```
 
-### Genre values
+**Note:** The redirect guard needs to allow navigation to screens used during onboarding (`/taste-profile`, `/run-plan`, `/playlist`). Otherwise the onboarding flow cannot navigate to existing screens.
 
-Must align with `RunningGenre` enum names: `pop`, `hipHop`, `electronic`, `edm`, `rock`, `indie`, `dance`, `house`, `drumAndBass`, `rnb`, `latin`, `metal`, `punk`, `funk`, `kPop`.
+### Onboarding Completion Tracking
 
-### Data sourcing strategy
+The onboarding tracks step completion implicitly by checking whether the required data exists:
 
-Curate from published "best running songs" lists (Runner's World, Marathon Handbook, Timeout, etc.) combined with jog.fm popularity data. Each song gets:
+```dart
+// Can proceed past taste profile step?
+final hasProfile = ref.watch(tasteProfileLibraryProvider).profiles.isNotEmpty;
 
-- **quality** (1-10): How frequently it appears across running song lists + community ratings
-- **energy** (1-10): Subjective energy rating based on musical complexity, tempo drive, vocal intensity
-- **genre**: Mapped to RunningGenre enum
-- **tags**: Freeform tags for future segment-aware matching (e.g., "warmup" songs for warmup segments)
+// Can proceed past run plan step?
+final hasPlan = ref.watch(runPlanLibraryProvider).plans.isNotEmpty;
 
-Target: 500-1000 songs across all 15 genres for v1.1. This is a manual curation task, not automated scraping.
+// Auto-advance: if user already has both, skip to playlist generation
+```
+
+This is more robust than tracking a step counter because:
+- If the user creates a profile/plan via any route, onboarding advances
+- If the user kills the app mid-onboarding and returns, progress is preserved
+- No separate "onboarding step" state to get out of sync with actual data
 
 ---
 
-## Integration Points (Specific Files and Line Ranges)
+## Integration Points Summary
 
-### 1. PlaylistGenerator.generate() -- signature change
+### Existing Components Modified
 
-**File:** `lib/features/playlist/domain/playlist_generator.dart`, lines 60-65
+| Component | File | Modification |
+|-----------|------|-------------|
+| `PlaylistGenerationNotifier` | `playlist_providers.dart` | Add `shufflePlaylist()` method |
+| `_PlaylistView` | `playlist_screen.dart` | Wire Shuffle button to `shufflePlaylist()` |
+| `router.dart` | `router.dart` | Add redirect guard + onboarding route |
+| `main.dart` | `main.dart` | Pre-load onboarding flag |
 
-**Current:**
-```dart
-static Playlist generate({
-  required RunPlan runPlan,
-  required Map<int, List<BpmSong>> songsByBpm,
-  TasteProfile? tasteProfile,
-  Random? random,
-})
+### New Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `OnboardingPreferences` | `lib/features/onboarding/data/onboarding_preferences.dart` | Persist completion flag |
+| `onboarding_providers.dart` | `lib/features/onboarding/providers/onboarding_providers.dart` | Provider for completion state |
+| `OnboardingWelcomeScreen` | `lib/features/onboarding/presentation/onboarding_welcome_screen.dart` | Welcome/intro page |
+| `OnboardingFlowScreen` | `lib/features/onboarding/presentation/onboarding_flow_screen.dart` | Step coordinator |
+
+### Components NOT Modified
+
+| Component | Why Unchanged |
+|-----------|--------------|
+| `TasteProfileLibraryNotifier` | Already fully implements CRUD + selection |
+| `TasteProfilePreferences` | Already supports library with legacy migration |
+| `TasteProfileLibraryScreen` | Already has list/select/edit/delete/create |
+| `TasteProfileScreen` | Already supports create + edit via profileId |
+| `RunPlanLibraryNotifier` | No changes needed |
+| `RunPlanPreferences` | No changes needed |
+| `PlaylistGenerator` | Pure domain logic, already accepts Random parameter |
+| `PlaylistGenerationState` | Already stores songPool, runPlan, tasteProfile |
+| `SongQualityScorer` | Unchanged |
+
+---
+
+## Data Flow Changes
+
+### Current: Generate Playlist
+
+```
+User taps "Generate"
+  -> PlaylistGenerationNotifier.generatePlaylist()
+  -> ref.read(runPlanNotifierProvider)         -- reads CURRENT selection
+  -> ref.read(tasteProfileNotifierProvider)    -- reads CURRENT selection
+  -> _fetchAllSongs(runPlan)                   -- API + cache (slow)
+  -> PlaylistGenerator.generate(...)           -- pure domain
+  -> state = loaded(playlist, songPool, runPlan, tasteProfile)
+  -> auto-save to history
+```
+**No change.** This flow is correct.
+
+### Current: Shuffle (PROBLEMATIC)
+
+```
+User taps "Shuffle"
+  -> PlaylistGenerationNotifier.regeneratePlaylist()
+  -> uses state.runPlan (stored)              -- IGNORES current selection
+  -> uses state.tasteProfile (stored)          -- IGNORES current selection
+  -> _fetchAllSongs(storedPlan)                -- RE-FETCHES (wasteful)
+  -> PlaylistGenerator.generate(...)
+  -> state = loaded(...)
 ```
 
-**After:**
-```dart
-static Playlist generate({
-  required RunPlan runPlan,
-  required Map<int, List<BpmSong>> songsByBpm,
-  TasteProfile? tasteProfile,
-  RunningQualityIndex? qualityIndex,  // NEW
-  Random? random,
-})
+### Proposed: Shuffle (FIXED)
+
+```
+User taps "Shuffle"
+  -> PlaylistGenerationNotifier.shufflePlaylist()
+  -> uses state.songPool (REUSES -- no API calls, instant)
+  -> uses state.runPlan (stored from generation)
+  -> uses state.tasteProfile (stored from generation)
+  -> PlaylistGenerator.generate(..., random: Random())  -- new seed
+  -> state = loaded(...)
+  -> auto-save to history
 ```
 
-### 2. PlaylistGenerator._scoreAndRank() -- delegate to SongQualityScorer
+### Proposed: Onboarding
 
-**File:** `lib/features/playlist/domain/playlist_generator.dart`, lines 180-219
-
-**Current:** Inline scoring with `_artistMatchScore`, `_exactMatchScore`, `_tempoVariantScore`
-
-**After:** Delegates to `SongQualityScorer.score()` for each candidate. The shuffle-then-sort pattern is preserved.
-
-### 3. PlaylistGenerationNotifier.generatePlaylist() -- read quality index
-
-**File:** `lib/features/playlist/providers/playlist_providers.dart`, lines 77-98
-
-**Current:**
-```dart
-final playlist = PlaylistGenerator.generate(
-  runPlan: runPlan,
-  tasteProfile: tasteProfile,
-  songsByBpm: songsByBpm,
-);
 ```
+App launch
+  -> main.dart: prefs.getBool('onboarding_complete') ?? false
+  -> ProviderScope override: onboardingCompleteProvider = false
+  -> GoRouter redirect: / -> /onboarding
 
-**After:**
-```dart
-final qualityIndex = ref.read(runningQualityProvider);  // NEW
-final playlist = PlaylistGenerator.generate(
-  runPlan: runPlan,
-  tasteProfile: tasteProfile,
-  songsByBpm: songsByBpm,
-  qualityIndex: qualityIndex,  // NEW
-);
+/onboarding
+  -> OnboardingFlowScreen checks:
+     profiles.isEmpty? -> "Create Taste Profile" step
+     plans.isEmpty?    -> "Create Run Plan" step
+     both exist?       -> Navigate to /playlist?auto=true
+
+After first playlist generates:
+  -> OnboardingPreferences.setComplete(true)
+  -> Update onboardingCompleteProvider state
+  -> Navigate to / (home)
+  -> Future redirects: onboarding check passes, no redirect
 ```
-
-### 4. PlaylistSong -- add quality fields
-
-**File:** `lib/features/playlist/domain/playlist.dart`, lines 11-59
-
-**Add fields:**
-```dart
-final int? runningQuality;     // 1-10 from curated index, null if unknown
-final bool isVerifiedRunning;  // true if song was in curated index
-```
-
-### 5. SongTile -- display quality indicator
-
-**File:** `lib/features/playlist/presentation/widgets/song_tile.dart`, lines 17-37
-
-**Add:** A small badge or icon indicating running quality (e.g., a running shoe icon for verified songs, or a quality star rating).
-
-### 6. TasteProfile -- extend model
-
-**File:** `lib/features/taste_profile/domain/taste_profile.dart`, lines 50-95
-
-**Add fields:** `preferFamiliar`, `avoidedGenres` with defaults. Extend `copyWith`, `toJson`, `fromJson`.
-
-### 7. StrideNotifier -- add adjustCadence
-
-**File:** `lib/features/stride/providers/stride_providers.dart`, after line 85
-
-**Add:** `adjustCadence(double deltaSpm)` method.
 
 ---
 
 ## Suggested Build Order
 
-Dependencies flow top-to-bottom. Each step builds on the previous.
+Based on dependency analysis, risk, and the discovery that multi-profiles already exist:
 
-```
-Step 1: Running Quality Domain Models
-  NEW: RunningSong model
-  NEW: RunningQualityIndex class
-  NEW: SongQualityScorer (with comprehensive unit tests)
-  No UI, no Flutter dependencies, pure Dart only
-  Tests: score calculations with mock data
-  |
-Step 2: Curated Data Asset Pipeline
-  NEW: curated_running_songs.json asset (initial set, ~100-200 songs)
-  NEW: CuratedSongsLoader (rootBundle.loadString + parse)
-  NEW: runningQualityProvider (Riverpod provider, loads on first read)
-  UPDATE: pubspec.yaml (add asset declaration)
-  Tests: loader parses valid/invalid JSON, index lookups work
-  |
-Step 3: Enhanced Scoring Integration
-  MODIFY: PlaylistGenerator.generate() signature
-  MODIFY: PlaylistGenerator._scoreAndRank() -> delegates to SongQualityScorer
-  MODIFY: PlaylistGenerationNotifier -> reads and passes qualityIndex
-  Tests: end-to-end generation with quality index produces better rankings
-  |
-Step 4: Taste Profile Enhancement
-  MODIFY: TasteProfile model (new fields)
-  MODIFY: TasteProfilePreferences (extended serialization)
-  MODIFY: TasteProfileScreen (new UI for avoidedGenres, preferFamiliar)
-  Tests: serialization roundtrip, backward compat with old JSON
-  |
-Step 5: Quality Indicators in UI
-  MODIFY: PlaylistSong model (add runningQuality, isVerifiedRunning)
-  MODIFY: SongTile widget (display quality badge)
-  MODIFY: PlaylistGenerator -> populate quality fields on PlaylistSong
-  Tests: widget tests for badge display
-  |
-Step 6: Stride Adjustment
-  MODIFY: StrideNotifier (add adjustCadence method)
-  NEW: Stride adjustment UI (buttons or slider on stride/playlist screen)
-  Tests: adjustment clamps to valid range, persists correctly
-  |
-Step 7: Quick Regeneration
-  MODIFY: PlaylistGenerationNotifier (cache song pool, add regenerate())
-  MODIFY: PlaylistScreen (change Regenerate button to use regenerate())
-  Tests: regenerate uses cached pool, falls back on cache miss
-  |
-Step 8: Expand Curated Dataset
-  UPDATE: curated_running_songs.json (expand to 500+ songs)
-  UPDATE: Scoring weights based on real-world testing
-  No code changes, just data
-```
+### Phase 1: Regeneration Fix
 
-**Build order rationale:**
+**Why first:** Smallest scope (one new method + one UI wire). No dependencies on other features. Immediately improves existing user experience. Good confidence builder.
 
-- Steps 1-3 form the core enhancement: domain models -> data loading -> scoring integration. These are the foundation everything else depends on.
-- Step 4 (taste profile) is independent of quality scoring and can be parallelized with Step 3 if desired.
-- Step 5 depends on Step 3 (quality data must exist before UI can display it).
-- Steps 6-7 (stride adjustment, quick regen) are independent of each other and of the quality scoring pipeline. They could be built in any order after Step 3.
-- Step 8 is data-only and can happen continuously.
+**Scope:**
+1. Add `shufflePlaylist()` to `PlaylistGenerationNotifier` -- reuses `state.songPool`
+2. Wire "Shuffle" button in `_PlaylistView` to call `shufflePlaylist()`
+3. Verify `generatePlaylist()` correctly reads current provider selections
+4. Test: shuffle produces different results, no API calls, stored state preserved
 
----
+**Estimated complexity:** Low. ~30 lines of new code + test coverage.
 
-## Scoring Weight Rationale
+### Phase 2: Multi Taste Profile Verification
 
-| Signal | Weight | Rationale |
-|--------|--------|-----------|
-| Artist match (taste profile) | +10 | Strongest signal -- user explicitly chose this artist |
-| Running quality (curated) | +8 | Proven running song is very valuable, but user taste should still win |
-| Genre match (taste profile) | +6 | Genre alignment matters for enjoyment; uses curated data to infer API song genre |
-| Energy alignment | +4 | Matching chill/balanced/intense preference improves experience |
-| Exact BPM match | +3 | Exact BPM is better than half/double-time for cadence sync |
-| Tempo variant match | +1 | Half/double-time still works, just less ideal |
+**Why second:** The infrastructure exists but needs verification and test coverage. This is quality assurance, not greenfield development.
 
-**Max possible score:** 10 + 8 + 6 + 4 + 3 = 31 (artist match + curated running song + genre match + energy match + exact BPM)
+**Scope:**
+1. Write test coverage for `TasteProfileLibraryNotifier` (add, update, select, delete)
+2. Write test coverage for `TasteProfilePreferences` (library persistence, legacy migration)
+3. Integration test: change selected profile -> generate playlist -> verify correct profile used
+4. Integration test: change profile on playlist screen -> generate -> verify new profile
+5. Verify "Shuffle" uses stored profile (expected), "Generate" uses current selection (expected)
+6. Fix any gaps discovered during testing
 
-**Scoring is a ranking signal, not a threshold.** All BPM-matched songs remain candidates. Scores only determine ordering within each segment's candidate pool.
+**Estimated complexity:** Low-Medium. Mostly test writing, may surface minor bugs.
+
+### Phase 3: Onboarding Flow
+
+**Why last:** Most new code. Depends on taste profile and run plan creation working correctly. Introduces new feature directory, router changes, and async startup modification.
+
+**Scope:**
+1. Create `lib/features/onboarding/` directory structure
+2. Implement `OnboardingPreferences` (SharedPreferences wrapper for flag)
+3. Implement `onboarding_providers.dart` (StateProvider for completion)
+4. Modify `main.dart` to pre-load flag
+5. Modify `router.dart` to add redirect guard + onboarding route
+6. Build `OnboardingWelcomeScreen` (welcome page)
+7. Build `OnboardingFlowScreen` (step coordinator checking provider states)
+8. Test: new user -> onboarding -> first playlist -> home
+9. Test: returning user -> skip onboarding -> home
+
+**Estimated complexity:** Medium. ~150-200 lines of new code across 4-5 files.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Fetching Quality Data at Runtime from External API
+### Anti-Pattern 1: Duplicating Screen Logic for Onboarding
 
-**What:** Building an API service to fetch running quality ratings on-demand
-**Why bad:** Adds latency, requires backend, introduces failure mode during generation
-**Instead:** Bundle curated data as a static asset. Update with app releases. No network dependency.
+**What:** Building simplified versions of TasteProfileScreen, RunPlanScreen for onboarding.
+**Why bad:** Duplicates UI code, creates maintenance burden. The existing screens already have full UX including validation, persistence, and feedback.
+**Instead:** Reuse existing screens. The onboarding shell controls navigation between them. At most, detect "came from onboarding" context to show a slightly different AppBar or hide the back button.
 
-### Anti-Pattern 2: Filtering Out Non-Curated Songs
+### Anti-Pattern 2: Complex Onboarding State Machine
 
-**What:** Only allowing songs that appear in the curated index
-**Why bad:** Curated set is always incomplete. Users in niche genres get empty playlists.
-**Instead:** Curated data is a scoring boost, not a filter. Unknown songs still appear, just ranked lower.
+**What:** Building an `OnboardingStep` enum with transition guards, undo capability, and persistent step tracking.
+**Why bad:** Over-engineering for a linear 2-3 step flow. The actual steps are: have a taste profile? -> have a run plan? -> generate. Each step is a boolean check against existing provider state.
+**Instead:** Check provider state directly. `profiles.isEmpty` -> show taste profile step. `plans.isEmpty` -> show run plan step. Both exist -> navigate to generate. No step counter needed.
 
-### Anti-Pattern 3: Storing Curated Data in SharedPreferences
+### Anti-Pattern 3: Making Shuffle and Generate Identical
 
-**What:** Loading curated JSON on first run and saving to SharedPreferences
-**Why bad:** SharedPreferences is not designed for large datasets. The data is read-only and ships with the app -- no reason to copy it to user storage.
-**Instead:** Load from bundled asset on each app session. Parse once, keep in memory via Riverpod provider.
+**What:** Removing `regeneratePlaylist()` and always calling `generatePlaylist()`.
+**Why bad:** Generate re-fetches from API (300ms per unique BPM, potentially 5-15 BPMs = 1.5-4.5 seconds). Shuffle should be instant -- same pool, different picks. Users expect "Shuffle" to be fast.
+**Instead:** `shufflePlaylist()` reuses stored `songPool` with new Random seed. `generatePlaylist()` fetches fresh. UI labels should communicate the difference.
 
-### Anti-Pattern 4: Complex Genre Inference from Song Titles
+### Anti-Pattern 4: Async GoRouter Redirect
 
-**What:** Trying to infer a song's genre from its title or artist name using heuristics
-**Why bad:** Unreliable, creates false matches, hard to test
-**Instead:** Genre data comes from the curated index (high confidence) or is unknown (no penalty). Do not guess.
+**What:** Making the redirect handler async, or using a `FutureProvider` that returns a loading state.
+**Why bad:** GoRouter redirect is synchronous. Async approaches cause a flash of the wrong screen or require complex loading states that hurt perceived performance.
+**Instead:** Pre-load the flag in `main.dart` before `runApp()`. Pass it synchronously to the router via provider override.
 
-### Anti-Pattern 5: Modifying BpmSong Model for Quality Data
+### Anti-Pattern 5: Onboarding Checks at Every Route
 
-**What:** Adding `runningQuality` fields directly to `BpmSong`
-**Why bad:** `BpmSong` represents API response data. Mixing external quality ratings into it breaks the clean separation between data sources. Also complicates cache serialization.
-**Instead:** Quality data lives in `RunningQualityIndex` (separate domain). Scoring happens at generation time by cross-referencing. Quality fields appear only on `PlaylistSong` (the output model).
-
----
-
-## Scalability Considerations
-
-| Concern | Current (v1.1) | Future (v2.0+) |
-|---------|----------------|-----------------|
-| Curated dataset size | 500-1000 songs, ~100KB JSON | 5000+ songs, consider SQLite or binary format |
-| Quality data freshness | Ships with app release | Could add server-side quality API for dynamic updates |
-| Genre inference for API songs | Only via curated artist lookup | Could integrate genre API (MusicBrainz, Last.fm) |
-| User feedback | None | "Thumbs up/down" per song to personalize scoring weights |
-| Asset loading performance | `rootBundle.loadString()` is fine for 100KB | For 1MB+, use `compute()` for isolate-based parsing |
+**What:** Adding onboarding completion checks to individual screens.
+**Why bad:** Scatters onboarding logic across the codebase. Each screen would need "am I in onboarding mode?" logic.
+**Instead:** Single redirect guard in the router. Onboarding is contained in one feature directory. Existing screens are unaware of onboarding.
 
 ---
 
-## Testing Strategy
+## Component Boundaries
 
-### Unit Tests (Pure Dart)
+```
++-------------------------------------------------------------------------+
+|                        PRESENTATION LAYER                               |
+|                                                                         |
+|  HomeScreen  PlaylistScreen  TasteProfileScreen  RunPlanScreen          |
+|              (has selectors  (create/edit mode)   (creates plans)        |
+|               for both)                                                 |
+|  OnboardingWelcomeScreen  OnboardingFlowScreen  <-- NEW                 |
+|  (welcome page)           (step coordinator)                            |
+|                                                                         |
++----+--------------------+------------------+----------------------------+
+     |                    |                  |
++----+--------------------+------------------+----------------------------+
+|                        PROVIDER LAYER                                   |
+|                                                                         |
+|  playlistGenerationProvider (+ new shufflePlaylist)                      |
+|  tasteProfileLibraryProvider (EXISTING -- already has CRUD)             |
+|  tasteProfileNotifierProvider (convenience -> selectedProfile)          |
+|  runPlanLibraryProvider                                                 |
+|  runPlanNotifierProvider (convenience -> selectedPlan)                   |
+|  onboardingCompleteProvider  <-- NEW                                    |
+|  routerProvider (+ redirect guard)                                      |
+|                                                                         |
++----+--------------------+------------------+----------------------------+
+     |                    |                  |
++----+--------------------+------------------+----------------------------+
+|                        DATA LAYER                                       |
+|                                                                         |
+|  TasteProfilePreferences (EXISTING -- already has library persistence)  |
+|  RunPlanPreferences (EXISTING)                                          |
+|  OnboardingPreferences  <-- NEW                                         |
+|                                                                         |
++-------------------------------------------------------------------------+
+```
 
-| Component | Test Focus |
-|-----------|------------|
-| `SongQualityScorer` | Score calculation for all signal combinations, edge cases |
-| `RunningQualityIndex` | Lookup hit/miss, normalization, artist-level fallback |
-| `RunningSong` | JSON serialization roundtrip |
-| `PlaylistGenerator` (updated) | Quality index integration, backward compat without index |
-| `TasteProfile` (updated) | New field serialization, backward compat with old JSON |
+---
 
-### Integration Tests
+## Risk Assessment
 
-| Component | Test Focus |
-|-----------|------------|
-| `CuratedSongsLoader` | Asset loading, error handling for malformed JSON |
-| `PlaylistGenerationNotifier` | Full pipeline with quality index, regenerate flow |
-| `StrideNotifier` | adjustCadence persists and clamps correctly |
-
-### Widget Tests
-
-| Component | Test Focus |
-|-----------|------------|
-| `SongTile` | Quality badge renders when present, hidden when absent |
-| `PlaylistScreen` | Regenerate button triggers correct method |
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Onboarding redirect interferes with deep links | Low | Medium | Allow-list routes during onboarding |
+| Shuffle produces identical results to previous | Low | Low | New `Random()` seed on each call; verify with test |
+| Provider override in main.dart not reactive | Medium | Low | After completing onboarding, update the provider state directly (not just SharedPreferences) |
+| Existing taste profile library has untested edge cases | Medium | Medium | Write test coverage in Phase 2 before building on it |
+| User kills app during onboarding | Low | Low | Onboarding checks actual data state, not step counter -- resumes correctly |
 
 ---
 
 ## Sources
 
-- Direct codebase analysis of all files in `lib/features/` -- **HIGH confidence**
-- [Flutter asset documentation](https://docs.flutter.dev/ui/assets/assets-and-images) -- **HIGH confidence** (official docs)
-- [The Science Behind Good Running Music](https://foreverfitscience.com/running/good-running-music/) -- **MEDIUM confidence** (peer-reviewed research referenced)
-- [SharedPreferences limitations for large data](https://docs.flutter.dev/cookbook/persistence/key-value) -- **HIGH confidence** (official Flutter cookbook)
-- [AssetBundle.loadString() performance for files >10KB](https://api.flutter.dev/flutter/services/AssetBundle-class.html) -- **HIGH confidence** (official API docs)
-- [jog.fm running song database model](https://jog.fm/) -- **MEDIUM confidence** (verified via App Store listing)
+- Direct codebase analysis: `taste_profile_providers.dart`, `taste_profile_preferences.dart`, `taste_profile_library_screen.dart`, `taste_profile_screen.dart`, `playlist_providers.dart`, `playlist_screen.dart`, `router.dart`, `main.dart`, `home_screen.dart`, `run_plan_providers.dart`, `run_plan_preferences.dart`, `run_plan_library_screen.dart`, `run_plan_screen.dart`, `playlist_generator.dart`, `playlist.dart`, `stride_providers.dart`, `app.dart` -- **HIGH confidence** (primary source, direct examination)
+- GoRouter redirect pattern -- **HIGH confidence** (standard GoRouter pattern, consistent with existing codebase's GoRouter usage)
+- SharedPreferences pre-loading -- **HIGH confidence** (already used implicitly by all existing provider constructors)

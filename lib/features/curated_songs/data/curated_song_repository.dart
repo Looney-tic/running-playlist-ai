@@ -91,8 +91,9 @@ class CuratedSongRepository {
                 CuratedSong.fromSupabaseRow(row as Map<String, dynamic>),
           )
           .toList();
-    } on Exception {
-      return null; // Graceful degradation
+      // ignore: avoid_catches_without_on_clauses, Supabase.instance throws AssertionError (Error, not Exception) when not initialized.
+    } catch (_) {
+      return null;
     }
   }
 

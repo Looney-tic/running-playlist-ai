@@ -7,6 +7,7 @@ import 'package:running_playlist_ai/features/bpm_lookup/data/getsongbpm_client.d
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_matcher.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/providers/bpm_lookup_providers.dart';
+import 'package:running_playlist_ai/features/curated_songs/providers/curated_song_providers.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist_generator.dart';
 import 'package:running_playlist_ai/features/playlist/providers/playlist_history_providers.dart';
@@ -90,10 +91,24 @@ class PlaylistGenerationNotifier
     try {
       final songsByBpm = await _fetchAllSongs(runPlan);
 
+      // Load curated song lookup keys for scoring bonus.
+      // Uses catch-all because Supabase.instance throws AssertionError
+      // (not Exception) when not initialized, and Riverpod re-throws it.
+      var curatedLookupKeys = <String>{};
+      try {
+        curatedLookupKeys =
+            await ref.read(curatedLookupKeysProvider.future);
+        // ignore: avoid_catches_without_on_clauses, Supabase.instance throws AssertionError (Error, not Exception) when not initialized.
+      } catch (_) {
+        // Graceful degradation: generate without curated bonus
+      }
+
       final playlist = PlaylistGenerator.generate(
         runPlan: runPlan,
         tasteProfile: tasteProfile,
         songsByBpm: songsByBpm,
+        curatedLookupKeys:
+            curatedLookupKeys.isNotEmpty ? curatedLookupKeys : null,
       );
 
       if (!mounted) return;

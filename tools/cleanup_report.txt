@@ -1,0 +1,19 @@
+Curated Songs Cleanup Report
+============================
+Original songs:      3084
+Clean songs:         2917
+Removed (not found): 167
+
+BPM:
+  From Deezer:       1825
+  Null (no data):    1092
+
+Duration:
+  From Deezer:       2917
+
+Decade:
+  From Deezer:       2917
+  Kept original:     0
+
+Removed fields: danceability, energyLevel, runnability
+Kept unverified: genre (no API source available)

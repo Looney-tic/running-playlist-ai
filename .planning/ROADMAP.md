@@ -6,6 +6,7 @@
 - **v1.0 Standalone Playlist Generator** - Phases 11-15 (shipped 2026-02-05)
 - **v1.1 Experience Quality** - Phases 16-18 (shipped 2026-02-06)
 - **v1.2 Polish & Profiles** - Phases 19-21 (shipped 2026-02-06)
+- **v1.3 Song Feedback & Freshness** - Phases 22-27 (in progress)
 
 ## Phases
 
@@ -83,7 +84,110 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 </details>
 
+### v1.3 Song Feedback & Freshness (In Progress)
+
+**Milestone Goal:** Let users teach the app their taste through song feedback, and choose between fresh variety or taste-optimized playlists.
+
+- [ ] **Phase 22: Feedback Data Layer** - Persistence and state management for song feedback
+- [ ] **Phase 23: Feedback UI & Scoring** - Like/dislike buttons in playlist view with scoring integration
+- [ ] **Phase 24: Feedback Library** - Dedicated screen to browse and edit all song feedback
+- [ ] **Phase 25: Freshness** - Track song recency and let users toggle fresh vs taste-optimized playlists
+- [ ] **Phase 26: Post-Run Review** - Rate songs from the most recent playlist after a run
+- [ ] **Phase 27: Taste Learning** - Analyze feedback patterns and surface preference suggestions
+
+## Phase Details
+
+### Phase 22: Feedback Data Layer
+**Goal**: Song feedback can be stored, retrieved, and persisted so all downstream features have a reliable data foundation
+**Depends on**: Nothing (first phase of v1.3)
+**Requirements**: FEED-02
+**Success Criteria** (what must be TRUE):
+  1. SongFeedback entries (liked/disliked with metadata) survive app restart without data loss
+  2. Feedback lookup by song key returns the correct state in constant time
+  3. Song key normalization produces identical keys for the same song across curated data and API results
+**Plans**: 2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md -- SongKey utility, SongFeedback model, SongFeedbackPreferences, lookupKey centralization
+- [ ] 22-02-PLAN.md -- SongFeedbackNotifier provider and full test suite
+
+### Phase 23: Feedback UI & Scoring
+**Goal**: Users can like or dislike songs in the playlist view, and feedback directly influences which songs appear in future playlists
+**Depends on**: Phase 22
+**Requirements**: FEED-01, FEED-03, FEED-04
+**Success Criteria** (what must be TRUE):
+  1. User can tap a like or dislike icon on any song in the generated playlist view and see immediate visual confirmation
+  2. Disliked songs never appear in subsequently generated playlists
+  3. Liked songs rank noticeably higher than equivalent unrated songs in generated playlists
+  4. A liked song with poor running metrics does not outrank an unrated song with excellent running metrics
+**Plans**: TBD
+
+Plans:
+- [ ] 23-01: TBD
+- [ ] 23-02: TBD
+
+### Phase 24: Feedback Library
+**Goal**: Users can review all their song feedback decisions in one place and change their mind on any rating
+**Depends on**: Phase 23
+**Requirements**: FEED-05, FEED-06
+**Success Criteria** (what must be TRUE):
+  1. User can navigate to a feedback library screen showing all liked songs and all disliked songs in separate views
+  2. User can change a liked song to disliked, disliked to liked, or remove feedback entirely from the library screen
+  3. Changes made in the feedback library take effect in the next playlist generation
+**Plans**: TBD
+
+Plans:
+- [ ] 24-01: TBD
+
+### Phase 25: Freshness
+**Goal**: Users can choose between varied playlists that avoid recent repeats or taste-optimized playlists that favor proven songs
+**Depends on**: Phase 23
+**Requirements**: FRSH-01, FRSH-02, FRSH-03
+**Success Criteria** (what must be TRUE):
+  1. After generating a playlist, the app records which songs were included and when
+  2. In "keep it fresh" mode, songs from a playlist generated yesterday rank lower than songs not played recently
+  3. User can toggle between "keep it fresh" and "optimize for taste" modes, and the toggle persists across app restarts
+  4. In "optimize for taste" mode, recently played songs receive no freshness penalty
+**Plans**: TBD
+
+Plans:
+- [ ] 25-01: TBD
+- [ ] 25-02: TBD
+
+### Phase 26: Post-Run Review
+**Goal**: Users can rate all songs from their most recent playlist in a single review flow after a run
+**Depends on**: Phase 23
+**Requirements**: FEED-07
+**Success Criteria** (what must be TRUE):
+  1. When an unreviewed recent playlist exists, the home screen shows a prompt to rate the last playlist
+  2. User can like or dislike each song from their last playlist in a dedicated review screen
+  3. The review prompt disappears after the user completes or dismisses the review
+  4. Feedback given during post-run review appears in the feedback library and affects future generation
+**Plans**: TBD
+
+Plans:
+- [ ] 26-01: TBD
+
+### Phase 27: Taste Learning
+**Goal**: The app discovers implicit taste patterns from feedback and surfaces actionable suggestions the user can accept or ignore
+**Depends on**: Phase 25 (freshness must exist before taste learning to prevent filter bubbles)
+**Requirements**: LRNG-01, LRNG-02, LRNG-03
+**Success Criteria** (what must be TRUE):
+  1. After accumulating enough feedback, the app identifies genre, artist, or BPM patterns in liked vs disliked songs
+  2. Discovered patterns appear as suggestion cards the user can accept or dismiss (never auto-applied to taste profile)
+  3. Accepting a suggestion updates the user's active taste profile and is reflected in the next playlist generation
+  4. Dismissed suggestions do not reappear until new feedback data changes the pattern
+**Plans**: TBD
+
+Plans:
+- [ ] 27-01: TBD
+- [ ] 27-02: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26 -> 27
+(Phases 24, 25, 26 are independent after 23 -- order is recommended, not strict)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -102,3 +206,9 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 | 19. Regeneration Reliability | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 20. Profile Polish | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 21. Onboarding | v1.2 | 2/2 | Complete | 2026-02-06 |
+| 22. Feedback Data Layer | v1.3 | 0/2 | Not started | - |
+| 23. Feedback UI & Scoring | v1.3 | 0/2 | Not started | - |
+| 24. Feedback Library | v1.3 | 0/1 | Not started | - |
+| 25. Freshness | v1.3 | 0/2 | Not started | - |
+| 26. Post-Run Review | v1.3 | 0/1 | Not started | - |
+| 27. Taste Learning | v1.3 | 0/2 | Not started | - |

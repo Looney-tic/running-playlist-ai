@@ -38,19 +38,19 @@
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| SEARCH-01 | — | — | Pending |
-| SEARCH-02 | — | — | Pending |
-| SEARCH-03 | — | — | Pending |
-| SONGS-01 | — | — | Pending |
-| SONGS-02 | — | — | Pending |
-| SONGS-03 | — | — | Pending |
-| SONGS-04 | — | — | Pending |
-| SONGS-05 | — | — | Pending |
-| SPOTIFY-01 | — | — | Pending |
-| SPOTIFY-02 | — | — | Pending |
-| SPOTIFY-03 | — | — | Pending |
-| SPOTIFY-04 | — | — | Pending |
-| SPOTIFY-05 | — | — | Pending |
+| SEARCH-01 | Phase 30 | — | Pending |
+| SEARCH-02 | Phase 30 | — | Pending |
+| SEARCH-03 | Phase 30 | — | Pending |
+| SONGS-01 | Phase 28 | — | Pending |
+| SONGS-02 | Phase 28 | — | Pending |
+| SONGS-03 | Phase 29 | — | Pending |
+| SONGS-04 | Phase 29 | — | Pending |
+| SONGS-05 | Phase 29 | — | Pending |
+| SPOTIFY-01 | Phase 31 | — | Pending |
+| SPOTIFY-02 | Phase 31 | — | Pending |
+| SPOTIFY-03 | Phase 32 | — | Pending |
+| SPOTIFY-04 | Phase 33 | — | Pending |
+| SPOTIFY-05 | Phase 33 | — | Pending |
 
 ---
 *Created: 2026-02-08*

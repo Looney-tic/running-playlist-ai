@@ -5,14 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.4 Smart Song Search & Spotify Foundation
+**Current focus:** Phase 28 - "Songs I Run To" Data Layer
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-08 — Milestone v1.4 started
+Phase: 28 (first of 6 in v1.4)
+Plan: --
+Status: Ready to plan
+Last activity: 2026-02-08 -- Roadmap created for v1.4 (6 phases, 13 requirements)
+
+Progress: [####################..........] 68% (42/53 plans estimated)
 
 ## Performance Metrics
 
@@ -30,6 +32,7 @@ Last activity: 2026-02-08 — Milestone v1.4 started
 | v1.1 | 3 | 6 | ~30m |
 | v1.2 | 3 | 6 | ~30m |
 | v1.3 | 6 | 10 | ~30m |
+| v1.4 | 6 | ~11 | -- |
 
 ## Accumulated Context
 
@@ -37,7 +40,7 @@ Last activity: 2026-02-08 — Milestone v1.4 started
 
 Full decision log in PROJECT.md Key Decisions table.
 
-v1.3 decisions archived. See `.planning/milestones/v1.3-ROADMAP.md` for details.
+v1.3 decisions archived. No v1.4 decisions yet.
 
 ### Pending Todos
 
@@ -48,10 +51,12 @@ v1.3 decisions archived. See `.planning/milestones/v1.3-ROADMAP.md` for details.
 
 ### Blockers/Concerns
 
-- GetSongBPM API rate limits and danceability field availability unconfirmed
+- Spotify Developer Dashboard not accepting new app registrations (since Dec 2025)
+- Spotify Developer Mode requires Premium account (Feb 2026 policy change)
+- Build Spotify phases with mocks; defer live testing to when Dashboard opens
 
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Defining v1.4 requirements
-Resume file: N/A
+Stopped at: Roadmap created for v1.4 milestone
+Resume file: N/A -- next step is `/gsd:plan-phase 28`

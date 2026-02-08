@@ -5,16 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.3 shipped -- planning next milestone
+**Current focus:** v1.4 Smart Song Search & Spotify Foundation
 
 ## Current Position
 
-Phase: 27 of 27 (Taste Learning)
-Plan: 2 of 2 in current phase
-Status: Milestone v1.3 complete
-Last activity: 2026-02-08 -- Milestone v1.3 archived
-
-Progress: [██████████] 100% (10/10 v1.3 plans)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-08 — Milestone v1.4 started
 
 ## Performance Metrics
 
@@ -55,5 +53,5 @@ v1.3 decisions archived. See `.planning/milestones/v1.3-ROADMAP.md` for details.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: v1.3 milestone archived, ready for next milestone
-Resume file: N/A -- run `/gsd:new-milestone` to start next version
+Stopped at: Defining v1.4 requirements
+Resume file: N/A

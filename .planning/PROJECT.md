@@ -8,6 +8,16 @@ A cross-platform app (Flutter -- web, Android, iOS) that generates BPM-matched p
 
 A runner opens the app, enters their run plan, and gets a playlist where every song's beat matches their footstrike cadence -- no manual searching, no guessing BPM.
 
+## Current Milestone: v1.4 Smart Song Search & Spotify Foundation
+
+**Goal:** Let users search for and select songs they run to (with smooth autocomplete), feeding those selections into taste learning and scoring. Lay the Spotify API foundation so playlist import slots in when credentials become available.
+
+**Target features:**
+- Song search with typeahead autocomplete (curated songs now, Spotify search ready)
+- "Songs I run to" concept — user-selected songs treated as liked songs for scoring + taste learning
+- Spotify API abstraction layer built against current docs (no live credentials yet)
+- Spotify playlist browse/select flow (connect → see playlists → pick playlists → select songs)
+
 ## Current State
 
 **Shipped:** v1.3 Song Feedback & Freshness (2026-02-08)
@@ -70,10 +80,16 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Freshness tracking: record song play history to support freshness deprioritization -- v1.3
 - ✓ Post-run review: rate all songs from most recent playlist in a focused review flow -- v1.3
 
+### Active
+
+- [ ] Song search with typeahead autocomplete against curated dataset
+- [ ] Search abstraction layer ready for Spotify search backend
+- [ ] "Songs I run to" list — user-curated songs treated as liked for scoring + taste learning
+- [ ] Spotify API service layer built against current API docs (OAuth PKCE, playlists, search)
+- [ ] Spotify playlist browse and song selection flow (UI ready, no live credentials)
+
 ### Out of Scope
 
-- Spotify OAuth integration -- Deferred until Developer Dashboard available; current approach works without it
-- Spotify library import for taste profile -- Running music taste differs from general listening; questionnaire is better
 - Spotify playlist export -- Deferred; external play links sufficient for now
 - Apple Music / other streaming services -- Architecture allows future expansion
 - Social features (sharing runs, leaderboards) -- Not core to the playlist value
@@ -139,4 +155,4 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | Profile mutation via existing notifier | acceptSuggestion goes through TasteProfileLibraryNotifier.updateProfile() | ✓ Good |
 
 ---
-*Last updated: 2026-02-08 after v1.3 milestone*
+*Last updated: 2026-02-08 after v1.4 milestone started*

@@ -40,6 +40,9 @@ class SongQualityScorer {
   /// Penalty for songs by an artist the user dislikes.
   static const dislikedArtistPenalty = -15;
 
+  /// Score bonus when the song is liked by the user.
+  static const likedSongWeight = 5;
+
   /// Score for half-time/double-time match under loose tempo tolerance.
   static const looseTempoVariantWeight = 2;
 
@@ -61,21 +64,23 @@ class SongQualityScorer {
   /// Computes a composite score for a candidate song.
   ///
   /// Returns an integer score (higher = better fit for the playlist).
-  /// Dimensions (max = 46):
+  /// Dimensions (max = 51 when liked):
   /// 1. Artist match: +10 if song artist in taste profile
   /// 2. Runnability: +0..15 based on crowd signal + audio features
   /// 3. Danceability: +0..8 based on rhythm regularity (Karageorghis #1)
   /// 4. Genre match: +6 if song genre matches taste profile genres
   /// 5. Decade match: +4 if song decade matches taste profile decades
   /// 6. BPM match: +3 exact, +1 variant
-  /// 7. Artist diversity: -5 if same artist as previous song
-  /// 8. Disliked artist: -15 if artist is disliked
+  /// 7. Liked song: +5 if user liked this song
+  /// 8. Artist diversity: -5 if same artist as previous song
+  /// 9. Disliked artist: -15 if artist is disliked
   static int score({
     required BpmSong song,
     TasteProfile? tasteProfile,
     String? previousArtist,
     List<RunningGenre>? songGenres,
     int? runnability,
+    bool isLiked = false,
   }) {
     var total = 0;
 
@@ -87,6 +92,8 @@ class SongQualityScorer {
     total += _decadeMatchScore(song.decade, tasteProfile);
     total += _danceabilityScore(song.danceability);
     total += _runnabilityScore(runnability);
+
+    if (isLiked) total += likedSongWeight;
 
     return total;
   }

@@ -6,6 +6,7 @@
 library;
 
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
+import 'package:running_playlist_ai/features/song_feedback/domain/song_feedback.dart';
 
 /// A song assigned to a specific run segment in the playlist.
 class PlaylistSong {
@@ -56,6 +57,9 @@ class PlaylistSong {
 
   /// Song duration in seconds. Null for songs without duration data.
   final int? durationSeconds;
+
+  /// Normalized lookup key for matching against feedback map.
+  String get lookupKey => SongKey.normalize(artistName, title);
 
   Map<String, dynamic> toJson() => {
         'title': title,

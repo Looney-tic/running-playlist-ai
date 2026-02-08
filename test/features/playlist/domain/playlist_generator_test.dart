@@ -751,6 +751,73 @@ void main() {
       expect(playlist.songs.first.title, equals('Curated Song'));
     });
 
+    test('disliked songs are excluded from generated playlist', () {
+      final plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 210,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      final songsByBpm = {
+        170: [
+          _song(id: 'good', title: 'Good Song', artist: 'Artist A'),
+          _song(id: 'bad', title: 'Bad Song', artist: 'Artist B'),
+        ],
+      };
+
+      final playlist = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        dislikedSongKeys: {'artist b|bad song'},
+        random: Random(42),
+      );
+
+      // Only the non-disliked song should appear
+      expect(playlist.songs.length, equals(1));
+      expect(playlist.songs.first.title, equals('Good Song'));
+    });
+
+    test('liked songs receive isLiked boost in scoring', () {
+      final plan = RunPlan(
+        type: RunType.steady,
+        distanceKm: 5,
+        paceMinPerKm: 6,
+        segments: [
+          RunSegment(
+            durationSeconds: 420,
+            targetBpm: 170,
+            label: 'Running',
+          ),
+        ],
+      );
+
+      // Two identical songs except for ID and artist
+      final songsByBpm = {
+        170: [
+          _song(id: 'liked', title: 'Liked Song', artist: 'Artist A'),
+          _song(id: 'normal', title: 'Normal Song', artist: 'Artist B'),
+        ],
+      };
+
+      final playlist = PlaylistGenerator.generate(
+        runPlan: plan,
+        songsByBpm: songsByBpm,
+        likedSongKeys: {'artist a|liked song'},
+        random: Random(42),
+      );
+
+      // Both songs needed (420/210=2). Liked song should rank first.
+      expect(playlist.songs.length, equals(2));
+      expect(playlist.songs.first.title, equals('Liked Song'));
+    });
+
     test('empty curatedRunnability produces same results as null', () {
       final plan = RunPlan(
         type: RunType.steady,

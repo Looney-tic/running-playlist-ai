@@ -743,4 +743,52 @@ void main() {
       expect(SongQualityScorer.danceabilityNeutral, equals(3));
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // Liked-song boost
+  // ──────────────────────────────────────────────────────
+  group('Liked-song boost', () {
+    test('liked song scores +5 higher than equivalent unrated song', () {
+      final song = _song(artistName: 'TestArtist');
+      final likedScore = SongQualityScorer.score(
+        song: song,
+        isLiked: true,
+      );
+      final unratedScore = SongQualityScorer.score(
+        song: song,
+        isLiked: false,
+      );
+      expect(likedScore - unratedScore, equals(5));
+    });
+
+    test(
+        'liked song with poor metrics does NOT outrank unrated with excellent metrics',
+        () {
+      final poorSong = _song(artistName: 'Poor', danceability: 10);
+      final excellentSong = _song(artistName: 'Excellent', danceability: 85);
+
+      final poorLikedScore = SongQualityScorer.score(
+        song: poorSong,
+        isLiked: true,
+        runnability: 5,
+      );
+      final excellentUnratedScore = SongQualityScorer.score(
+        song: excellentSong,
+        isLiked: false,
+        runnability: 90,
+      );
+
+      expect(excellentUnratedScore, greaterThan(poorLikedScore));
+    });
+
+    test('isLiked defaults to false (backward compatible)', () {
+      final song = _song();
+      final defaultScore = SongQualityScorer.score(song: song);
+      final explicitFalseScore = SongQualityScorer.score(
+        song: song,
+        isLiked: false,
+      );
+      expect(defaultScore, equals(explicitFalseScore));
+    });
+  });
 }

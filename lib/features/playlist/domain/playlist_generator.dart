@@ -56,6 +56,8 @@ class PlaylistGenerator {
     TasteProfile? tasteProfile,
     Random? random,
     Map<String, int>? curatedRunnability,
+    Set<String>? dislikedSongKeys,
+    Set<String>? likedSongKeys,
   }) {
     final rng = random ?? Random();
     final usedSongIds = <String>{};
@@ -73,9 +75,16 @@ class PlaylistGenerator {
       );
 
       // Filter out already-used songs
-      final available = candidates
+      var available = candidates
           .where((s) => !usedSongIds.contains(s.songId))
           .toList();
+
+      // Hard-filter disliked songs
+      if (dislikedSongKeys != null && dislikedSongKeys.isNotEmpty) {
+        available = available
+            .where((s) => !dislikedSongKeys.contains(s.lookupKey))
+            .toList();
+      }
 
       // Score and rank by composite quality
       final scored = _scoreAndRank(
@@ -84,6 +93,7 @@ class PlaylistGenerator {
         tasteProfile: tasteProfile,
         segmentLabel: segmentLabel,
         curatedRunnability: curatedRunnability,
+        likedSongKeys: likedSongKeys,
       );
 
       // Skip segment when no candidates available
@@ -210,6 +220,7 @@ class PlaylistGenerator {
     TasteProfile? tasteProfile,
     String? segmentLabel,
     Map<String, int>? curatedRunnability,
+    Set<String>? likedSongKeys,
   }) {
     String? previousArtist;
 
@@ -237,6 +248,7 @@ class PlaylistGenerator {
         previousArtist: previousArtist,
         songGenres: songGenres.isNotEmpty ? songGenres : null,
         runnability: runnability,
+        isLiked: likedSongKeys?.contains(song.lookupKey) ?? false,
       );
 
       previousArtist = song.artistName;

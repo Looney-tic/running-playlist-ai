@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:running_playlist_ai/features/post_run_review/providers/post_run_review_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
 import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
@@ -22,6 +23,7 @@ class HomeScreen extends ConsumerWidget {
     final cadence = strideState.cadence.round();
     final theme = Theme.of(context);
 
+    final unreviewedPlaylist = ref.watch(unreviewedPlaylistProvider);
     final hasProfile = tasteProfile != null;
     final hasPlan = runPlan != null;
 
@@ -58,6 +60,17 @@ class HomeScreen extends ConsumerWidget {
                       'Set your distance and pace for playlist matching',
                   color: theme.colorScheme.secondaryContainer,
                   onTap: () => context.push('/run-plan'),
+                ),
+
+              // Post-run review prompt
+              if (unreviewedPlaylist != null)
+                _SetupCard(
+                  icon: Icons.rate_review,
+                  title: 'Rate your last playlist',
+                  subtitle: '${unreviewedPlaylist.songs.length} songs from '
+                      '${unreviewedPlaylist.runPlanName ?? "your run"}',
+                  color: theme.colorScheme.tertiaryContainer,
+                  onTap: () => context.push('/post-run-review'),
                 ),
 
               // Quick-regenerate and cadence nudge (shown when run plan exists)

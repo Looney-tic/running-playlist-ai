@@ -6,6 +6,7 @@ import 'package:running_playlist_ai/features/onboarding/providers/onboarding_pro
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_history_detail_screen.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_history_screen.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/playlist_screen.dart';
+import 'package:running_playlist_ai/features/post_run_review/presentation/post_run_review_screen.dart';
 import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_library_screen.dart';
 import 'package:running_playlist_ai/features/run_plan/presentation/run_plan_screen.dart';
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
@@ -80,6 +81,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/song-feedback',
         builder: (context, state) =>
             const SongFeedbackLibraryScreen(),
+      ),
+      GoRoute(
+        path: '/post-run-review',
+        builder: (context, state) => const PostRunReviewScreen(),
       ),
       GoRoute(
         path: '/playlist-history',

@@ -177,11 +177,11 @@ Plans:
   2. Discovered patterns appear as suggestion cards the user can accept or dismiss (never auto-applied to taste profile)
   3. Accepting a suggestion updates the user's active taste profile and is reflected in the next playlist generation
   4. Dismissed suggestions do not reappear until new feedback data changes the pattern
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 27-01: TBD
-- [ ] 27-02: TBD
+- [ ] 27-01-PLAN.md -- TDD: TasteSuggestion model, TastePatternAnalyzer with genre enrichment, persistence, providers, unit tests
+- [ ] 27-02-PLAN.md -- TasteSuggestionCard widget and home screen integration with accept/dismiss actions
 
 ## Progress
 

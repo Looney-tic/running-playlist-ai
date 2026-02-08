@@ -2,6 +2,33 @@
 
 ## Completed
 
+### v1.3: Song Feedback & Freshness (Shipped: 2026-02-08)
+
+**Delivered:** Song feedback system with like/dislike on every playlist song, a feedback library for reviewing decisions, playlist freshness toggle (keep it fresh vs optimize for taste), post-run review flow for rating songs after a run, and taste learning that discovers genre/artist preferences from feedback patterns and surfaces actionable suggestions.
+
+**Phases completed:** 22-27 (10 plans total)
+
+**Key accomplishments:**
+- Song feedback: like/dislike any song with instant visual feedback, persisted across restarts
+- Feedback-aware generation: disliked songs hard-filtered, liked songs boosted with 5-point weight
+- Feedback library: tabbed liked/disliked views with flip and remove actions
+- Playlist freshness: 5-tier decay penalty with "Keep it Fresh" vs "Optimize for Taste" toggle
+- Post-run review: focused flow to rate all songs from most recent playlist
+- Taste learning: frequency-counting pattern analyzer discovers genre/artist preferences from feedback, surfaces suggestion cards with Accept/Dismiss on home screen
+
+**Stats:**
+- 63 files created/modified
+- +8,661 lines changed
+- ~16,263 LOC Dart total (lib + tests)
+- 6 phases, 10 plans
+- 16 new unit tests for taste pattern analyzer
+
+**Git range:** `feat(22-01)` -> `feat(27-02)`
+
+**What's next:** TBD -- run `/gsd:new-milestone` to plan next milestone
+
+---
+
 ### v1.2: Polish & Profiles (Shipped: 2026-02-06)
 
 **Delivered:** Reliable playlist regeneration with readiness guards, safe multi-profile management with delete confirmation and corrupt-data resilience, and a 4-step onboarding flow guiding new users to their first generated playlist.
@@ -87,4 +114,5 @@
 **Pivot decision:** Build without Spotify integration. Use GetSongBPM API for BPM data and questionnaire-based taste profile instead.
 
 ---
-*Last updated: 2026-02-06*
+*Last updated: 2026-02-08*
+

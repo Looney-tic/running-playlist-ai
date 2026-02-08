@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform app (Flutter -- web, Android, iOS) that generates BPM-matched playlists for runners. Users input their run details (distance, pace, run type), and the app calculates their stride cadence, finds songs matching that BPM via GetSongBPM API, and builds a playlist tailored to their running music preferences -- with links to play each song on Spotify or YouTube.
+A cross-platform app (Flutter -- web, Android, iOS) that generates BPM-matched playlists for runners. Users input their run details (distance, pace, run type), and the app calculates their stride cadence, finds songs matching that BPM via GetSongBPM API, and builds a playlist tailored to their running music preferences. The app learns from song feedback -- liked songs rank higher, disliked songs are filtered out, and implicit taste patterns are surfaced as suggestions to refine the user's profile over time.
 
 ## Core Value
 
@@ -10,8 +10,8 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 
 ## Current State
 
-**Shipped:** v1.2 Polish & Profiles (2026-02-06)
-**Codebase:** ~7,618 LOC Dart (lib), ~5,830 LOC tests
+**Shipped:** v1.3 Song Feedback & Freshness (2026-02-08)
+**Codebase:** ~16,263 LOC Dart (lib + tests)
 
 **What works end-to-end:**
 - Stride calculator (pace + height -> cadence, optional calibration)
@@ -28,8 +28,11 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - Playlist history (auto-save, list view, detail view, swipe-to-delete)
 - Guided onboarding flow for first-time users (4 steps -> first playlist)
 - Context-aware home screen with empty states for missing profile/plan
-- Safe enum deserialization with orElse fallbacks (corrupt data resilience)
-- Delete confirmation dialogs on destructive actions
+- Song feedback: like/dislike any song, persisted, affects future generation
+- Feedback library: tabbed liked/disliked views with flip/remove actions
+- Post-run review: rate all songs from last playlist in focused review screen
+- Playlist freshness: "Keep it Fresh" vs "Optimize for Taste" toggle with play history tracking
+- Taste learning: pattern detection surfaces genre/artist suggestions from feedback
 
 ## Requirements
 
@@ -59,27 +62,13 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Guided onboarding: first-run users see welcome -> genres -> pace -> auto-generate first playlist -- v1.2
 - ✓ Skip-friendly onboarding: any step can be skipped with sensible defaults preserved -- v1.2
 - ✓ Context-aware home screen: adapts based on whether user has profiles and run plans configured -- v1.2
-
-## Current Milestone: v1.3 Song Feedback & Freshness
-
-**Goal:** Let users teach the app their taste through song feedback, and choose between fresh variety or taste-optimized playlists.
-
-**Target features:**
-- Like/dislike on every song in playlist view and post-run review
-- Feedback library screen showing all liked/disliked songs, editable
-- Scoring integration: liked songs score higher, disliked songs penalized/filtered
-- Taste learning: analyze feedback patterns to discover implicit preferences (genre, artist, BPM trends)
-- Freshness toggle: user preference between "keep it fresh" (deprioritize recent) vs "optimize for taste"
-- Freshness tracking: record when songs were last played/generated
-
-### Active
-
-- [ ] Song feedback: users can like/dislike songs in playlist view and post-run review
-- [ ] Feedback library: browse and edit all song feedback in a dedicated screen
-- [ ] Scoring integration: feedback signals boost/penalize songs in SongQualityScorer
-- [ ] Taste learning: analyze liked/disliked songs to discover implicit preferences
-- [ ] Freshness toggle: user chooses between fresh variety vs taste-optimized playlists
-- [ ] Freshness tracking: record song play history to support freshness deprioritization
+- ✓ Song feedback: users can like/dislike songs in playlist view and post-run review -- v1.3
+- ✓ Feedback library: browse and edit all song feedback in a dedicated screen -- v1.3
+- ✓ Scoring integration: feedback signals boost/penalize songs in SongQualityScorer -- v1.3
+- ✓ Taste learning: analyze liked/disliked songs to discover implicit genre/artist preferences -- v1.3
+- ✓ Freshness toggle: user chooses between fresh variety vs taste-optimized playlists -- v1.3
+- ✓ Freshness tracking: record song play history to support freshness deprioritization -- v1.3
+- ✓ Post-run review: rate all songs from most recent playlist in a focused review flow -- v1.3
 
 ### Out of Scope
 
@@ -92,6 +81,7 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - Built-in music player -- Use Spotify/YouTube for playback
 - Real-time cadence detection -- Pre-generate playlists instead
 - Audio tempo manipulation -- Match native BPM instead
+- ML-based taste learning -- Single-user frequency counting outperforms ML at <4,000 data points
 
 ## Context
 
@@ -101,6 +91,9 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - Running music taste differs from general listening taste -- questionnaire approach may produce better results than Spotify import
 - Stride cadence for running typically ranges 150-200 steps/min; songs can match at 1:1, 1:2, or 2:1 ratios
 - Spotify Developer Dashboard not accepting new app integrations as of 2026-02-05
+- SongQualityScorer: 8 dimensions, max 41 points (artist=10, danceability=8, genre=6, curated=5, energy=4, BPM=3, diversity=-5, dislikedArtist=-15) plus likedSong=5 and freshnessPenalty
+- Curated dataset: 5,066 songs across 15 genres and 2,383 unique artists
+- Taste learning thresholds: genre 3 liked/30% ratio/5 min total, artist 2 liked, disliked 2, re-emergence +3 delta
 
 ## Constraints
 
@@ -136,6 +129,14 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | Onboarding flag pre-loaded in main.dart | Sync GoRouter redirect -- no flicker, no async guard needed | ✓ Good |
 | PageView for onboarding steps | NeverScrollableScrollPhysics prevents swipe; buttons control navigation | ✓ Good |
 | Context-aware home screen | Conditional setup cards when profile/plan missing; adapts to user state | ✓ Good |
+| likedSongWeight = 5 | Ranking boost without overpowering quality dimensions | ✓ Good |
+| Disliked songs hard-filtered | Remove entirely rather than soft-penalize; cleaner UX | ✓ Good |
+| 5-tier freshness penalty decay | 0/-8/-5/-2/0 over 30 days; auto-prune old history | ✓ Good |
+| Frequency counting for taste learning | ML overkill for <4,000 data points; deterministic and interpretable | ✓ Good |
+| Genre enrichment via curated lookup | SongFeedback.genre field never populated; curated metadata provides genre | ✓ Good |
+| Evidence-count-delta for dismissed re-emergence | Tracks dismissed evidence count, requires +3 new entries to resurface | ✓ Good |
+| Pop before state change on dismiss | Avoids reactive rebuild pitfall when marking reviewed and navigating | ✓ Good |
+| Profile mutation via existing notifier | acceptSuggestion goes through TasteProfileLibraryNotifier.updateProfile() | ✓ Good |
 
 ---
-*Last updated: 2026-02-06 after v1.3 milestone started*
+*Last updated: 2026-02-08 after v1.3 milestone*

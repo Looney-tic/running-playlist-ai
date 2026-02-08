@@ -21,6 +21,9 @@ import 'package:running_playlist_ai/features/taste_profile/providers/taste_profi
 class TasteSuggestionNotifier extends StateNotifier<List<TasteSuggestion>> {
   TasteSuggestionNotifier({required this.ref}) : super([]) {
     _load();
+    // Re-analyze when feedback or profile changes
+    ref.listen(songFeedbackProvider, (_, __) => _reanalyze());
+    ref.listen(tasteProfileLibraryProvider, (_, __) => _reanalyze());
   }
 
   /// Reference to the Riverpod container for reading other providers.

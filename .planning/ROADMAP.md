@@ -120,11 +120,11 @@ Plans:
   2. Disliked songs never appear in subsequently generated playlists
   3. Liked songs rank noticeably higher than equivalent unrated songs in generated playlists
   4. A liked song with poor running metrics does not outrank an unrated song with excellent running metrics
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 23-01: TBD
-- [ ] 23-02: TBD
+- [ ] 23-01-PLAN.md — TDD: Liked-song scoring boost, disliked hard-filter, PlaylistSong.lookupKey, provider wiring
+- [ ] 23-02-PLAN.md — SongTile feedback icons as ConsumerWidget with reactive visual state
 
 ### Phase 24: Feedback Library
 **Goal**: Users can review all their song feedback decisions in one place and change their mind on any rating

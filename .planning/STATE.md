@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.3 Song Feedback & Freshness -- Phase 25 (Playlist Freshness) IN PROGRESS
+**Current focus:** v1.3 Song Feedback & Freshness -- Phase 25 (Playlist Freshness) COMPLETE
 
 ## Current Position
 
 Phase: 25 of 27 (Playlist Freshness)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-08 -- Completed 25-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 25-02-PLAN.md
 
-Progress: [██████░░░░] 60% (6/10 v1.3 plans)
+Progress: [███████░░░] 70% (7/10 v1.3 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 6 from v1.3)
+- Total plans completed: 39 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 7 from v1.3)
 - Average duration: 5m
 - Total execution time: ~2.5 hours
 
@@ -30,10 +30,10 @@ Progress: [██████░░░░] 60% (6/10 v1.3 plans)
 | 22 | 2/2 | 5m | 2.5m |
 | 23 | 2/2 | 6m | 3m |
 | 24 | 1/1 | 4m | 4m |
-| 25 | 1/2 | 3m | 3m |
+| 25 | 2/2 | 6m | 3m |
 
 **Recent Trend:**
-- Last 7 plans: 3m, 2m, 3m, 4m, 2m, 4m, 3m
+- Last 7 plans: 2m, 3m, 4m, 2m, 4m, 3m, 3m
 - Trend: Stable (~3.0m/plan)
 
 *Updated after each plan completion*
@@ -50,6 +50,7 @@ Full decision log in PROJECT.md Key Decisions table.
 - **23-02:** Compact 32x32 icon buttons with 18px icons for feedback; withValues(alpha:) over deprecated withOpacity
 - **24-01:** Derive liked/disliked lists inline from watched provider; Icons.thumbs_up_down for empty state
 - **25-01:** 5-tier penalty decay (0/-8/-5/-2/0) for freshnessPenalty; 30-day auto-prune on PlayHistory construction
+- **25-02:** PlayHistory instantiated inline in _scoreAndRank; _readPlayHistory returns null in optimize-for-taste mode
 
 ### Pending Todos
 
@@ -66,5 +67,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 25-01 (Freshness Data Layer), ready for 25-02 (Freshness Integration)
-Resume file: .planning/phases/25-freshness/25-02-PLAN.md
+Stopped at: Completed Phase 25 (Playlist Freshness), ready for Phase 26 (Feedback Display)
+Resume file: .planning/phases/26-feedback-display/26-01-PLAN.md

@@ -163,10 +163,10 @@ Plans:
   2. User can like or dislike each song from their last playlist in a dedicated review screen
   3. The review prompt disappears after the user completes or dismisses the review
   4. Feedback given during post-run review appears in the feedback library and affects future generation
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 26-01: TBD
+- [ ] 26-01-PLAN.md -- Post-run review flow: persistence, providers, review screen, home prompt card, router
 
 ### Phase 27: Taste Learning
 **Goal**: The app discovers implicit taste patterns from feedback and surfaces actionable suggestions the user can accept or ignore

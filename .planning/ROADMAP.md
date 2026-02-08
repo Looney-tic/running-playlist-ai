@@ -93,7 +93,7 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 - [x] **Phase 24: Feedback Library** - Dedicated screen to browse and edit all song feedback
 - [x] **Phase 25: Freshness** - Track song recency and let users toggle fresh vs taste-optimized playlists
 - [x] **Phase 26: Post-Run Review** - Rate songs from the most recent playlist after a run
-- [ ] **Phase 27: Taste Learning** - Analyze feedback patterns and surface preference suggestions
+- [x] **Phase 27: Taste Learning** - Analyze feedback patterns and surface preference suggestions
 
 ## Phase Details
 
@@ -180,8 +180,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 27-01-PLAN.md -- TDD: TasteSuggestion model, TastePatternAnalyzer with genre enrichment, persistence, providers, unit tests
-- [ ] 27-02-PLAN.md -- TasteSuggestionCard widget and home screen integration with accept/dismiss actions
+- [x] 27-01-PLAN.md -- TDD: TasteSuggestion model, TastePatternAnalyzer with genre enrichment, persistence, providers, unit tests
+- [x] 27-02-PLAN.md -- TasteSuggestionCard widget and home screen integration with accept/dismiss actions
 
 ## Progress
 
@@ -211,4 +211,4 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26 -> 27
 | 24. Feedback Library | v1.3 | 1/1 | Complete | 2026-02-08 |
 | 25. Freshness | v1.3 | 2/2 | Complete | 2026-02-08 |
 | 26. Post-Run Review | v1.3 | 1/1 | Complete | 2026-02-08 |
-| 27. Taste Learning | v1.3 | 0/2 | Not started | - |
+| 27. Taste Learning | v1.3 | 2/2 | Complete | 2026-02-08 |

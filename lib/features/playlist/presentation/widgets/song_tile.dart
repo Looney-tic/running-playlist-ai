@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
+import 'package:running_playlist_ai/features/song_feedback/domain/song_feedback.dart';
+import 'package:running_playlist_ai/features/song_feedback/providers/song_feedback_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Individual song tile with tap-to-open external link.
+/// Individual song tile with tap-to-open external link and feedback icons.
 ///
-/// Shows song title, artist with match type label, and BPM. Tapping opens
-/// a bottom sheet with Spotify/YouTube play options. Used by both
-/// the playlist screen and the playlist history detail screen.
-class SongTile extends StatelessWidget {
+/// Shows song title, artist with match type label, BPM, and inline
+/// like/dislike icons. Tapping the tile opens a bottom sheet with
+/// Spotify/YouTube play options. Used by both the playlist screen
+/// and the playlist history detail screen.
+class SongTile extends ConsumerWidget {
   const SongTile({required this.song, this.index, super.key});
 
   final PlaylistSong song;
@@ -21,8 +25,12 @@ class SongTile extends StatelessWidget {
   static const _starThreshold = 16;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final feedbackMap = ref.watch(songFeedbackProvider);
+    final feedback = feedbackMap[song.lookupKey];
+    // null = no feedback, true = liked, false = disliked
+    final isLiked = feedback?.isLiked;
     final quality = song.runningQuality;
     final showStar = quality != null && quality >= _starThreshold;
 
@@ -90,7 +98,43 @@ class SongTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              // Feedback icons
+              SizedBox(
+                width: 64,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _feedbackIcon(
+                      context: context,
+                      icon: (isLiked ?? false)
+                          ? Icons.thumb_up
+                          : Icons.thumb_up_outlined,
+                      color: (isLiked ?? false)
+                          ? Colors.green
+                          : theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5),
+                      tooltip: 'Like',
+                      onPressed: () => _onToggleLike(ref),
+                      size: 18,
+                    ),
+                    _feedbackIcon(
+                      context: context,
+                      icon: isLiked == false
+                          ? Icons.thumb_down
+                          : Icons.thumb_down_outlined,
+                      color: isLiked == false
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5),
+                      tooltip: 'Dislike',
+                      onPressed: () => _onToggleDislike(ref),
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
               // BPM chip
               Container(
                 padding:
@@ -123,6 +167,68 @@ class SongTile extends StatelessWidget {
         return '  \u00b7  half-time';
       case BpmMatchType.doubleTime:
         return '  \u00b7  double-time';
+    }
+  }
+
+  Widget _feedbackIcon({
+    required BuildContext context,
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required double size,
+  }) {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        iconSize: size,
+        icon: Icon(icon, color: color),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  void _onToggleLike(WidgetRef ref) {
+    final notifier = ref.read(songFeedbackProvider.notifier);
+    final key = song.lookupKey;
+    final existing = notifier.getFeedback(key);
+
+    if (existing != null && existing.isLiked) {
+      // Already liked -- toggle off
+      notifier.removeFeedback(key);
+    } else {
+      // Set to liked (overrides disliked if present)
+      notifier.addFeedback(SongFeedback(
+        songKey: key,
+        isLiked: true,
+        feedbackDate: DateTime.now(),
+        songTitle: song.title,
+        songArtist: song.artistName,
+      ));
+    }
+  }
+
+  void _onToggleDislike(WidgetRef ref) {
+    final notifier = ref.read(songFeedbackProvider.notifier);
+    final key = song.lookupKey;
+    final existing = notifier.getFeedback(key);
+
+    if (existing != null && !existing.isLiked) {
+      // Already disliked -- toggle off
+      notifier.removeFeedback(key);
+    } else {
+      // Set to disliked (overrides liked if present)
+      notifier.addFeedback(SongFeedback(
+        songKey: key,
+        isLiked: false,
+        feedbackDate: DateTime.now(),
+        songTitle: song.title,
+        songArtist: song.artistName,
+      ));
     }
   }
 

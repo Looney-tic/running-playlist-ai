@@ -4,6 +4,8 @@
 /// [BpmMatchType] indicates how the song's tempo relates to the target cadence.
 library;
 
+import 'package:running_playlist_ai/features/song_feedback/domain/song_feedback.dart';
+
 /// How a song's BPM relates to the target cadence.
 enum BpmMatchType {
   /// Song tempo directly matches target BPM.
@@ -122,6 +124,12 @@ class BpmSong {
   ///
   /// Populated from curated dataset. Null for API-sourced songs.
   final int? runnability;
+
+  /// Normalized lookup key for cross-source matching.
+  ///
+  /// Uses [SongKey.normalize] for consistency with curated song lookup keys
+  /// and feedback storage keys.
+  String get lookupKey => SongKey.normalize(artistName, title);
 
   /// Serializes to our local JSON format for cache / persistence.
   ///

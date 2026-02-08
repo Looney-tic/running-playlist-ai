@@ -5,12 +5,14 @@
 /// (camelCase) and Supabase table rows (snake_case).
 library;
 
+import 'package:running_playlist_ai/features/song_feedback/domain/song_feedback.dart';
+
 /// A curated running song verified as good for running.
 ///
 /// Contains genre, BPM, and release decade metadata. BPM is nullable
 /// because some songs lack verified BPM data from Deezer.
 /// The [lookupKey] getter produces a normalized identifier for
-/// cross-source matching against [BpmSong] candidates during scoring.
+/// cross-source matching against BPM song candidates during scoring.
 class CuratedSong {
   const CuratedSong({
     required this.title,
@@ -84,8 +86,7 @@ class CuratedSong {
   /// Format: `'artist_lowercase_trimmed|title_lowercase_trimmed'`
   /// Used to build a `Set<String>` for O(1) curated status checks
   /// during playlist scoring.
-  String get lookupKey =>
-      '${artistName.toLowerCase().trim()}|${title.toLowerCase().trim()}';
+  String get lookupKey => SongKey.normalize(artistName, title);
 
   /// Serializes to camelCase JSON for cache persistence.
   Map<String, dynamic> toJson() => {

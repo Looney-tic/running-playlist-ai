@@ -217,10 +217,8 @@ class PlaylistGenerator {
     // then stable-sort by score descending.
     final scored = candidates.map((song) {
       // Look up runnability from curated map, fall back to song's own field
-      final lookupKey =
-          '${song.artistName.toLowerCase().trim()}|${song.title.toLowerCase().trim()}';
       final runnability =
-          curatedRunnability?[lookupKey] ?? song.runnability;
+          curatedRunnability?[song.lookupKey] ?? song.runnability;
 
       // Convert genre string to RunningGenre list for scoring.
       final songGenres = <RunningGenre>[];

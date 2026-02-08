@@ -89,7 +89,7 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 **Milestone Goal:** Let users teach the app their taste through song feedback, and choose between fresh variety or taste-optimized playlists.
 
 - [x] **Phase 22: Feedback Data Layer** - Persistence and state management for song feedback
-- [ ] **Phase 23: Feedback UI & Scoring** - Like/dislike buttons in playlist view with scoring integration
+- [x] **Phase 23: Feedback UI & Scoring** - Like/dislike buttons in playlist view with scoring integration
 - [ ] **Phase 24: Feedback Library** - Dedicated screen to browse and edit all song feedback
 - [ ] **Phase 25: Freshness** - Track song recency and let users toggle fresh vs taste-optimized playlists
 - [ ] **Phase 26: Post-Run Review** - Rate songs from the most recent playlist after a run
@@ -123,8 +123,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 23-01-PLAN.md — TDD: Liked-song scoring boost, disliked hard-filter, PlaylistSong.lookupKey, provider wiring
-- [ ] 23-02-PLAN.md — SongTile feedback icons as ConsumerWidget with reactive visual state
+- [x] 23-01-PLAN.md — TDD: Liked-song scoring boost, disliked hard-filter, PlaylistSong.lookupKey, provider wiring
+- [x] 23-02-PLAN.md — SongTile feedback icons as ConsumerWidget with reactive visual state
 
 ### Phase 24: Feedback Library
 **Goal**: Users can review all their song feedback decisions in one place and change their mind on any rating
@@ -207,7 +207,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26 -> 27
 | 20. Profile Polish | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 21. Onboarding | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 22. Feedback Data Layer | v1.3 | 2/2 | Complete | 2026-02-08 |
-| 23. Feedback UI & Scoring | v1.3 | 0/2 | Not started | - |
+| 23. Feedback UI & Scoring | v1.3 | 2/2 | Complete | 2026-02-08 |
 | 24. Feedback Library | v1.3 | 0/1 | Not started | - |
 | 25. Freshness | v1.3 | 0/2 | Not started | - |
 | 26. Post-Run Review | v1.3 | 0/1 | Not started | - |

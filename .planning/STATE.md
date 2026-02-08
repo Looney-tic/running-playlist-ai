@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** v1.3 Song Feedback & Freshness -- Phase 24 (Feedback Library) COMPLETE
+**Current focus:** v1.3 Song Feedback & Freshness -- Phase 25 (Playlist Freshness) IN PROGRESS
 
 ## Current Position
 
-Phase: 24 of 27 (Feedback Library) -- COMPLETE
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 24-01-PLAN.md
+Phase: 25 of 27 (Playlist Freshness)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-08 -- Completed 25-01-PLAN.md
 
-Progress: [█████░░░░░] 50% (5/10 v1.3 plans)
+Progress: [██████░░░░] 60% (6/10 v1.3 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 5 from v1.3)
+- Total plans completed: 38 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 6 from v1.3)
 - Average duration: 5m
 - Total execution time: ~2.5 hours
 
@@ -30,10 +30,11 @@ Progress: [█████░░░░░] 50% (5/10 v1.3 plans)
 | 22 | 2/2 | 5m | 2.5m |
 | 23 | 2/2 | 6m | 3m |
 | 24 | 1/1 | 4m | 4m |
+| 25 | 1/2 | 3m | 3m |
 
 **Recent Trend:**
-- Last 7 plans: 1m, 3m, 2m, 3m, 4m, 2m, 4m
-- Trend: Stable (~2.7m/plan)
+- Last 7 plans: 3m, 2m, 3m, 4m, 2m, 4m, 3m
+- Trend: Stable (~3.0m/plan)
 
 *Updated after each plan completion*
 
@@ -48,6 +49,7 @@ Full decision log in PROJECT.md Key Decisions table.
 - **23-01:** likedSongWeight = 5 provides ranking boost without overpowering quality dimensions; disliked songs hard-filtered rather than soft-penalized
 - **23-02:** Compact 32x32 icon buttons with 18px icons for feedback; withValues(alpha:) over deprecated withOpacity
 - **24-01:** Derive liked/disliked lists inline from watched provider; Icons.thumbs_up_down for empty state
+- **25-01:** 5-tier penalty decay (0/-8/-5/-2/0) for freshnessPenalty; 30-day auto-prune on PlayHistory construction
 
 ### Pending Todos
 
@@ -64,5 +66,5 @@ Full decision log in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed Phase 24 (Feedback Library), ready for Phase 25 (Playlist Freshness)
-Resume file: .planning/phases/25-playlist-freshness/
+Stopped at: Completed 25-01 (Freshness Data Layer), ready for 25-02 (Freshness Integration)
+Resume file: .planning/phases/25-freshness/25-02-PLAN.md

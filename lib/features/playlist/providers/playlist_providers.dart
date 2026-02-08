@@ -14,6 +14,8 @@ import 'package:running_playlist_ai/features/playlist/domain/song_link_builder.d
 import 'package:running_playlist_ai/features/playlist/providers/playlist_history_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
+import 'package:running_playlist_ai/features/playlist_freshness/domain/playlist_freshness.dart';
+import 'package:running_playlist_ai/features/playlist_freshness/providers/playlist_freshness_providers.dart';
 import 'package:running_playlist_ai/features/song_feedback/providers/song_feedback_providers.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
 import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
@@ -109,6 +111,14 @@ class PlaylistGenerationNotifier
     return (disliked: disliked, liked: liked);
   }
 
+  /// Reads play history for freshness scoring, or null if in optimize-for-taste mode.
+  Map<String, DateTime>? _readPlayHistory() {
+    final mode = ref.read(freshnessModeProvider);
+    if (mode == FreshnessMode.optimizeForTaste) return null;
+    final history = ref.read(playHistoryProvider);
+    return history.entries.isNotEmpty ? history.entries : null;
+  }
+
   /// Generates a playlist from the current run plan and taste profile.
   ///
   /// Reads RunPlan from [runPlanNotifierProvider] and TasteProfile from
@@ -125,6 +135,8 @@ class PlaylistGenerationNotifier
     await ref.read(runPlanLibraryProvider.notifier).ensureLoaded();
     await ref.read(tasteProfileLibraryProvider.notifier).ensureLoaded();
     await ref.read(songFeedbackProvider.notifier).ensureLoaded();
+    await ref.read(playHistoryProvider.notifier).ensureLoaded();
+    await ref.read(freshnessModeProvider.notifier).ensureLoaded();
 
     final runPlan = ref.read(runPlanNotifierProvider);
     if (runPlan == null) {
@@ -159,6 +171,7 @@ class PlaylistGenerationNotifier
       }
 
       final feedback = _readFeedbackSets();
+      final playHistory = _readPlayHistory();
 
       final playlist = PlaylistGenerator.generate(
         runPlan: runPlan,
@@ -169,6 +182,7 @@ class PlaylistGenerationNotifier
         dislikedSongKeys:
             feedback.disliked.isNotEmpty ? feedback.disliked : null,
         likedSongKeys: feedback.liked.isNotEmpty ? feedback.liked : null,
+        playHistory: playHistory,
       );
 
       if (!mounted) return;
@@ -183,6 +197,7 @@ class PlaylistGenerationNotifier
       unawaited(
         ref.read(playlistHistoryProvider.notifier).addPlaylist(playlist),
       );
+      ref.read(playHistoryProvider.notifier).recordPlaylist(playlist);
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       if (!mounted) return;
@@ -216,6 +231,7 @@ class PlaylistGenerationNotifier
     }
 
     final feedback = _readFeedbackSets();
+    final playHistory = _readPlayHistory();
 
     final playlist = PlaylistGenerator.generate(
       runPlan: runPlan,
@@ -226,6 +242,7 @@ class PlaylistGenerationNotifier
       dislikedSongKeys:
           feedback.disliked.isNotEmpty ? feedback.disliked : null,
       likedSongKeys: feedback.liked.isNotEmpty ? feedback.liked : null,
+      playHistory: playHistory,
     );
 
     state = PlaylistGenerationState.loaded(
@@ -238,6 +255,7 @@ class PlaylistGenerationNotifier
     unawaited(
       ref.read(playlistHistoryProvider.notifier).addPlaylist(playlist),
     );
+    ref.read(playHistoryProvider.notifier).recordPlaylist(playlist);
   }
 
   /// Regenerates the playlist by re-fetching songs from the API.
@@ -273,7 +291,10 @@ class PlaylistGenerationNotifier
       }
 
       await ref.read(songFeedbackProvider.notifier).ensureLoaded();
+      await ref.read(playHistoryProvider.notifier).ensureLoaded();
+      await ref.read(freshnessModeProvider.notifier).ensureLoaded();
       final feedback = _readFeedbackSets();
+      final playHistory = _readPlayHistory();
 
       final playlist = PlaylistGenerator.generate(
         runPlan: storedPlan,
@@ -284,6 +305,7 @@ class PlaylistGenerationNotifier
         dislikedSongKeys:
             feedback.disliked.isNotEmpty ? feedback.disliked : null,
         likedSongKeys: feedback.liked.isNotEmpty ? feedback.liked : null,
+        playHistory: playHistory,
       );
 
       if (!mounted) return;
@@ -297,6 +319,7 @@ class PlaylistGenerationNotifier
       unawaited(
         ref.read(playlistHistoryProvider.notifier).addPlaylist(playlist),
       );
+      ref.read(playHistoryProvider.notifier).recordPlaylist(playlist);
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       if (!mounted) return;

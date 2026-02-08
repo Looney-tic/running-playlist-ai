@@ -96,11 +96,11 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
   2. User can view all songs in their "Songs I Run To" list
   3. User can remove a song from "Songs I Run To" and it disappears immediately
   4. When the list is empty, user sees guidance on how to add songs
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 28-01: TBD
-- [ ] 28-02: TBD
+- [ ] 28-01: RunningSong domain model, persistence, provider, and tests
+- [ ] 28-02: Running songs screen, SongTile add action, route, and home navigation
 
 ### Phase 29: Scoring & Taste Integration
 **Goal**: Songs in "Songs I Run To" actively improve playlist quality and teach the system user preferences

@@ -90,7 +90,7 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 - [x] **Phase 22: Feedback Data Layer** - Persistence and state management for song feedback
 - [x] **Phase 23: Feedback UI & Scoring** - Like/dislike buttons in playlist view with scoring integration
-- [ ] **Phase 24: Feedback Library** - Dedicated screen to browse and edit all song feedback
+- [x] **Phase 24: Feedback Library** - Dedicated screen to browse and edit all song feedback
 - [ ] **Phase 25: Freshness** - Track song recency and let users toggle fresh vs taste-optimized playlists
 - [ ] **Phase 26: Post-Run Review** - Rate songs from the most recent playlist after a run
 - [ ] **Phase 27: Taste Learning** - Analyze feedback patterns and surface preference suggestions
@@ -137,7 +137,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 24-01-PLAN.md -- Feedback library screen with tabbed liked/disliked views, flip/remove actions, router + home nav
+- [x] 24-01-PLAN.md -- Feedback library screen with tabbed liked/disliked views, flip/remove actions, router + home nav
 
 ### Phase 25: Freshness
 **Goal**: Users can choose between varied playlists that avoid recent repeats or taste-optimized playlists that favor proven songs
@@ -208,7 +208,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26 -> 27
 | 21. Onboarding | v1.2 | 2/2 | Complete | 2026-02-06 |
 | 22. Feedback Data Layer | v1.3 | 2/2 | Complete | 2026-02-08 |
 | 23. Feedback UI & Scoring | v1.3 | 2/2 | Complete | 2026-02-08 |
-| 24. Feedback Library | v1.3 | 0/1 | Not started | - |
+| 24. Feedback Library | v1.3 | 1/1 | Complete | 2026-02-08 |
 | 25. Freshness | v1.3 | 0/2 | Not started | - |
 | 26. Post-Run Review | v1.3 | 0/1 | Not started | - |
 | 27. Taste Learning | v1.3 | 0/2 | Not started | - |

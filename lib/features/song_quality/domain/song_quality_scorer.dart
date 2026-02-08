@@ -74,6 +74,7 @@ class SongQualityScorer {
   /// 7. Liked song: +5 if user liked this song
   /// 8. Artist diversity: -5 if same artist as previous song
   /// 9. Disliked artist: -15 if artist is disliked
+  /// 10. Freshness: 0 to -8 based on how recently the song was played
   static int score({
     required BpmSong song,
     TasteProfile? tasteProfile,
@@ -81,6 +82,7 @@ class SongQualityScorer {
     List<RunningGenre>? songGenres,
     int? runnability,
     bool isLiked = false,
+    int freshnessPenalty = 0,
   }) {
     var total = 0;
 
@@ -94,6 +96,7 @@ class SongQualityScorer {
     total += _runnabilityScore(runnability);
 
     if (isLiked) total += likedSongWeight;
+    total += freshnessPenalty;
 
     return total;
   }

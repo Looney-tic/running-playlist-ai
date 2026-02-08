@@ -12,6 +12,7 @@ import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_matcher.dart'
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
 import 'package:running_playlist_ai/features/playlist/domain/song_link_builder.dart';
+import 'package:running_playlist_ai/features/playlist_freshness/domain/playlist_freshness.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/song_quality/domain/song_quality_scorer.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
@@ -58,6 +59,7 @@ class PlaylistGenerator {
     Map<String, int>? curatedRunnability,
     Set<String>? dislikedSongKeys,
     Set<String>? likedSongKeys,
+    Map<String, DateTime>? playHistory,
   }) {
     final rng = random ?? Random();
     final usedSongIds = <String>{};
@@ -94,6 +96,7 @@ class PlaylistGenerator {
         segmentLabel: segmentLabel,
         curatedRunnability: curatedRunnability,
         likedSongKeys: likedSongKeys,
+        playHistory: playHistory,
       );
 
       // Skip segment when no candidates available
@@ -221,6 +224,7 @@ class PlaylistGenerator {
     String? segmentLabel,
     Map<String, int>? curatedRunnability,
     Set<String>? likedSongKeys,
+    Map<String, DateTime>? playHistory,
   }) {
     String? previousArtist;
 
@@ -242,6 +246,10 @@ class PlaylistGenerator {
         }
       }
 
+      final freshPenalty = playHistory != null
+          ? PlayHistory(entries: playHistory).freshnessPenalty(song.lookupKey)
+          : 0;
+
       final score = SongQualityScorer.score(
         song: song,
         tasteProfile: tasteProfile,
@@ -249,6 +257,7 @@ class PlaylistGenerator {
         songGenres: songGenres.isNotEmpty ? songGenres : null,
         runnability: runnability,
         isLiked: likedSongKeys?.contains(song.lookupKey) ?? false,
+        freshnessPenalty: freshPenalty,
       );
 
       previousArtist = song.artistName;

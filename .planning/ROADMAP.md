@@ -134,10 +134,10 @@ Plans:
   1. User can navigate to a feedback library screen showing all liked songs and all disliked songs in separate views
   2. User can change a liked song to disliked, disliked to liked, or remove feedback entirely from the library screen
   3. Changes made in the feedback library take effect in the next playlist generation
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 24-01: TBD
+- [ ] 24-01-PLAN.md -- Feedback library screen with tabbed liked/disliked views, flip/remove actions, router + home nav
 
 ### Phase 25: Freshness
 **Goal**: Users can choose between varied playlists that avoid recent repeats or taste-optimized playlists that favor proven songs

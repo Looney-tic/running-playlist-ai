@@ -1,335 +1,348 @@
-# Technology Stack: v1.3 Song Feedback, Taste Learning & Playlist Freshness
+# Technology Stack: Song Search & Spotify Integration Foundation
 
 **Project:** Running Playlist AI
-**Milestone:** v1.3 Song Feedback & Taste Learning
-**Researched:** 2026-02-06
+**Milestone:** Song Search + Spotify API Foundation
+**Researched:** 2026-02-08
 **Overall confidence:** HIGH
 
 ---
 
 ## Scope: What This Document Covers
 
-This STACK.md covers **only the additions and changes** needed for v1.3 features. The existing stack (Flutter 3.38, Dart 3.10, Riverpod 2.x manual providers, GoRouter 17.x, SharedPreferences 2.5.4, http, supabase_flutter, url_launcher, GetSongBPM API) is validated and stable from prior milestones. Do not re-evaluate it.
+This STACK.md covers **only the additions and changes** needed for song search typeahead and Spotify Web API integration. The existing stack (Flutter 3.38, Dart 3.10, Riverpod 2.x manual providers, GoRouter 17.x, SharedPreferences 2.5.4, http 1.6.0, supabase_flutter, url_launcher, GetSongBPM API) is validated and stable from prior milestones. Do not re-evaluate it.
 
-v1.3 features that drive stack decisions:
-1. Like/dislike feedback on songs (during playlist view + post-run review)
-2. Feedback persistence and browsing (feedback library screen)
-3. Scoring integration (liked songs boosted, disliked songs penalized/filtered)
-4. Taste learning (analyze feedback patterns to discover implicit preferences)
-5. Freshness toggle and tracking (prefer fresh vs familiar songs)
+New capabilities that drive stack decisions:
+1. Song search typeahead (autocomplete) -- search curated songs locally + Spotify songs remotely
+2. Spotify Web API client -- search endpoint, playlist retrieval, track metadata
+3. OAuth PKCE flow -- direct Spotify authentication (replacing/supplementing Supabase OAuth proxy)
+4. Token management -- secure storage and refresh of Spotify access/refresh tokens
+
+**Critical context:** Spotify Developer Dashboard is not accepting new app registrations (since late December 2025, no ETA for reopening). We are building the foundation against current API docs so it is ready when access opens. All Spotify API integration must be designed to degrade gracefully when no client ID is configured.
 
 ---
 
-## Critical Decision: SharedPreferences Is Still Sufficient
+## Critical Decision 1: Spotify Web API Client Package
 
 ### The Key Question
 
-Song feedback could grow to thousands of entries over months of use. Is SharedPreferences still the right persistence choice, or should we migrate to a proper database?
+Should we use the `spotify` (spotify-dart) package or build a thin API client on top of the existing `http` package?
 
-### Size Analysis
+### Decision: Use the `spotify` package (v0.15.0)
 
-Realistic data volumes for an active runner using the app:
-- Runs 3-5 times per week, ~15 songs per playlist = 45-75 songs/week
-- Assume they give feedback on ~50% of songs = 22-37 feedback entries/week
-- After 6 months: ~570-960 feedback entries
-- After 1 year: ~1,140-1,920 feedback entries
-- Extreme power user after 2 years: ~4,000 entries maximum
-
-Each feedback entry in JSON is approximately:
-```json
-{
-  "key": "artist name|song title",
-  "liked": true,
-  "feedbackAt": "2026-02-06T12:00:00.000",
-  "lastPlayedAt": "2026-02-06T12:00:00.000",
-  "playCount": 3
-}
-```
-
-That is roughly **120-150 bytes per entry**. At 4,000 entries (extreme case), the total JSON blob is **~600 KB**. This is well within SharedPreferences' practical limits. For comparison, the curated_songs.json bundled asset with 5,066 songs is already loaded into memory at app startup.
-
-### Performance Characteristics
-
-SharedPreferences loads all data into memory on first `getInstance()` call. Subsequent reads are synchronous and effectively instant. The 600 KB extreme case adds negligible load time (~10-20ms on a modern phone). Writes are asynchronous and non-blocking.
-
-The critical performance concern is not read/write speed but **deserialization cost** of parsing a large JSON array. At 4,000 entries, `jsonDecode` takes roughly 5-15ms on a modern device -- negligible.
-
-### Why NOT Switch to a Database
+The `spotify` package (pub.dev/packages/spotify) is a Dart library wrapping the Spotify Web API. It provides typed models for all Spotify entities (tracks, artists, albums, playlists) and handles OAuth token management including PKCE flow.
 
 | Factor | Assessment |
 |--------|-----------|
-| Data volume | ~600 KB max. SharedPreferences handles this fine. |
-| Query complexity | We need two operations: (1) lookup by song key (use a `Map<String, FeedbackEntry>`), (2) list all feedback for the library screen. Both are trivial with in-memory maps. |
-| Platform support | SharedPreferences works identically on web, Android, iOS. Drift/SQLite requires FFI on native and sql.js on web (different backends). Hive's web support is okay but Hive is community-maintained. |
-| Migration cost | Switching to a database mid-project requires migrating ALL existing SharedPreferences data (BPM cache, taste profiles, run plans, playlist history, onboarding state). This is a massive effort for zero user-visible benefit. |
-| Consistency | Every other data store in the app uses SharedPreferences + JSON. Introducing a second persistence mechanism creates cognitive load and maintenance burden. |
-| Build complexity | Drift requires code generation (broken with Dart 3.10). Hive requires code generation for type adapters. Both add build_runner complexity to an already fragile code-gen setup. |
+| **Dependency compatibility** | Uses `http: ^1.6.0` -- exact same version constraint as our app. Uses `json_annotation: ^4.9.0` -- same as our app. Zero version conflicts. |
+| **PKCE support** | Built-in since v0.13.2. `SpotifyApi.generateCodeVerifier()` + `SpotifyApiCredentials.pkce()` handle the full flow. |
+| **API coverage** | Search, playlists, tracks, artists, albums, user profile, top items. Covers everything we need now and for future milestones. |
+| **Maintenance** | Last updated December 14, 2025 (v0.15.0). 662 commits, 34 releases, 214 stars. Actively maintained. |
+| **Platform support** | Pure Dart -- works on Android, iOS, web, desktop. No native dependencies or FFI. |
+| **Code generation** | Does NOT require build_runner or code-gen. Safe given our broken Dart 3.10 code-gen setup. |
+| **Dart SDK** | Requires Dart SDK >= 3.0. Our app uses 3.10. Compatible. |
 
-**Decision: Continue with SharedPreferences for feedback data.** Use the established single-JSON-key pattern (same as `playlist_history`, `taste_profile_library`, `bpm_cache_*`).
+### Why NOT Build a Custom Client
 
-**Confidence:** HIGH (size math verified; existing patterns proven across 6 data stores)
+Building a custom Spotify API client on top of `http` would mean:
+- Reimplementing OAuth PKCE token exchange (code verifier generation, SHA-256 code challenge, authorization URL construction, token endpoint calls, refresh token rotation)
+- Writing Dart model classes for every Spotify entity (Track, Artist, Album, Playlist, SearchResult, Paging)
+- Handling pagination (Spotify uses cursor-based paging with `next`/`previous` URLs)
+- Managing token refresh with automatic retry on 401
+- Implementing rate limit handling (429 with Retry-After header)
 
-### When to Reconsider
+The `spotify` package handles all of this. Building it ourselves would take 500+ lines of boilerplate for zero benefit. The package's `http` dependency is literally the same version we already use.
 
-If the app adds features that require:
-- Complex querying (e.g., "find all liked songs from the 2010s with BPM > 160")
-- Cross-device sync with conflict resolution
-- Data volumes exceeding 5,000-10,000 entries
-- Full-text search across song metadata
+### Why NOT `spotify_sdk`
 
-None of these are in scope for v1.3 or foreseeable v1.4.
+The `spotify_sdk` package wraps the **native** Spotify Remote SDKs (iOS/Android) and Web Playback SDK. It is for **playback control** (play, pause, skip), not Web API access. It does not provide search, playlist retrieval, or track metadata endpoints. It also requires native SDK setup per platform, adding significant configuration complexity. We need Web API access, not playback control.
+
+### Why NOT `spotikit`
+
+Android-only as of the latest release. iOS support is "planned." Our app targets Android, iOS, and web. Not viable.
+
+**Confidence:** HIGH (version compatibility verified against pubspec.yaml, PKCE support verified in GitHub example code, API coverage verified in package documentation)
+
+---
+
+## Critical Decision 2: Typeahead / Autocomplete Widget
+
+### The Key Question
+
+Should we use `flutter_typeahead`, Flutter's built-in `Autocomplete` widget, or build a custom search UI?
+
+### Decision: Use Flutter's Built-in `Autocomplete` Widget
+
+Flutter's `Autocomplete` widget (in `package:flutter/material.dart`) provides everything needed for song search typeahead:
+
+| Capability | Built-in Autocomplete | flutter_typeahead |
+|-----------|----------------------|-------------------|
+| Async suggestions | Yes (optionsBuilder returns FutureOr) | Yes |
+| Debouncing | Yes (documented in official examples) | Yes (default 300ms) |
+| Custom field builder | Yes (fieldViewBuilder) | Yes (builder) |
+| Custom options display | Yes (optionsViewBuilder) | Yes (itemBuilder) |
+| Platform support | All Flutter platforms | All Flutter platforms |
+| Material Design 3 | Native M3 support | Themed separately |
+| Maintained by | Flutter team | Community (last update: Feb 2024, 24 months ago) |
+| Dependency | None (part of Flutter SDK) | External package |
+
+### Why NOT flutter_typeahead
+
+1. **Stale**: Last published February 2024 -- 24 months ago. No updates for Dart 3.10 or Flutter 3.38.
+2. **Redundant**: Flutter's built-in `Autocomplete` now supports async options with debouncing, which was the original differentiator of flutter_typeahead.
+3. **API churn**: Version 5.x introduced breaking changes (removed `TextFieldConfiguration`, removed `TypeAheadFormField`). Adding a dependency with API instability is unnecessary when the built-in widget is stable.
+4. **Zero dependency principle**: We have successfully built 4 milestones with zero unnecessary external dependencies. Adding a package that duplicates Flutter SDK functionality breaks that pattern.
+
+### Implementation Approach
+
+```dart
+Autocomplete<SearchResult>(
+  optionsBuilder: (textEditingValue) async {
+    if (textEditingValue.text.length < 2) return [];
+    // 1. Search curated songs locally (instant)
+    // 2. Search Spotify API remotely (debounced)
+    // 3. Merge and deduplicate results
+    return mergedResults;
+  },
+  optionsViewBuilder: (context, onSelected, options) {
+    return ListView.builder(
+      itemCount: options.length,
+      itemBuilder: (context, index) => SongSearchTile(
+        result: options.elementAt(index),
+        onTap: () => onSelected(options.elementAt(index)),
+      ),
+    );
+  },
+  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      decoration: InputDecoration(
+        hintText: 'Search songs...',
+        prefixIcon: Icon(Icons.search),
+      ),
+    );
+  },
+)
+```
+
+Debouncing is handled by wrapping the Spotify API call in a `Timer`-based debounce utility (standard Dart pattern, ~10 lines of code). Local curated song search returns instantly with no debounce needed.
+
+**Confidence:** HIGH (Autocomplete widget verified in Flutter API docs with async + debounce examples)
+
+---
+
+## Critical Decision 3: OAuth PKCE Flow Architecture
+
+### The Key Question
+
+The app currently authenticates via Supabase OAuth (which proxies Spotify OAuth). For direct Spotify Web API access, do we use Supabase's provider token, implement standalone PKCE, or both?
+
+### Current State
+
+The existing `AuthRepository` signs in via `Supabase.auth.signInWithOAuth(OAuthProvider.spotify)`. Supabase acts as the OAuth intermediary. The Supabase session contains a `providerToken` (Spotify access token) and `providerRefreshToken` when the Spotify provider is configured.
+
+### Decision: Dual-Path Architecture
+
+**Path 1 -- Supabase Provider Token (preferred when available):**
+When the user is authenticated via Supabase OAuth with Spotify, extract the Spotify access token from `session.providerToken`. This avoids a second OAuth flow. Use this token for Spotify Web API calls.
+
+**Path 2 -- Standalone PKCE (fallback/future):**
+Build the PKCE infrastructure using the `spotify` package's built-in PKCE support (`SpotifyApiCredentials.pkce()`) for scenarios where:
+- Supabase is not initialized or configured
+- The provider token is expired and Supabase cannot refresh it
+- We want to decouple from Supabase entirely in a future milestone
+
+### Why Dual-Path
+
+1. **Supabase is already integrated and handling auth.** Ripping it out introduces risk and requires UI changes to the login flow.
+2. **Provider token extraction is simpler** -- no additional OAuth flow needed for users already logged in.
+3. **Standalone PKCE provides independence** -- if Supabase is ever removed or the provider token proves unreliable, the PKCE path is ready.
+4. **Spotify requires PKCE for mobile apps** since November 2025 (implicit grant flow removed). The `spotify` package's PKCE implementation is Spotify-compliant.
+
+### Token Storage
+
+**Decision: Use `flutter_secure_storage` (already in pubspec.yaml but unused)**
+
+The app already depends on `flutter_secure_storage: ^9.2.4`. It was added in the foundation milestone but never used. Spotify tokens should be stored securely because they grant access to the user's Spotify account.
+
+| Storage Option | Assessment |
+|---------------|-----------|
+| SharedPreferences | Stores in plaintext. Spotify tokens grant account access -- not appropriate. |
+| flutter_secure_storage | Uses Keychain (iOS), EncryptedSharedPreferences (Android), libsecret (Linux). Already a dependency. |
+| In-memory only | Tokens lost on app restart -- user must re-auth every session. Poor UX. |
+
+`flutter_secure_storage` stores the Spotify access token, refresh token, and expiration timestamp. The `spotify` package's `SpotifyApiCredentials` can be reconstructed from stored tokens.
+
+**Confidence:** HIGH (flutter_secure_storage already in pubspec.yaml; Supabase provider token pattern documented in supabase_flutter docs)
 
 ---
 
 ## Recommended Stack Additions
 
-### No New Dependencies Required
+### New Dependencies
 
-All v1.3 features can be built with the existing stack. No new pub.dev packages are needed.
+| Package | Version | Purpose | Why This Package |
+|---------|---------|---------|-----------------|
+| `spotify` | ^0.15.0 | Spotify Web API client with typed models, PKCE auth, search, playlists | Only actively maintained pure-Dart Spotify Web API client. Compatible `http` version. No code-gen required. |
 
-| Feature | Stack Approach | New Dependencies |
-|---------|---------------|-----------------|
-| Song feedback UI (like/dislike) | Flutter Material `IconButton` + Riverpod state | None |
-| Feedback persistence | SharedPreferences + JSON (same pattern as all other data) | None |
-| Feedback library screen | Standard `ListView` + search/filter, same as taste profile library | None |
-| Scoring integration | Extend `SongQualityScorer.score()` with new feedback dimension | None |
-| Taste learning algorithm | Pure Dart statistical analysis (no ML libraries) | None |
-| Freshness tracking | Timestamp map in SharedPreferences, integrated into scorer | None |
-| Freshness toggle | Bool field on generation config, Riverpod state | None |
+### Existing Dependencies -- New Usage
+
+| Package | Version | New Usage | Notes |
+|---------|---------|-----------|-------|
+| `flutter_secure_storage` | ^9.2.4 | Store Spotify access/refresh tokens securely | Already in pubspec.yaml but unused. No version change needed. |
+| `http` | ^1.6.0 | Shared with `spotify` package (transitive) | No version change needed. `spotify` uses same constraint. |
+| `shared_preferences` | ^2.5.4 | Cache Spotify search results, store search history | Existing pattern. New keys only. |
+| `flutter_riverpod` | ^2.6.1 | New providers for Spotify client, search state, token management | Existing pattern. |
+| `go_router` | ^17.0.1 | New route for song search screen | Existing pattern. |
+
+### No New Dependencies Needed For
+
+| Capability | Why No New Package |
+|-----------|-------------------|
+| Typeahead/autocomplete | Flutter's built-in `Autocomplete` widget handles async + debounce |
+| Debouncing | `dart:async` `Timer` -- 10 lines of utility code |
+| JSON serialization | Hand-written `fromJson`/`toJson` (existing pattern, code-gen broken) |
+| OAuth PKCE | `spotify` package handles the full flow |
+| Token refresh | `spotify` package's `SpotifyApi` auto-refreshes tokens |
 
 ---
 
-## Feature 1: Song Feedback Persistence
+## Installation
 
-### Data Model Design
-
-**Decision: Use a `Map<String, SongFeedback>` keyed by the existing song lookup key format**
-
-The app already has a normalized song key format: `artist.toLowerCase().trim()|title.toLowerCase().trim()`. This is used throughout `CuratedSongRepository` and `PlaylistGenerator` for cross-source matching. Feedback should use the same key.
-
-```dart
-class SongFeedback {
-  final String songKey;        // "artist|title" normalized
-  final bool liked;            // true = liked, false = disliked
-  final DateTime feedbackAt;   // when feedback was given
-  final DateTime? lastPlayedAt; // last time song appeared in a playlist
-  final int playCount;         // number of times generated in playlists
-  final String? artistName;    // denormalized for display
-  final String? title;         // denormalized for display
-}
+```bash
+# One new dependency
+flutter pub add spotify:^0.15.0
 ```
 
-**Why denormalize artist/title:** The feedback library screen needs to display song names. Without denormalization, we would need to look up each song key in the curated song repository (which only has curated songs, not API-sourced ones). Storing 20-30 extra bytes per entry is trivial compared to the lookup complexity.
+No other installation steps. `flutter_secure_storage` is already in `pubspec.yaml`.
 
-**Persistence pattern:**
+---
+
+## Spotify Web API: Key Endpoints and Scopes
+
+### Endpoints We Need
+
+| Endpoint | Method | Purpose | Scope Required |
+|----------|--------|---------|---------------|
+| `/v1/search` | GET | Search songs by name/artist | None (public data) |
+| `/v1/me/playlists` | GET | List user's playlists | `playlist-read-private`, `playlist-read-collaborative` |
+| `/v1/me/top/tracks` | GET | User's top tracks (for taste learning) | `user-top-read` |
+| `/v1/me/top/artists` | GET | User's top artists (for taste learning) | `user-top-read` |
+| `/v1/me` | GET | User profile | `user-read-private`, `user-read-email` |
+
+### Search Endpoint Details
+
+The Spotify search endpoint (`/v1/search`) is the primary driver for typeahead:
+
+- **No user auth required** -- works with client credentials (no user login needed just to search)
+- **Parameters:** `q` (query string), `type` (comma-separated: track, artist, album), `limit` (1-50, default 20), `offset` (0-1000), `market` (ISO country code)
+- **Rate limits:** Rolling 30-second window, exact limit not disclosed. Returns 429 with `Retry-After` header when exceeded.
+- **Response:** Paginated results with `items`, `total`, `next`, `previous`
+
+For typeahead, we will use `type=track`, `limit=5` (enough for autocomplete dropdown), and debounce at 300ms.
+
+### Scopes Configuration
+
+The existing `spotify_constants.dart` already defines scopes:
 ```dart
-class SongFeedbackPreferences {
-  static const _key = 'song_feedback';
-
-  static Future<Map<String, SongFeedback>> load() async { ... }
-  static Future<void> save(Map<String, SongFeedback> feedback) async { ... }
-  static Future<void> clear() async { ... }
-}
+const String spotifyScopes =
+    'user-read-email user-read-private user-top-read '
+    'user-library-read playlist-modify-public playlist-modify-private';
 ```
 
-This follows the exact same pattern as `TasteProfilePreferences`, `PlaylistHistoryPreferences`, and `BpmCachePreferences`.
+This is **almost complete**. Missing scopes for playlist reading:
+- `playlist-read-private` -- needed to list user's own private playlists
+- `playlist-read-collaborative` -- needed to see collaborative playlists
 
-**Confidence:** HIGH (proven pattern, trivial data model)
+Updated scopes:
+```dart
+const String spotifyScopes =
+    'user-read-email user-read-private user-top-read '
+    'user-library-read playlist-read-private playlist-read-collaborative '
+    'playlist-modify-public playlist-modify-private';
+```
 
-### In-Memory Access Pattern
+**Confidence:** HIGH (scope requirements verified in Spotify developer documentation, search endpoint docs confirmed no scope needed)
 
-**Decision: Load feedback map once at app startup, keep in Riverpod state, write-through on changes**
+---
+
+## Architecture: Spotify API Client Integration
+
+### Client Initialization Pattern
 
 ```dart
-class SongFeedbackNotifier extends StateNotifier<Map<String, SongFeedback>> {
-  SongFeedbackNotifier() : super({}) { _load(); }
+// Provider for Spotify API client
+final spotifyClientProvider = Provider<SpotifyApi?>((ref) {
+  final clientId = dotenv.env['SPOTIFY_CLIENT_ID'];
+  if (clientId == null || clientId.isEmpty) return null; // Graceful degradation
 
-  Future<void> _load() async {
-    state = await SongFeedbackPreferences.load();
+  // Try to restore from stored credentials first
+  final storedCredentials = ref.watch(spotifyCredentialsProvider);
+  if (storedCredentials != null) {
+    return SpotifyApi.fromCredentials(storedCredentials);
   }
 
-  Future<void> setFeedback(String songKey, bool liked, {String? artist, String? title}) async {
-    final entry = SongFeedback(...);
-    state = {...state, songKey: entry};
-    await SongFeedbackPreferences.save(state);
-  }
+  // Fall back to client credentials (search-only, no user data)
+  return SpotifyApi(SpotifyApiCredentials(clientId, clientSecret));
+});
+```
 
-  Future<void> removeFeedback(String songKey) async {
-    state = Map.from(state)..remove(songKey);
-    await SongFeedbackPreferences.save(state);
-  }
+### Graceful Degradation
+
+Since Spotify Developer Dashboard is not accepting new apps, the entire Spotify integration must work in "offline" mode:
+
+| State | Search Behavior | Playlist Behavior |
+|-------|----------------|-------------------|
+| No Spotify client ID configured | Curated songs only (local search) | Generate from curated songs only |
+| Client ID configured, no user auth | Curated + Spotify search (client credentials) | Generate from curated songs only |
+| Client ID + user authenticated | Curated + Spotify search + user data | Full Spotify playlist creation |
+
+This means:
+- Song search works immediately with curated songs (no Spotify needed)
+- Spotify search is an additive enhancement, not a requirement
+- All Spotify-dependent UI elements show appropriate empty/disabled states
+
+**Confidence:** HIGH (pattern follows existing graceful degradation in `CuratedSongRepository`)
+
+---
+
+## Search Architecture: Dual-Source with Merge
+
+### Local Curated Song Search
+
+The app has 5,066 curated songs loaded into memory. Local search is:
+- **Instant** -- in-memory string matching, no network call
+- **Always available** -- works offline, no API key needed
+- **Rich metadata** -- genre, BPM, runnability score, danceability
+
+Implementation: Simple case-insensitive substring match on `title` and `artistName` fields of loaded `CuratedSong` objects. No new packages needed.
+
+### Spotify API Search
+
+When a Spotify client is available, supplement local results with Spotify search:
+- **Debounced** -- 300ms delay after user stops typing
+- **Limited** -- `limit=5` to keep autocomplete responsive
+- **Type-filtered** -- `type=track` only (we don't need album/artist/playlist results for song search)
+
+### Result Merging
+
+```dart
+class SearchResult {
+  final String title;
+  final String artistName;
+  final SearchSource source; // curated, spotify, both
+  final CuratedSong? curatedSong; // present if from curated dataset
+  final SpotifyTrack? spotifyTrack; // present if from Spotify
+  final int? bpm; // from curated data if available
 }
 ```
 
-**Why Map not List:** Feedback is accessed by song key during scoring (O(1) lookup needed for every candidate song during playlist generation). A list would require O(n) search per song. With 5,066 curated songs scored per generation, O(1) lookup is critical.
+Merge strategy:
+1. Show curated results first (they have BPM + runnability data)
+2. Append Spotify results that are NOT in curated dataset (deduplicate by normalized artist|title key)
+3. Mark results with source indicator so UI can show data availability
 
-**Confidence:** HIGH (same pattern as other notifiers in the codebase)
-
----
-
-## Feature 2: Scoring Integration
-
-### Extending SongQualityScorer
-
-**Decision: Add a single new scoring dimension for feedback, not multiple**
-
-The current `SongQualityScorer` has 8 dimensions with a theoretical max of ~46 points. Feedback should add one dimension:
-
-| Dimension | Points | Rationale |
-|-----------|--------|-----------|
-| Liked song | +8 | Strong positive signal -- user explicitly endorsed this song for running |
-| Disliked song | -20 | Hard filter equivalent -- user explicitly rejected this song |
-| No feedback | 0 | Neutral -- no signal, no penalty |
-
-**Why +8 for liked (not higher):** Liked should be a strong boost but not override everything. A liked song with terrible BPM match (wrong tempo) should still rank below a neutral song with perfect BPM match. +8 puts feedback on par with danceability (max 8) and above genre match (6) but below runnability (max 15) and artist match (10). This reflects that explicit feedback is valuable but BPM match remains the primary purpose of the app.
-
-**Why -20 for disliked (not -15 like disliked artist):** Disliking a specific song is a stronger signal than disliking an artist (the user might like other songs by that artist). A -20 penalty effectively removes the song from consideration without requiring a hard filter, keeping the scorer's ranking-based architecture intact.
-
-**Integration point:** `SongQualityScorer.score()` gains a new optional parameter:
-
-```dart
-static int score({
-  required BpmSong song,
-  TasteProfile? tasteProfile,
-  String? previousArtist,
-  List<RunningGenre>? songGenres,
-  int? runnability,
-  bool? songFeedback, // NEW: true=liked, false=disliked, null=no feedback
-}) { ... }
-```
-
-**Confidence:** HIGH (straightforward extension of existing pure-function scorer)
-
----
-
-## Feature 3: Taste Learning Algorithm
-
-### The Key Question
-
-Does taste learning need ML libraries (TensorFlow Lite, tflite_flutter) or can simple statistical analysis suffice?
-
-### Decision: Pure Dart Statistical Analysis -- No ML Libraries
-
-For an app with ~500-4,000 feedback entries from a single user, machine learning is overkill. The data is too sparse and too homogeneous (one user's taste) for collaborative filtering or neural networks to provide value over simple frequency analysis.
-
-**What taste learning actually needs to discover:**
-
-| Pattern | Detection Method | Example |
-|---------|-----------------|---------|
-| Genre preferences from feedback | Count likes/dislikes per genre, compute like ratio | "User likes 80% of Electronic songs but only 30% of Rock songs" |
-| Artist preferences from feedback | Count likes per artist | "User liked 5 songs by Dua Lipa but disliked 2 by Metallica" |
-| BPM sweet spot | Compute mean/median BPM of liked songs vs disliked | "User likes songs at 168-175 BPM, dislikes outside that range" |
-| Energy/danceability preferences | Average danceability of liked vs disliked songs | "User prefers high-danceability songs (avg 78 vs 45)" |
-
-All of these are basic frequency counts, ratios, and averages. They require:
-- Iterating over feedback entries (~500-4,000 items)
-- Grouping by category (genre, artist, BPM range)
-- Computing ratios and averages
-- Comparing against thresholds
-
-This is O(n) computation that runs in <1ms on any modern device. No matrix factorization, no gradient descent, no training step.
-
-**Why NOT tflite_flutter or ml_kit:**
-
-| Factor | Assessment |
-|--------|-----------|
-| Data volume | ~500-4,000 entries from one user. ML models need thousands of users or millions of interactions. |
-| Cold start | ML models are useless with <50 entries. Statistical analysis produces meaningful insights from ~10 entries. |
-| Model training | Would need to happen on-device (no backend). On-device ML training in Flutter is experimental and adds massive binary size (~15MB for TFLite). |
-| Interpretability | Statistical analysis produces human-readable insights ("You like Electronic 80%"). ML models produce opaque vectors. |
-| Complexity | ML adds a dependency, model file management, platform-specific FFI. Statistical analysis is 50-100 lines of pure Dart. |
-| Accuracy | With single-user data, frequency analysis IS the optimal approach. Collaborative filtering requires a user base. |
-
-### Taste Learning Output
-
-The learning algorithm produces a `LearnedTasteInsights` object:
-
-```dart
-class LearnedTasteInsights {
-  final Map<RunningGenre, double> genreAffinity;   // genre -> like ratio (0.0-1.0)
-  final Map<String, int> artistAffinity;            // artist -> net likes (likes - dislikes)
-  final double? preferredBpmCenter;                 // mean BPM of liked songs
-  final double? preferredBpmRange;                  // stddev of liked song BPMs
-  final double? preferredDanceability;              // mean danceability of liked songs
-  final int totalFeedbackCount;                     // confidence indicator
-}
-```
-
-**How scoring uses learned insights:**
-
-The learned insights are converted to scoring adjustments in `SongQualityScorer`:
-- Genre affinity above threshold (e.g., >0.7 like ratio, >5 samples) -> implicit genre boost (+3)
-- Genre affinity below threshold (e.g., <0.3 like ratio, >5 samples) -> implicit genre penalty (-3)
-- Artist with net positive likes (>2) -> implicit artist boost (+5) if not already in taste profile
-- BPM within preferred range -> small boost (+1)
-
-These implicit boosts are SMALLER than explicit taste profile settings (genre match = +6, artist match = +10) because learned preferences have less certainty than explicitly stated ones.
-
-**Minimum sample threshold:** Learning insights require at least 5 feedback entries per category before activating. Below that, the sample size is too small to be meaningful. This prevents a single like of an Electronic song from boosting all Electronic songs.
-
-**Confidence:** HIGH (frequency analysis is a well-understood technique; the data characteristics match perfectly)
-
----
-
-## Feature 4: Freshness Tracking
-
-### Data Model
-
-**Decision: Track last-played timestamps in a separate SharedPreferences key**
-
-Freshness tracking needs to know when a song was last included in a generated playlist. This is separate from feedback (a song can be fresh/stale regardless of whether the user liked it).
-
-```dart
-class FreshnessPreferences {
-  static const _key = 'song_freshness';
-
-  // Map<String, DateTime> -- songKey -> lastPlayedAt
-  static Future<Map<String, DateTime>> load() async { ... }
-  static Future<void> save(Map<String, DateTime> freshness) async { ... }
-}
-```
-
-**Why separate from feedback:** Not all generated songs receive feedback. Every generated song should update the freshness tracker regardless. Combining with feedback would conflate two independent concerns.
-
-**Size analysis:** Same calculation as feedback -- at most 4,000 entries, each ~80 bytes (key + ISO timestamp). Total ~320 KB. Well within SharedPreferences limits.
-
-### Freshness Scoring Integration
-
-**Decision: Freshness is a scoring modifier, not a hard filter**
-
-Add a freshness dimension to `SongQualityScorer`:
-
-| Freshness State | Points | Rationale |
-|----------------|--------|-----------|
-| Never played | +3 | Bonus for discovery when "keep it fresh" is on |
-| Played > 30 days ago | +2 | Enough time has passed, feels fresh again |
-| Played 7-30 days ago | 0 | Neutral |
-| Played < 7 days ago | -3 | Recent, penalize when freshness is on |
-| Played < 3 days ago | -6 | Very recent, strong penalty when freshness is on |
-
-**Freshness toggle behavior:**
-- When "keep it fresh" is ON: Apply freshness scoring as above
-- When "optimize for taste" is ON (default): Set all freshness scores to 0 (ignore freshness entirely, maximize for taste/quality)
-
-This is a simple boolean toggle, not a slider. Two clear modes are easier for runners to understand than a freshness-vs-taste continuum.
-
-**Integration:** The freshness map is passed to `PlaylistGenerator.generate()` alongside the feedback map. The generator passes freshness data to the scorer.
-
-**Confidence:** HIGH
-
----
-
-## Feature 5: Freshness Toggle UI
-
-### Decision: Store as Part of Generation Config, Not a Separate Setting
-
-The freshness toggle is a generation-time preference, like choosing a run plan or taste profile. It should live near those selectors on the playlist generation screen, not buried in app settings.
-
-**Storage:** A single SharedPreferences boolean key `freshness_enabled` (default: false). This follows the same pattern as `onboarding_complete`.
-
-**No new packages needed.** A `SwitchListTile` or `SegmentedButton` in the playlist screen's idle/loaded view is sufficient.
-
-**Confidence:** HIGH
+**Confidence:** HIGH (uses existing `SongKey.normalize()` for deduplication, same lookup key format used throughout the app)
 
 ---
 
@@ -337,89 +350,69 @@ The freshness toggle is a generation-time preference, like choosing a run plan o
 
 | Technology | Why NOT |
 |-----------|---------|
-| **tflite_flutter** (TensorFlow Lite) | ML is overkill for single-user taste learning from <4,000 entries. Adds ~15MB binary size, platform-specific FFI, model file management. Simple frequency analysis achieves the same or better results for this use case. |
-| **drift** / **sqflite** | Data volume (<1MB total) does not justify a database migration. Code generation (required by Drift) is broken with Dart 3.10. Would require migrating ALL existing SharedPreferences data stores. |
-| **hive** / **isar** | Hive and Isar are abandoned by their original author and community-maintained. Isar's Rust core makes forking impractical. Neither offers meaningful benefits over SharedPreferences at this data volume. |
-| **objectbox** | Commercial NoSQL database -- overkill for local feedback storage. Requires native binaries per platform. |
-| **flutter_rating_bar** | Song feedback is binary (like/dislike), not a 1-5 star rating. Two icon buttons are sufficient. Adding a rating package for two buttons is wasteful. |
-| **collection** (dart package) | Dart's built-in `Map`, `List`, and `Iterable` methods are sufficient for all statistical computations. No need for `groupBy`, `maxBy`, etc. when the operations are simple counts and averages. |
-| **riverpod_generator** | Still broken with Dart 3.10 (documented in project memory). Continue with manual `StateNotifierProvider`. |
-| **freezed** (for new models) | Existing domain models use hand-written `fromJson`/`toJson`/`copyWith`. New models should follow the same pattern for consistency. |
-| **SharedPreferencesAsync** migration | The legacy `SharedPreferences` API works correctly for all current use cases. Migration adds risk for zero user-visible benefit. Defer until the legacy API is actually deprecated. |
+| **flutter_typeahead** | Stale (24 months since last update). Flutter's built-in `Autocomplete` handles async + debounce natively. Adding a redundant external dependency. |
+| **spotify_sdk** | For native playback control, not Web API access. Requires native SDK setup per platform. We need search and playlists, not play/pause. |
+| **spotikit** | Android-only. We target Android, iOS, and web. |
+| **oauth2** (standalone) | The `spotify` package already depends on and wraps `oauth2` for PKCE. No need to add it separately. |
+| **app_links / uni_links** | Deep link handling for OAuth redirect is already handled by Supabase's URL callback. The `spotify` package's PKCE flow handles redirect URI parsing internally. |
+| **flutter_web_auth** / **flutter_web_auth_2** | OAuth web view package. The `spotify` package manages the auth flow. If we need a web view, `url_launcher` (already in pubspec) opens the browser for auth. |
+| **dio** | HTTP client alternative. The `spotify` package uses `http` internally (same as our app). Adding dio would mean two HTTP clients for no benefit. |
+| **riverpod_generator** | Still broken with Dart 3.10. Continue with manual providers. |
+| **freezed** (for new models) | Existing models use hand-written serialization. Stay consistent. |
+| **cached_network_image** | Not needed for song search. Album art display is a future concern if we add Spotify album images. |
 
 ---
 
-## Existing Stack: Confirmed Sufficient
+## Existing Stack: Confirmed Sufficient (Unchanged)
 
-| Package | Version | v1.3 Usage |
-|---------|---------|-----------|
-| `flutter_riverpod` | ^2.6.1 | New `SongFeedbackNotifier`, `FreshnessNotifier`, `TasteLearningProvider` |
-| `go_router` | ^17.0.1 | New routes for feedback library screen |
-| `shared_preferences` | ^2.5.4 | Three new keys: `song_feedback`, `song_freshness`, `freshness_enabled` |
-| `http` | ^1.6.0 | Unchanged |
-| `url_launcher` | ^6.3.2 | Unchanged |
-| `supabase_flutter` | ^2.12.0 | Unchanged (init only) |
-| `flutter_dotenv` | ^6.0.0 | Unchanged |
-
-**Confidence:** HIGH (all versions verified, all patterns verified against codebase)
+| Package | Version | Continued Usage |
+|---------|---------|----------------|
+| `flutter_riverpod` | ^2.6.1 | New providers for Spotify client, search state, token management |
+| `go_router` | ^17.0.1 | New route for song search screen |
+| `shared_preferences` | ^2.5.4 | Cache Spotify search results, search history |
+| `http` | ^1.6.0 | Shared transitively with `spotify` package |
+| `url_launcher` | ^6.3.2 | Open Spotify auth URL in browser (PKCE flow) |
+| `supabase_flutter` | ^2.12.0 | Existing auth (provider token extraction for Spotify) |
+| `flutter_dotenv` | ^6.0.0 | `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` env vars |
+| `flutter_secure_storage` | ^9.2.4 | **First actual usage** -- store Spotify tokens securely |
 
 ---
 
-## New SharedPreferences Keys for v1.3
+## New Environment Variables
+
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| `SPOTIFY_CLIENT_ID` | Spotify app client ID for API access | No (graceful degradation without it) |
+| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret (for client credentials flow only; NOT used in PKCE) | No (only needed for unauthenticated search) |
+
+These go in `.env` alongside existing `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+
+---
+
+## New SharedPreferences Keys
 
 | Key | Type | Purpose |
 |-----|------|---------|
-| `song_feedback` | String (JSON map) | All song feedback entries, keyed by song lookup key |
-| `song_freshness` | String (JSON map) | Last-played timestamps, keyed by song lookup key |
-| `freshness_enabled` | bool | Whether "keep it fresh" mode is active |
+| `spotify_search_cache` | String (JSON) | Cached search results to reduce API calls for repeated queries |
+| `recent_searches` | String (JSON list) | Recent search queries for search history UI |
 
-**Total new storage footprint (extreme case):** ~920 KB (600 KB feedback + 320 KB freshness). Combined with existing data (~200 KB for profiles, plans, history, cache), total SharedPreferences usage is ~1.1 MB. This is well within practical limits on all platforms. Web localStorage limits are typically 5-10MB per origin.
-
----
-
-## Integration Points with Existing Code
-
-| Existing File | What Changes | How |
-|--------------|-------------|-----|
-| `lib/features/song_quality/domain/song_quality_scorer.dart` | Add feedback and freshness scoring dimensions | Two new static methods + parameters on `score()` |
-| `lib/features/playlist/domain/playlist_generator.dart` | Pass feedback map and freshness map to scorer | Add parameters to `generate()` and `_scoreAndRank()` |
-| `lib/features/playlist/presentation/widgets/song_tile.dart` | Add like/dislike icon buttons | Extend existing `SongTile` widget |
-| `lib/features/playlist/presentation/playlist_screen.dart` | Add freshness toggle to generation UI | Add `SwitchListTile` or `SegmentedButton` |
-| `lib/features/playlist/providers/playlist_providers.dart` | Read feedback + freshness maps during generation | Add provider reads in `generatePlaylist()` |
-| `lib/app/router.dart` | Add `/feedback-library` route | Standard GoRouter route addition |
-
-**New files to create:**
-
-| File | Purpose |
-|------|---------|
-| `lib/features/feedback/domain/song_feedback.dart` | `SongFeedback` domain model |
-| `lib/features/feedback/data/song_feedback_preferences.dart` | SharedPreferences persistence for feedback |
-| `lib/features/feedback/providers/feedback_providers.dart` | `SongFeedbackNotifier` + derived providers |
-| `lib/features/feedback/presentation/feedback_library_screen.dart` | Browse/edit all feedback entries |
-| `lib/features/freshness/domain/freshness_tracker.dart` | Freshness computation logic |
-| `lib/features/freshness/data/freshness_preferences.dart` | SharedPreferences persistence for freshness |
-| `lib/features/freshness/providers/freshness_providers.dart` | `FreshnessNotifier` state management |
-| `lib/features/taste_learning/domain/taste_learner.dart` | Pure Dart statistical analysis algorithm |
-| `lib/features/taste_learning/domain/learned_taste_insights.dart` | Output model from taste learning |
-| `lib/features/taste_learning/providers/taste_learning_providers.dart` | Provider that computes insights from feedback |
-
-These follow the exact same `features/{name}/data|domain|presentation|providers` structure as every other feature module.
+Total new storage: negligible (<50 KB even with aggressive caching).
 
 ---
 
-## Architecture Decision Record: Why Zero New Dependencies (Again)
+## Dependency Version Compatibility Matrix
 
-v1.3 is a **data-driven intelligence milestone**, but the intelligence is simple enough to implement in pure Dart. The core insight is that single-user taste learning from explicit binary feedback is a frequency counting problem, not a machine learning problem.
+| Package | Our Version | `spotify` Requires | Compatible? |
+|---------|------------|-------------------|-------------|
+| `http` | ^1.6.0 | ^1.6.0 | Yes (identical) |
+| `json_annotation` | ^4.9.0 | ^4.9.0 | Yes (identical) |
+| Dart SDK | ^3.10.8 | >=3.0 | Yes |
+| `meta` | (Flutter SDK) | ^1.17.0 | Yes (Flutter bundles meta) |
+| `oauth2` | (not direct) | ^2.0.5 (transitive) | Yes (no conflicts) |
 
-The existing stack handles:
-- **Persistence:** SharedPreferences stores up to ~1 MB of feedback + freshness data with no performance concerns
-- **State management:** Riverpod `StateNotifier` provides reactive in-memory access with write-through persistence
-- **Scoring:** `SongQualityScorer` is a pure-function scorer designed for extensibility with new dimensions
-- **UI patterns:** `SongTile`, library screens, and toggle UIs have established patterns to follow
+**Zero version conflicts.** The `spotify` package was clearly developed alongside the same dependency ecosystem we use.
 
-Adding ML libraries, databases, or UI packages for this milestone would create complexity disproportionate to the problem. The right approach is extending the existing architecture with new domain logic, not adding new infrastructure.
-
-**Zero new dependencies for the third milestone in a row.** This is a sign of a well-chosen initial stack, not a resistance to change.
+**Confidence:** HIGH (all version constraints verified against pubspec.yaml and pub.dev package pages)
 
 ---
 
@@ -427,29 +420,30 @@ Adding ML libraries, databases, or UI packages for this milestone would create c
 
 | Decision | Chosen | Alternative | Why Not Alternative |
 |----------|--------|------------|-------------------|
-| Feedback persistence | SharedPreferences (JSON map) | Drift/SQLite database | Data volume <1MB; code-gen broken; migration cost outweighs benefit |
-| Taste learning | Pure Dart frequency analysis | tflite_flutter (ML) | Single-user, <4K entries; ML adds 15MB+ binary size for worse results |
-| Feedback data structure | `Map<String, SongFeedback>` | `List<SongFeedback>` | Map provides O(1) lookup during scoring; list would be O(n) per song |
-| Freshness storage | Separate SharedPreferences key | Embedded in feedback entries | Not all songs get feedback; freshness tracks ALL generated songs |
-| Freshness UX | Binary toggle (fresh/taste) | Slider (0-100% freshness weight) | Binary is clearer for runners; two distinct modes are easier to understand |
-| Feedback granularity | Binary (like/dislike) | 5-star rating | Binary feedback has higher completion rates; more actionable for scoring |
+| Spotify API client | `spotify` package (v0.15.0) | Custom client on `http` | 500+ lines of boilerplate for OAuth, models, pagination, rate limiting. Package does it all with same `http` version. |
+| Autocomplete UI | Flutter's built-in `Autocomplete` | `flutter_typeahead` | flutter_typeahead is 24 months stale. Built-in widget supports async + debounce natively. Zero dependency is better. |
+| OAuth PKCE | `spotify` package's built-in PKCE | `flutter_web_auth_2` + manual token exchange | spotify package handles the entire flow. Adding a second OAuth package is redundant. |
+| Token storage | `flutter_secure_storage` (existing dep) | SharedPreferences | Tokens grant Spotify account access -- must be encrypted at rest. flutter_secure_storage is already in pubspec. |
+| Search approach | Dual-source (local + Spotify) | Spotify-only search | Local curated search works without API key. Must function while Spotify dashboard is closed. |
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [SharedPreferences v2.5.4](https://pub.dev/packages/shared_preferences) - Verified version, API capabilities, and storage characteristics
-- [Flutter official storage cookbook](https://docs.flutter.dev/cookbook/persistence/key-value) - SharedPreferences is recommended for "relatively small collection of key-values"
-- Existing codebase analysis (all files read directly) - Pattern consistency verified across 6 existing SharedPreferences data stores
+- [spotify package v0.15.0 on pub.dev](https://pub.dev/packages/spotify) -- version, dependencies, platform support verified
+- [spotify-dart GitHub repository](https://github.com/rinukkusu/spotify-dart) -- PKCE example code, API coverage, maintenance activity verified
+- [Spotify Web API Authorization docs](https://developer.spotify.com/documentation/web-api/concepts/authorization) -- PKCE requirements, auth flow types
+- [Spotify Web API Scopes docs](https://developer.spotify.com/documentation/web-api/concepts/scopes) -- scope requirements per endpoint
+- [Spotify Search endpoint docs](https://developer.spotify.com/documentation/web-api/reference/search) -- parameters, response format, no scope required
+- [Flutter Autocomplete widget docs](https://api.flutter.dev/flutter/material/Autocomplete-class.html) -- async support, debounce, builder parameters
+- [Spotify OAuth migration notice (Nov 2025)](https://developer.spotify.com/blog/2025-10-14-reminder-oauth-migration-27-nov-2025) -- implicit grant removed, PKCE required for mobile
 
 ### Secondary (MEDIUM confidence)
-- [SharedPreferences performance analysis](https://moldstud.com/articles/p-the-role-of-shared-preferences-in-flutter-app-performance-frequently-asked-questions-explained) - Performance characteristics for large data
-- [Flutter database comparison 2025](https://dinkomarinac.dev/best-local-database-for-flutter-apps-a-complete-guide) - Drift, Hive, Isar alternatives assessment
-- [Isar abandonment discussion](https://github.com/isar/isar/issues/1689) - Isar/Hive maintenance status
-- [Spotify recommendation system guide](https://www.music-tomorrow.com/blog/how-spotify-recommendation-system-works-complete-guide) - Collaborative filtering requires user base; content-based filtering suitable for single-user
-- [Hive vs Isar vs Drift comparison 2025](https://medium.com/@flutter-app/hive-vs-isar-vs-drift-best-offline-db-for-flutter-c6f73cf1241e) - Database alternatives analysis
+- [flutter_typeahead on pub.dev](https://pub.dev/packages/flutter_typeahead) -- last update date (Feb 2024), version 5.2.0
+- [spotify_sdk on pub.dev](https://pub.dev/packages/spotify_sdk) -- confirmed playback-only, not Web API
+- [Spotify rate limits docs](https://developer.spotify.com/documentation/web-api/concepts/rate-limits) -- rolling 30s window, 429 response handling
+- [Spotify Developer Dashboard status](https://community.spotify.com/t5/Spotify-for-Developers/New-integrations-are-currently-on-hold/td-p/7296575) -- new app registration paused since Dec 2025
 
 ### Tertiary (LOW confidence)
-- [Music recommendation with implicit feedback](https://blog.reachsumit.com/posts/2022/09/explicit-implicit-cf/) - Academic patterns for feedback-based recommendation
-- [Content-based music filtering review](https://arxiv.org/html/2507.02282v1) - Content-based filtering approaches
+- [oauth2 package on pub.dev](https://pub.dev/packages/oauth2) -- PKCE support unclear from pub.dev page alone, but `spotify` package wraps it successfully

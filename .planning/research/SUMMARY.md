@@ -1,268 +1,223 @@
 # Project Research Summary
 
-**Project:** Running Playlist AI - v1.3 Song Feedback & Taste Learning
-**Domain:** Music recommendation feedback loops, taste learning algorithms, playlist freshness tracking
-**Researched:** 2026-02-06
+**Project:** Running Playlist AI
+**Milestone:** v1.4 - Smart Song Search & Spotify Foundation
+**Domain:** Music app with song search, user curation, OAuth integration
+**Researched:** 2026-02-08
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.3 adds intelligent feedback loops to the Running Playlist AI's existing BPM-matched playlist generator. The research reveals that this milestone can be built entirely with the existing tech stack (Flutter, Riverpod 2.x, SharedPreferences) without adding any new dependencies. The core insight: single-user taste learning from explicit binary feedback is a frequency counting problem, not a machine learning problem. With a bounded dataset of ~5,000 curated songs and user-generated feedback on <4,000 entries over the app's lifetime, SharedPreferences handles all persistence needs with no performance concerns.
+This milestone adds three interconnected features to enable user-driven playlist curation: typeahead song search (local curated catalog), a "Songs I Run To" list (user-curated favorites), and Spotify API foundation (OAuth + playlist browsing). Research reveals a clear technical path: leverage Flutter's built-in `Autocomplete` widget, use the `spotify` package (v0.15.0) for API access, and treat Spotify integration as gracefully degrading enhancement rather than requirement. The existing architecture (Riverpod providers, SharedPreferences persistence, SongKey normalization) extends cleanly with minimal changes to scoring and taste learning systems.
 
-The recommended approach extends the existing `SongQualityScorer` with three new dimensions: feedback (+12 for liked, -20 for disliked), freshness (-8 for recently generated songs), and learned preferences (max +4 for implicit patterns). These integrate cleanly into the established pure-function scoring architecture. The key architectural decision is keeping feedback scoring separate from the TasteProfile model—feedback is a per-song signal that supplements but never overrides the user's explicit preferences.
+The recommended approach prioritizes local functionality first (search curated songs, build "Songs I Run To" list, integrate with scoring) before adding Spotify layers. This delivers immediate user value while the Spotify Developer Dashboard remains closed to new registrations. Critical constraint: Spotify dashboard is blocking new app creation (since late December 2025) and Developer Mode now requires Premium accounts with stricter test user limits (effective February 2026). Build the Spotify integration with abstraction layers and mock implementations to avoid shipping untestable code.
 
-Critical risks center on scoring balance and filter bubbles. If feedback weights are too high, liked songs dominate every playlist regardless of running suitability, breaking the app's core value proposition. If freshness tracking is absent or weak, the feedback loop converges on the same 20-30 songs and playlists become stale. Both risks are mitigated through careful weight selection (feedback weaker than runnability, freshness strong enough to penalize recent plays) and extensive testing with simulated feedback data before shipping.
+Key risks center on OAuth complexity and token lifecycle management. Supabase OAuth (existing auth) does not persist Spotify provider tokens reliably, requiring a separate token capture/storage layer using `flutter_secure_storage`. Direct Spotify PKCE has platform-specific redirect URI requirements and code verifier persistence challenges. Token expiry (1 hour) demands proactive refresh with automatic retry logic. The mitigation strategy: design against Spotify's official API contract with mock-first development, separate token management into a dedicated service, and ensure every Spotify feature degrades gracefully when tokens are unavailable.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Zero new dependencies required.** All v1.3 features extend the existing stack: SharedPreferences for persistence, Riverpod StateNotifier for reactive state, pure Dart for taste learning algorithms, and the established `SongQualityScorer` for feedback integration.
+The milestone requires **one new dependency** (`spotify` package v0.15.0) plus activation of existing unused dependencies (`flutter_secure_storage` for token storage). Research confirms Flutter's built-in `Autocomplete` widget handles typeahead requirements without external packages, avoiding the stale `flutter_typeahead` package (last updated February 2024). The `spotify` package provides complete Spotify Web API coverage with PKCE auth, typed models, and automatic token refresh, using the exact same `http: ^1.6.0` version as the existing codebase (zero version conflicts).
 
-**Core technologies (existing, reused):**
-- **SharedPreferences 2.5.4**: Feedback storage (~600 KB at 4,000 entries), freshness timestamps (~320 KB), settings toggle. Total new footprint <1 MB fits comfortably within practical limits.
-- **Riverpod 2.x manual providers**: New `SongFeedbackNotifier`, `FreshnessNotifier` follow existing patterns from `TasteProfileNotifier` and `PlaylistHistoryNotifier`.
-- **Pure Dart statistical analysis**: Taste learning via frequency counting (genre affinity, artist patterns, BPM clustering) requires only basic iteration and arithmetic. No tflite_flutter, no ML libraries—single-user data is too sparse for collaborative filtering.
+**Core technologies:**
+- **`spotify` package (v0.15.0)**: Spotify Web API client with PKCE OAuth, search, playlists — actively maintained (December 2025), pure Dart (no native deps), zero version conflicts with existing dependencies
+- **`flutter_secure_storage` (^9.2.4)**: Secure token storage (already in pubspec, first actual usage) — required for OAuth tokens, uses Keychain (iOS) and EncryptedSharedPreferences (Android)
+- **Flutter `Autocomplete` widget**: Built-in typeahead with async support and debouncing — no external dependency needed, avoids stale `flutter_typeahead` package
+- **Manual Riverpod providers**: Continue existing pattern (code-gen broken with Dart 3.10) — new providers for `runningSongProvider`, `spotifyTokenManagerProvider`, `spotifyApiClientProvider`, `songSearchProvider`
 
-**Critical non-addition:** Did NOT add database (Drift/SQLite/Hive). Data volume analysis shows SharedPreferences handles feedback + freshness data with no scaling issues through realistic heavy-use scenarios (2-3 playlists/week for 2+ years). Code-gen is broken with Dart 3.10, making Drift integration risky. Introducing a database for <1 MB of data creates architectural complexity disproportionate to the problem.
+**What NOT to add:**
+- `flutter_typeahead` (24 months stale, redundant to built-in widget)
+- `spotify_sdk` (native playback SDK, not Web API access)
+- `oauth2` standalone (already wrapped by `spotify` package)
+- `dio` (redundant to existing `http` package)
 
 ### Expected Features
 
-**Must have (table stakes from competitive analysis):**
-- **Like/dislike buttons on every song tile** — Standard across Spotify, Apple Music, Pandora, YouTube Music. Users expect inline feedback. Use thumbs up/down (explicit feedback intent) not hearts (hearts imply "save to library").
-- **Liked songs boost scoring** — Every platform prioritizes user-endorsed songs. Feedback dimension adds +12 to score, positioning it between artist match (+10) and runnability max (+15).
-- **Disliked songs heavily penalized** — Pandora never plays thumbed-down songs again. Apply -20 penalty (effectively filtering without hard-exclusion). User intent is unambiguous: "do not include this."
-- **Feedback library screen** — Apple Music's "Loved Songs," Spotify's "Liked Songs." Users need to review/edit feedback decisions. Two-tab view (Liked / Disliked), clear feedback with single tap.
-- **Visual feedback state on tiles** — Once rated, the state must persist across screens and app restarts. Filled thumb icon + color state reflects feedback everywhere the song appears.
+Research reveals three feature tiers: table stakes (what users expect from song search and favorites), differentiators (unique to running context), and anti-features (explicitly defer or avoid). The "Songs I Run To" concept validates against MOOV Beat Runner's "My Songs" feature pattern, while Spotify playlist import follows conventions from SongShift/Soundiiz transfer tools.
+
+**Must have (table stakes):**
+- **Typeahead search with debounced input** (200-300ms, industry standard) — search 5,066 curated songs locally with instant results
+- **Add to "Songs I Run To" action** (single tap with haptic feedback) — primary action from search results
+- **"Songs I Run To" list view with removal** (swipe-to-dismiss or delete icon) — manage curated song collection
+- **Songs appear in generated playlists** (stronger than "liked" boost: +8 to +10 vs. +5) — payoff that connects feature to core function
+- **Empty states** (search and list) — guide users to feature discoverability
 
 **Should have (competitive differentiators):**
-- **Post-run review screen** — Novel in BPM-matching space. No competitor (RockMyRun, PaceDJ, Weav Run, Spotify) offers post-session review. Captures feedback while run experience is fresh. Makes feedback low-friction (all songs in one view).
-- **Taste learning from feedback patterns** — Analyze liked/disliked songs to discover implicit preferences (e.g., 70% of liked songs are Electronic but user's profile only has Pop). Surface as suggestions: "Add Electronic to your profile?" Transparency preserves user agency.
-- **Freshness toggle: "Keep it Fresh" vs "Optimize for Taste"** — User-controllable variety. Fresh mode applies recency penalty; Taste mode ignores play history. Two clear modes easier to understand than a freshness slider.
-- **Freshness scoring dimension** — Track when songs last appeared in generated playlists. Apply stepped decay penalty: -8 if <3 days, -5 if 3-7 days, -3 if 7-14 days, -1 if 14-30 days, 0 if 30+ days. Prevents "same 15 songs every run" convergence.
-- **Disliked artist auto-detection** — When user dislikes 3+ songs by same artist, suggest adding to TasteProfile.dislikedArtists. Bridges song-level feedback to existing artist-penalty system (-15 weight).
+- **"Songs I Run To" feeds taste learning** — proactive curation teaches system without requiring run feedback first
+- **BPM compatibility indicator** on favorites list — shows which songs match current cadence target (green/amber/gray chips)
+- **Spotify playlist browse and import** (foundation phase) — connect account, browse playlists, select songs to import into "Songs I Run To"
+- **Dual-source search** (local first, Spotify fallback) — instant local results, optional Spotify expansion when connected
 
-**Defer (anti-features or v2+):**
-- **5-star ratings** — Research shows binary feedback outperforms rating scales for music (Cornell Piki research, Pandora's 75B feedback data points). Binary is faster, clearer, more actionable.
-- **Automatic taste profile modification** — Never auto-update the TasteProfile from learned patterns. Users explicitly set preferences; silent changes violate trust. Use suggestion-based approach instead.
-- **Collaborative filtering / ML** — Single-user dataset (<4,000 entries) is too small for collaborative filtering or neural networks. Frequency analysis achieves better results with this data profile.
-- **Real-time feedback during generation** — Generation is subsecond; adding approval workflow slows UX. Post-generation feedback (swipe-to-dismiss + like/dislike) serves this need.
+**Defer (v2+):**
+- **Full Spotify playback integration** — requires Premium, adds SDK maintenance burden; existing URL links sufficient
+- **Spotify playlist creation/export** — wait for Dashboard access reopening; clipboard copy is interim export
+- **Spotify "Liked Songs" import** — thousands of tracks across all contexts; playlist-level import filters naturally
+- **Song recommendations based on favorites** — existing quality scorer already handles via taste learning integration
+- **Background token refresh** — over-engineering for foundation phase; on-demand refresh sufficient
 
 ### Architecture Approach
 
-**Extend existing scoring architecture with new data sources.** The `SongQualityScorer` remains a pure-function static scorer; feedback, freshness, and learned preferences are passed as parameters from `PlaylistGenerator`, which receives them from `PlaylistGenerationNotifier` via new Riverpod providers. This preserves testability and keeps domain logic pure.
+The architecture extends existing Riverpod/service/repository patterns with minimal coupling. Critical decision: create a **separate `RunningSong` model and provider** rather than extending `SongFeedback`, because user-curated favorites represent different intent (proactive "I want this" vs. reactive "I liked this"). Integration requires only single-line additions to existing systems: merge running song keys into liked sets for scoring, include running songs as synthetic feedback for taste learning.
 
 **Major components:**
+1. **`RunningSongNotifier`** (new StateNotifier) — CRUD for "Songs I Run To" list, follows established Completer pattern for async init, persists to SharedPreferences via static helper class
+2. **`SongSearchService`** (abstract interface) — unified search across multiple sources (Phase 1: curated-only; future: composite with Spotify), enables source swapping without UI changes
+3. **`SpotifyTokenManager`** (new service) — captures provider tokens from Supabase OAuth session, stores in secure storage with expiry tracking, provides `getValidToken()` with proactive refresh
+4. **`SpotifyApiClient`** (new HTTP client) — wraps Spotify Web API endpoints (search, playlists, tracks), throws typed exceptions (`SpotifyAuthException`, `SpotifyApiException`) for graceful degradation
+5. **`PlaylistGenerationNotifier`** (modified) — reads `runningSongProvider` and merges keys into liked set before calling `PlaylistGenerator.generate()` (one-line integration)
+6. **`TasteSuggestionNotifier`** (modified) — includes running songs as synthetic liked feedback for pattern analysis (converts `RunningSong` to `SongFeedback` before analyzer)
 
-1. **SongFeedbackNotifier** — In-memory `Map<String, SongFeedback>` loaded at app start, write-through on changes. Provides O(1) feedback lookup during scoring. Follows exact pattern from `TasteProfileNotifier`.
-
-2. **SongQualityScorer extensions** — Add `isLiked` parameter to `score()` method. Liked: +12, Disliked: -20, Neutral: 0. Keeps feedback weaker than runnability (max +15) but stronger than genre match (+6). Prevents feedback from overriding running suitability.
-
-3. **PlaylistGenerator freshness integration** — Apply freshness penalty in `_scoreAndRank` after scorer returns base score. Penalty only active when `FreshnessMode.keepFresh`. Pre-compute `Set<String>` of recent song keys (last 14 days) for O(1) lookup. Pattern matches existing `curatedRunnability` map.
-
-4. **TasteLearner (pure analyzer)** — Synchronous function: `List<SongFeedback> -> LearnedPreferences`. Groups feedback by genre/artist/decade, computes affinity ratios, requires minimum 5 samples per category. Produces affinity map (-1.0 to +1.0) that translates to scoring adjustments (max ±4 points). Runs at generation time, O(n) on feedback list (~5-10ms at 4,000 entries).
-
-5. **PlayHistory tracking** — After generation, record all songs with current timestamp. 90-day rolling window trimmed on save. Feeds freshness penalty calculation. Separate from feedback (songs get played regardless of whether user likes them).
-
-**Component boundaries:** New `song_feedback/` and `freshness/` feature directories follow established `data/domain/presentation/providers` structure. Modified components: `SongQualityScorer` (+1 parameter), `PlaylistGenerator` (+3 parameters), `PlaylistGenerationNotifier` (reads new providers), `SongTile` (+feedback callbacks).
+**Key architectural patterns:**
+- **SongKey.normalize for cross-source matching** — ensures Spotify-searched songs, curated songs, and feedback use same lookup key format (`artist_lower|title_lower`)
+- **StateNotifier + Completer async init** — all persisted state uses `ensureLoaded()` pattern to prevent cold-start race conditions
+- **Graceful degradation for Spotify** — all features work without Spotify; API client throws typed exceptions that UI catches for fallback behavior
+- **Search interface abstraction** — `SongSearchService` interface allows Phase 1 (curated-only) and future composite implementations without UI changes
 
 ### Critical Pitfalls
 
-1. **Feedback score dimension destabilizes scoring balance** — If liked bonus is too high (+15+), feedback overrides running suitability and mediocre songs dominate playlists. If too low (+2), feedback feels ineffective. **Mitigation:** Cap liked at +12 (between artist match and runnability max). Test with mock data: liked song with poor metrics must NOT outrank unrated song with excellent metrics. Disliked at -20 effectively buries songs without hard-filtering.
+Research identifies nine critical/moderate pitfalls, with the highest risk being **untestable Spotify integration** due to Dashboard restrictions. Prevention requires mock-first development, interface abstractions, and exhaustive validation against official API documentation.
 
-2. **Filter bubble — feedback loop narrows playlist to same 20 songs** — Liked songs boost scoring, appear more often, get reinforced. Within 10 generations, user sees only their ~30 liked songs. **Mitigation:** Freshness penalty (-8 for recent plays) is essential counter-force. Must be built in parallel with feedback, not deferred. Consider exploration slot: force 1-2 unrated songs per segment for discovery.
+1. **Spotify Developer Dashboard is blocked** — cannot create new apps since December 2025, Developer Mode requires Premium (February 2026). **Prevention:** Design against Spotify's OpenAPI spec, use `MockClient` for HTTP responses, build interface + mock layer first, implement real HTTP second when Dashboard access opens.
 
-3. **SharedPreferences JSON blob grows unbounded** — Feedback + play history could exceed 1.5 MB over heavy use. Android SharedPreferences loads entire file at app start; 1.5 MB causes 200-500ms lag. **Mitigation:** Compact storage (skip timestamps, single-char enum), 90-day rolling window for play history, cap feedback at 3,000 entries with LRU eviction if needed. Total footprint stays <1 MB.
+2. **OAuth token storage in SharedPreferences leaks credentials** — refresh tokens grant persistent Spotify account access. **Prevention:** Use `flutter_secure_storage` (already in pubspec) for ALL OAuth tokens; create `SpotifyTokenStorage` abstraction; never log tokens; accept web localStorage limitation (matches existing Supabase pattern).
 
-4. **Taste learning overfits to explicit feedback, ignoring TasteProfile** — User sets Pop + Electronic in profile, likes 10 Hip-Hop songs. Learning infers "boost Hip-Hop." Next playlist is 40% Hip-Hop. User confused. **Mitigation:** Feedback adjusts song-level scores; learned preferences are separate low-weight signals (max +4). Never auto-modify TasteProfile. Surface insights as suggestions user can accept/dismiss.
+3. **Spotify PKCE redirect URI mismatch** — web vs mobile require different URIs, `localhost` no longer accepted (must use `127.0.0.1`), code verifier lost during browser redirect. **Prevention:** Register two redirect URIs (web + mobile), persist code verifier in sessionStorage (web) or secure storage (mobile), test app-killed-during-OAuth scenario.
 
-5. **Song lookup key mismatch between sources** — Curated: "dua lipa|don't start now", API: "dua lipa|don't start now (feat. x)". Keys don't match, feedback not applied. **Mitigation:** Normalize keys more aggressively (strip parentheticals, remove non-alphanumeric except |). Store feedback against curated key when available. Implement fuzzy fallback (artist match + title prefix match).
+4. **Token lifecycle mismanagement** — tokens expire after 1 hour, refresh tokens may rotate. **Prevention:** Proactive token refresh (check expiry before every API call), reactive 401 handler with single retry, always save new refresh token from refresh response, wrap all API calls in authenticated client with automatic lifecycle.
+
+5. **Typeahead search without debouncing hits rate limits** — every keystroke fires API request, 429 errors block all Spotify features. **Prevention:** 300ms debounce minimum, 2-character minimum query length, cancel in-flight requests, cache recent results, handle 429 with `Retry-After` respect.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, suggested phase structure prioritizes local functionality (delivers immediate value) before Spotify layers (external dependency, Dashboard blocked). Architecture research confirms clean separation: "Songs I Run To" data layer is independent of Spotify, enabling parallel development once foundation is in place.
 
-### Phase 1: Feedback Foundation
-**Rationale:** Everything depends on having feedback data. SongFeedback model, persistence (SongFeedbackPreferences), and state management (SongFeedbackNotifier) must exist before UI or scoring integration can be built.
+### Phase 1: "Songs I Run To" Core Data Layer
+**Rationale:** Foundation for all other features. Both search and Spotify import need this destination. No external dependencies.
+**Delivers:** `RunningSong` model, `RunningSongNotifier` with persistence, list screen with add/remove/empty states
+**Addresses:** Table stakes feature (user-curated favorites management), architecture component (separate model, not SongFeedback extension)
+**Avoids:** Pitfall #12 (songs bypass freshness/feedback) — integration with existing systems happens here
 
-**Delivers:**
-- SongFeedback domain model with artist, title, isLiked, feedbackAt, genre, bpm, decade
-- SongFeedbackPreferences (SharedPreferences wrapper, follows TasteProfilePreferences pattern)
-- SongFeedbackNotifier (in-memory Map, write-through persistence)
-- Unit tests for model serialization and notifier CRUD
+### Phase 2: Scoring and Taste Learning Integration
+**Rationale:** Close the loop immediately after data layer. Users should see playlist improvement from adding favorites.
+**Delivers:** Running songs merge into liked sets in `PlaylistGenerationNotifier`, synthetic feedback integration in `TasteSuggestionNotifier`, +8 to +10 scoring weight
+**Addresses:** Must-have feature (songs appear in generated playlists), differentiator (feeds taste learning without run feedback)
+**Avoids:** Feature feeling disconnected from core playlist generation
 
-**Features:** None user-visible. Pure data layer.
+### Phase 3: Local Song Search with Typeahead
+**Rationale:** Delivers full user value with zero external dependencies. Search 5,066 curated songs instantly.
+**Delivers:** `SongSearchService` interface, `CuratedSongSearchService` implementation, search UI with `Autocomplete` widget, 300ms debounce, highlighted matches
+**Uses:** Flutter built-in `Autocomplete` (no external package), existing `CuratedSongRepository`
+**Addresses:** Table stakes (typeahead search), differentiator (instant local results)
+**Avoids:** Pitfall #5 (rate limits) with debounce and query length limits, Pitfall #10 (irrelevant results) with 2-char minimum
 
-**Avoids:** Pitfall #5 (lookup key mismatch). Key normalization strategy decided here before any feedback persisted.
+### Phase 4: Spotify OAuth and Token Management Foundation
+**Rationale:** Infrastructure for all Spotify features. Architecturally independent, can be built with mocks.
+**Delivers:** `SpotifyTokenManager` with secure storage, token capture from Supabase OAuth, proactive refresh, `SpotifyApiClient` interface with mock implementation
+**Uses:** `flutter_secure_storage` (first usage), `spotify` package models (for mock contracts)
+**Addresses:** Architecture component (token lifecycle management)
+**Avoids:** Pitfall #1 (untestable integration) with mock-first approach, Pitfall #2 (token leakage) with secure storage, Pitfall #3 (redirect mismatch) with platform-specific URIs, Pitfall #4 (token expiry) with proactive refresh
 
-**Research flag:** Standard patterns. Skip phase-level research.
+### Phase 5: Spotify Search Integration
+**Rationale:** Extends Phase 3 search with Spotify data source. Gracefully degrades when Spotify unavailable.
+**Delivers:** `SpotifySongSearchService`, `CompositeSongSearchService` (merges local + Spotify), dual-result UI with source badges, audio features integration for BPM
+**Uses:** `spotify` package search endpoint, existing `SongKey.normalize` for deduplication
+**Addresses:** Differentiator (expanded song catalog beyond curated dataset)
+**Avoids:** Pitfall #6 (model collision) with `SpotifyTrack.toBpmSong()` conversion, Pitfall #7 (URI/ID/URL confusion) by storing URIs, Pitfall #8 (no BPM from search) with lazy audio features fetch
 
----
-
-### Phase 2: Feedback UI + Scoring Integration
-**Rationale:** With data layer complete, close the full feedback loop: user gives feedback -> stored -> next generation uses feedback. This delivers immediate user value.
-
-**Delivers:**
-- SongTile modifications (like/dislike buttons, visual state: filled/outlined icons)
-- PlaylistScreen wiring (pass callbacks to SongTile, read feedback provider)
-- SongQualityScorer feedback dimension (isLiked parameter, +12/-20 weights)
-- PlaylistGenerator feedback parameter (Map<String, bool> feedbackMap)
-- PlaylistGenerationNotifier reads feedback provider, passes to generator
-- Add genre + decade fields to PlaylistSong model (needed for feedback metadata capture)
-
-**Features:** Like/dislike buttons (table stakes), liked songs boost scoring (+12), disliked songs penalized (-20), visual state persistence.
-
-**Avoids:** Pitfall #1 (scoring balance). Extensive unit tests verify liked songs with poor running metrics do NOT override unrated songs with excellent metrics.
-
-**Research flag:** Standard patterns. Skip phase-level research.
-
----
-
-### Phase 3: Feedback Library Screen
-**Rationale:** Quality-of-life feature that builds user trust. Lets users review/edit/undo feedback decisions. Not required for core loop but important for transparency and control.
-
-**Delivers:**
-- FeedbackLibraryScreen (two-tab view: Liked / Disliked)
-- List all feedback entries, show song title/artist/date
-- Tap to toggle feedback (liked -> neutral, disliked -> neutral, liked -> disliked)
-- Search/filter by artist (optional but recommended)
-- GoRouter route + navigation from settings or home
-
-**Features:** Feedback library screen (table stakes), undo feedback.
-
-**Avoids:** No specific pitfall mitigation. Supports recovery from Pitfall #8 (blacklist spiral) by making it easy to un-dislike songs.
-
-**Research flag:** Standard patterns. Skip phase-level research.
-
----
-
-### Phase 4: Freshness Tracking
-**Rationale:** Freshness prevents filter bubbles. Must be built alongside feedback (not deferred to v1.4+) to provide counter-force against liked-song reinforcement.
-
-**Delivers:**
-- SongPlayRecord model (songKey, playedAt)
-- PlayHistoryPreferences (90-day rolling window, trimmed on save)
-- PlayHistoryNotifier (record plays after generation, expose recent song keys Set)
-- FreshnessMode enum (keepFresh vs optimizeForTaste)
-- FreshnessPreferences (toggle state persistence)
-- FreshnessSettingNotifier (expose mode to UI)
-- SettingsScreen freshness toggle UI (SwitchListTile or SegmentedButton)
-- PlaylistGenerator freshness penalty (apply -8 to -1 decay based on recency, only if keepFresh mode)
-- PlaylistGenerationNotifier records play history after generation
-
-**Features:** Freshness tracking, freshness scoring dimension, freshness toggle UI.
-
-**Avoids:** Pitfall #2 (filter bubble). Freshness penalty (-8 for <3 days) deprioritizes recently-used songs, ensuring variety across sessions.
-
-**Avoids:** Pitfall #6 (small BPM pool). Scale penalty by pool size—if <50 BPM-eligible songs, reduce or disable freshness.
-
-**Research flag:** Standard patterns. Skip phase-level research.
-
----
-
-### Phase 5: Post-Run Review (Optional MVP)
-**Rationale:** Novel differentiator in running music space. Captures feedback while run experience is fresh. Can be deferred to v1.4 if timeline is tight.
-
-**Delivers:**
-- Home screen card: "Rate your last playlist" (triggered when recent unreviewed playlist exists)
-- Dedicated review screen showing all songs from last playlist with feedback buttons
-- Skippable flow (not a blocking modal)
-- Mark playlist as "reviewed" to prevent re-prompting
-
-**Features:** Post-run review screen (differentiator).
-
-**Avoids:** Pitfall #7 (feedback fatigue). Review is optional, not forced. User can dismiss or skip entirely.
-
-**Research flag:** UX patterns need light validation. Consider user testing on feedback friction.
-
----
-
-### Phase 6: Taste Learning (Post-MVP)
-**Rationale:** Requires accumulated feedback data (minimum 10 entries). By this phase, users have generated 5+ playlists and provided feedback. Taste learning is experimental—weights/thresholds may need tuning.
-
-**Delivers:**
-- TasteLearner static analyzer (feedback list -> LearnedPreferences)
-- LearnedPreferences model (genre/artist/decade affinities, BPM center)
-- Integration into PlaylistGenerator (apply learned preference bonus, max ±4 points)
-- Suggestion cards on home screen ("Add Electronic to your profile?")
-- Suggestion acceptance -> TasteProfile.copyWith()
-
-**Features:** Taste learning from feedback patterns, suggestion-based profile updates, disliked artist auto-detection.
-
-**Avoids:** Pitfall #4 (taste learning overfit). Learned preferences are low-weight (max +4), transparent (surfaced as suggestions), and never auto-modify TasteProfile.
-
-**Research flag:** Needs experimentation. Consider `/gsd:research-phase` for tuning affinity thresholds and weights.
-
----
+### Phase 6: Spotify Playlist Browse and Import
+**Rationale:** Highest complexity, depends on all prior phases being stable. Lowest priority (Dashboard blocked).
+**Delivers:** Playlist list screen (`GET /me/playlists`), playlist detail with track selection, bulk import to "Songs I Run To", cross-reference with curated catalog
+**Uses:** `spotify` package playlist endpoints, existing curated lookup set
+**Addresses:** Differentiator (import existing Spotify running playlists)
+**Avoids:** Pitfall #11 (scope mismatch) by reusing `spotifyScopes` constant, Pitfall #9 (dual auth confusion) with unified connection state
 
 ### Phase Ordering Rationale
 
-- **Phases 1-2 are tightly coupled:** Data layer must exist before UI/scoring. Building both delivers the minimum viable feedback loop.
-- **Phase 3 is independent:** Library screen can be built anytime after Phase 1. Placed here because it's lower priority than closing the scoring loop.
-- **Phase 4 MUST come before Phase 5-6:** Freshness prevents filter bubbles. Shipping feedback without freshness creates the #2 critical pitfall. Phases 5-6 (review, learning) amplify feedback collection; freshness ensures variety survives that amplification.
-- **Phase 5 is optional MVP:** Post-run review is a differentiator but not essential for core loop. Can defer to v1.4 if timeline is tight.
-- **Phase 6 requires data:** Taste learning needs 10+ feedback entries. By placing it last, earlier phases have time to accumulate data.
+- **Data layer first** (Phase 1) because it is the destination for both search (Phase 3) and Spotify import (Phase 6). No external dependencies means lowest risk, highest immediate value.
+- **Integration second** (Phase 2) because the payoff (better playlists) must be immediate. Users should see favorites boost scoring within one playlist generation.
+- **Local search third** (Phase 3) because it delivers full user value without external API dependencies. Curated catalog is sufficient for MVP.
+- **Spotify foundation fourth** (Phase 4) because it is pure infrastructure with no user-facing features. Can be built entirely with mocks while Dashboard is blocked.
+- **Spotify search fifth** (Phase 5) because it extends local search (Phase 3) with minimal coupling. Graceful degradation means feature works even if Spotify auth fails.
+- **Spotify playlists last** (Phase 6) because it is highest complexity (OAuth + multi-step flow + bulk operations) and lowest immediate value (Dashboard access uncertain).
+
+**Dependency chain:**
+```
+Phase 1 (Running Songs Data) → Phase 2 (Scoring Integration)
+                              → Phase 3 (Local Search)
+
+Phase 4 (Spotify Auth) → Phase 5 (Spotify Search)
+                       → Phase 6 (Spotify Playlists)
+
+Phase 3 + Phase 5 = Composite Search Service
+Phase 1 + Phase 6 = Spotify Import Destination
+```
 
 ### Research Flags
 
 **Phases needing deeper research during planning:**
-- **Phase 6 (Taste Learning):** Affinity calculation thresholds, scoring weights for learned preferences, suggestion UI patterns—all need experimentation. Consider `/gsd:research-phase` for tuning.
+- **Phase 4 (Spotify Auth):** OAuth PKCE redirect URI configuration per platform (AndroidManifest.xml, Info.plist, web callback page), code verifier persistence strategy (sessionStorage vs secure storage), Supabase provider token capture timing (onAuthStateChange event handling)
+- **Phase 5 (Spotify Search):** Audio features API quota/availability in Developer Mode, batch endpoint usage vs. individual calls, cross-reference strategy for Spotify tracks vs. curated catalog (match quality, artist name normalization differences)
+- **Phase 6 (Spotify Playlists):** February 2026 API changes impact on playlist response format (`tracks` → `items` rename, non-owned playlist metadata restrictions), pagination handling for large playlists (100+ tracks), bulk import UX for selection/progress/error reporting
 
-**Phases with standard patterns (skip research):**
-- **Phase 1 (Feedback Foundation):** Established SharedPreferences + Riverpod patterns from existing codebase.
-- **Phase 2 (Feedback UI + Scoring):** Widget extension, scoring parameter addition—both follow existing patterns.
-- **Phase 3 (Feedback Library):** Standard list screen, matches TasteProfileLibraryScreen structure.
-- **Phase 4 (Freshness Tracking):** Timestamp storage, rolling window trim—established persistence patterns.
-- **Phase 5 (Post-Run Review):** Standard screen + card prompt, similar to onboarding flow.
+**Phases with standard patterns (can skip research-phase):**
+- **Phase 1:** StateNotifier + Completer pattern established, SharedPreferences persistence well-documented in existing codebase
+- **Phase 2:** Scoring integration is one-line addition to existing `_readFeedbackSets()` method, synthetic feedback conversion follows existing model patterns
+- **Phase 3:** Flutter Autocomplete widget well-documented with official examples, debouncing pattern standard across codebase
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Direct codebase analysis confirms SharedPreferences patterns handle feedback/freshness data. Zero new dependencies validated against project memory (code-gen broken with Dart 3.10). |
-| Features | HIGH | Competitive analysis across 7 platforms (Spotify, Apple Music, Pandora, YouTube Music, RockMyRun, PaceDJ, Weav Run) confirms table stakes and identifies differentiators. Binary feedback pattern validated by Cornell research + Pandora's 75B data points. |
-| Architecture | HIGH | All integration points traced through existing codebase (SongQualityScorer, PlaylistGenerator, PlaylistGenerationNotifier, SongTile). New components follow established feature directory structure. |
-| Pitfalls | HIGH | Critical pitfalls (#1-4) grounded in recommendation system research (filter bubbles, scoring balance, cold start). SharedPreferences performance limits validated against real dataset sizes. Lookup key mismatch pattern observed in existing code. |
+| Stack | **HIGH** | Version compatibility verified against pubspec.yaml, `spotify` package API coverage confirmed in GitHub examples, zero version conflicts with existing dependencies |
+| Features | **MEDIUM-HIGH** | Table stakes validated against industry UX patterns (Spotify, Apple Music), "Songs I Run To" concept validated by MOOV Beat Runner, Spotify import pattern validated by SongShift/Soundiiz |
+| Architecture | **HIGH** | Based on exhaustive codebase analysis (60+ Dart files), existing patterns (StateNotifier + Completer, SongKey.normalize, static Preferences helpers) extend cleanly, integration points identified with single-line changes |
+| Pitfalls | **HIGH** | Grounded in official Spotify documentation, verified Spotify Developer Dashboard status (February 2026 blog post), token storage security patterns documented in Flutter ecosystem |
 
-**Overall confidence:** HIGH
+**Overall confidence:** **HIGH**
+
+Research benefits from:
+- Direct codebase access (all 60+ Dart files analyzed for patterns)
+- Official Spotify API documentation (authorization, search, playlists, token lifecycle)
+- Verified external constraint (Dashboard blocked, Developer Mode restrictions)
+- Existing architectural patterns (Riverpod manual providers, SharedPreferences persistence, SongKey normalization)
+- Version compatibility verification (pubspec.yaml, pub.dev package pages)
 
 ### Gaps to Address
 
-- **Optimal feedback weights (liked: +12, disliked: -20):** Research suggests this range, but tuning may be needed after user testing. Plan to make weights easily adjustable constants for rapid iteration in early beta.
+Research identified areas requiring validation during planning or execution:
 
-- **Freshness decay curve:** Stepped decay (-8/-5/-3/-1/0) is informed by Spotify's engineering blog and ACT-R memory models, but exact thresholds are estimates. Monitor playlist variety metrics after launch; adjust curve if <30% song turnover across 5 consecutive generations.
+- **Supabase provider token behavior:** Documentation states `session.providerToken` contains Spotify access token, but persistence across session refresh is unclear. Needs empirical testing with actual Supabase instance to confirm whether token capture/storage layer is required or if Supabase handles it. (Mitigation: design token manager assuming Supabase does NOT persist, so if it does, layer becomes pass-through.)
 
-- **Taste learning affinity thresholds:** Minimum 5 samples per category is a heuristic. Real usage may reveal this is too low (noisy patterns) or too high (learning never activates). Plan to expose threshold as a tunable parameter during Phase 6 implementation.
+- **Spotify audio features API availability:** Developer Mode restrictions (February 2026) may limit access to `/audio-features` endpoint. Search response does not include BPM/danceability. Research assumes endpoint remains available but needs verification when Dashboard access opens. (Mitigation: design scoring to handle missing BPM with neutral scores; cross-reference with curated catalog where BPM is known.)
 
-- **Lookup key normalization edge cases:** Parenthetical stripping and punctuation removal handle most API/curated mismatches, but rare edge cases may exist (e.g., "Pt. 1" vs "Part 1"). Build telemetry to log failed feedback lookups; address in patch if frequency >5%.
+- **Flutter Autocomplete widget async debounce implementation:** Official docs show `optionsBuilder` returns `FutureOr`, but debounce implementation details (Timer-based vs. Riverpod pattern) not explicitly shown in examples. (Mitigation: Timer-based debounce is standard Dart pattern, ~10 lines of code; proven approach in similar Flutter search implementations.)
 
-- **Post-run review adoption rate:** Unknown whether users will engage with review screen. If <20% adoption after 1 month, consider removing or redesigning as less intrusive prompt.
+- **Spotify URI format validation:** API docs specify `spotify:track:id` format for playlist operations, but edge cases (podcast episodes, local files, unavailable tracks) may have different URI formats. (Mitigation: regex validation `^spotify:track:[a-zA-Z0-9]+$` before API calls; log warnings for unexpected formats.)
+
+- **Platform-specific OAuth redirect handling:** Web callback page implementation and deep link configuration (iOS Info.plist, Android intent filters) requires platform-specific testing. Research documents requirements but cannot verify end-to-end flow without Dashboard access. (Mitigation: build with mock OAuth flow first, defer platform-specific redirect testing to Phase 4 verification.)
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Direct codebase analysis** — All files in SongQualityScorer, PlaylistGenerator, PlaylistGenerationNotifier, SongTile, SharedPreferences preferences classes. Patterns verified, integration points traced.
-- **SharedPreferences v2.5.4 documentation** — API capabilities, storage characteristics, practical limits verified.
-- **Flutter official storage cookbook** — SharedPreferences recommended for "relatively small collection of key-values."
-- **Existing project memory** — Code-gen broken with Dart 3.10, Riverpod 2.x manual providers, Supabase init issues, pre-existing test failures documented.
+- **Spotify Web API Reference:** Search endpoint, authorization (PKCE flow), token refresh, playlists, scopes, rate limits — official documentation
+- **Spotify Developer Blog:** OAuth migration (November 2025), security requirements (February 2025), developer access update (February 2026), extended quota mode criteria (April 2025) — policy changes verified
+- **`spotify` package (pub.dev):** v0.15.0 dependencies, PKCE support, platform compatibility — version/compatibility data
+- **Flutter API documentation:** Autocomplete widget with async examples, Material Design 3 widgets — built-in capabilities
+- **Codebase analysis:** 60+ Dart files covering existing patterns (StateNotifier, SongKey, scoring, feedback, taste learning, persistence) — direct source code inspection
+- **Supabase documentation:** OAuth with Spotify, provider tokens, auth state changes — integration patterns
 
 ### Secondary (MEDIUM confidence)
-- **Spotify Recommendation System Complete Guide (Music Tomorrow, 2025)** — Explicit/implicit feedback weighting, taste clustering, freshness scoring, diversity injection patterns.
-- **Cornell Research: Dislike Button Improves Recommendations** — Binary feedback effectiveness, Piki research system confirms binary outperforms rating scales.
-- **Pandora Thumbs System Explained (SoftHandTech)** — 75B feedback data points, attribute-based learning, undo patterns, station-specific feedback.
-- **Apple Music Algorithm Guide 2026 (BeatsToRapOn)** — Recency bias, diversity filtering, "Suggest Less" vs hard dislike patterns.
-- **YouTube Music Algorithm Guide (BeatsToRapOn)** — Thumbs patterns, Music Tuner (filters), session-based variety.
-- **ACT-R Memory Model for Music Recommendation (Springer, 2024)** — Time-decayed frequency/recency modeling for freshness decay curve.
-- **SharedPreferences performance analysis (MoldStud)** — Performance characteristics for large data (>1 MB).
-- **Flutter database comparison 2025 (DinkoMarinac)** — Drift, Hive, Isar alternatives assessment, Isar/Hive abandonment status.
+- **UX research:** Smart Interface Design Patterns (autocomplete), Algolia (debouncing), Baymard Institute (mobile search) — industry consensus on typeahead patterns
+- **Music app UX:** Spotify/Apple Music search patterns, Liked Songs management, favorites integration — competitor analysis
+- **Playlist transfer tools:** Soundiiz, SongShift, FreeYourMusic — playlist-level import patterns
+- **Running music apps:** MOOV Beat Runner, RockMyRun, PaceDJ — "Songs I Run To" concept validation
+- **Spotify community forums:** Dashboard registration blocked, PKCE errors, playlist API issues — developer experience reports
 
 ### Tertiary (LOW confidence)
-- **Implicit vs Explicit Feedback in Music Recommendation (ACM)** — Complementary relationship between feedback types, Last.fm study on feedback fatigue.
-- **Negative Feedback for Music Personalization (ArXiv, 2024)** — How negative feedback improves recommendation quality.
-- **Filter Bubbles in Recommender Systems: Fact or Fallacy (ArXiv)** — Systematic review of feedback loop reinforcement, echo chambers.
-- **Measuring Recency Bias in Sequential Recommendation (ArXiv, 2024)** — Academic analysis of recency bias in recommendation systems.
-- **Choosing the Right Weights: Balancing Value, Strategy, and Noise (ArXiv)** — Research on weight balancing in recommendation scoring systems.
+- **TechCrunch reporting:** Spotify Developer Mode restrictions (February 2026) — secondary source for policy changes (primary is Spotify blog)
+- **Medium articles:** Flutter token security, debouncing patterns — community best practices (validated against official docs where possible)
 
 ---
-*Research completed: 2026-02-06*
+*Research completed: 2026-02-08*
 *Ready for roadmap: yes*

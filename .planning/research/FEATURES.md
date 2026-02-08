@@ -1,422 +1,251 @@
-# Feature Research: v1.3 Song Feedback, Taste Learning & Playlist Freshness
+# Feature Landscape: Song Search, "Songs I Run To" & Spotify Integration
 
-**Domain:** Song-level feedback systems, implicit taste learning from explicit feedback, playlist freshness/variety algorithms
-**Researched:** 2026-02-06
-**Confidence:** MEDIUM-HIGH -- feedback UX patterns well-established across Spotify, Apple Music, Pandora, YouTube Music; taste learning patterns verified through academic research and platform documentation; freshness algorithms documented in Spotify engineering blog and research papers; integration with existing codebase verified through direct code inspection
+**Domain:** Song search with typeahead autocomplete, user-curated song lists for running, Spotify playlist import/browse
+**Researched:** 2026-02-08
+**Confidence:** MEDIUM-HIGH -- autocomplete UX patterns well-documented across industry; "favorite songs" list management patterns established by Spotify/Apple Music/Pandora; Spotify API state verified via developer community posts and official changelog; running app competitor patterns verified via app store listings and reviews
 
 ## Background: Current State and What This Milestone Adds
 
 ### What Exists Today
 
-The app generates BPM-matched running playlists using an 8-dimension scoring system (`SongQualityScorer`). Users configure their preferences through `TasteProfile` objects containing genres, artists, energy level, vocal preference, tempo tolerance, decades, and disliked artists. Playlists are generated from a pool of ~5,066 curated songs plus API results, scored, ranked, and assigned to run segments.
+The app has a mature taste profile system (genres, artists, energy, decades, vocal preference, disliked artists), song feedback (like/dislike with scoring integration), taste learning (pattern detection from feedback with suggestion cards), playlist generation with an 8-dimension quality scorer, and freshness tracking. Users configure taste through a questionnaire and refine it through post-run song feedback.
 
-The current feedback mechanism is **crude**: users can swipe-dismiss songs from a generated playlist and pick a replacement from a short suggestion list. There is no persistent memory of what songs the user liked or disliked. Every playlist generation starts fresh from the same scoring weights regardless of accumulated user behavior.
+**Missing capability:** Users cannot directly tell the system "I love running to this specific song." The only way to express song-level positive preference is to encounter it in a generated playlist and then like it. There is no proactive song selection -- users are passive recipients of algorithmically chosen songs.
 
 ### What This Milestone Changes
 
-This milestone adds three interconnected capabilities:
+Three interconnected features:
 
-1. **Song feedback** -- Users can like/dislike individual songs. Feedback persists and accumulates.
-2. **Taste learning** -- The system analyzes feedback patterns to discover implicit preferences (e.g., user consistently likes songs from the 2010s but never explicitly set a decade preference).
-3. **Freshness** -- The system tracks which songs have appeared in generated playlists and can deprioritize recently-used songs.
+1. **Song search with autocomplete** -- Search the curated song catalog (5,066 songs) by title or artist. Foundation for future Spotify search API integration.
+2. **"Songs I Run To" list** -- A user-curated collection of specific songs the user wants in their running playlists. Acts as a strong positive signal in scoring (stronger than a simple "like").
+3. **Spotify playlist browse (foundation)** -- OAuth flow, playlist listing, song selection from Spotify playlists. Foundation-only because Spotify Developer Dashboard is not accepting new apps (blocked since late December 2025, with Developer Mode restrictions taking effect February 11, 2026).
 
-### Key Constraint: Not a Streaming App
+### Key Constraint: Spotify API Availability
 
-This app does NOT play music. Users generate playlists, review them, then listen externally via Spotify/YouTube links. This means:
-- "Played" = "appeared in a generated playlist," not "was streamed through the app"
-- There are no implicit signals like skip rate, completion rate, or listening duration
-- All feedback must be **explicit** (user taps like/dislike) -- there is no passive signal to harvest
-- Post-session review is different from mid-session feedback (user reviews the full playlist after running, not while running)
+Spotify Developer Dashboard has been blocking new app creation since late December 2025 with the message "New integrations are currently on hold." Additionally, starting February 11, 2026 for new Client IDs and March 9, 2026 for existing ones, Developer Mode requires a Premium account and limits test users from 25 to 5 per application. The February 2026 API changes also remove `GET /users/{id}/playlists` and several batch endpoints, though `GET /me/playlists` (current user's playlists) remains available.
 
-This is fundamentally different from Spotify/Pandora where the recommendation engine has rich implicit signals. Our system must work with sparse, explicit-only feedback.
+This means: build the Spotify integration architecture and UI, but make it gracefully degrade when no Spotify credentials are configured. The app must deliver full value from local search and manual song addition without Spotify.
 
 ---
 
-## Feature Landscape
+## Table Stakes
 
-### Table Stakes (Users Expect These)
-
-Features that users who have used any music app will expect. Missing these makes the feedback system feel incomplete.
+Features users expect from a song search and favorites management experience. Missing these makes the feature feel incomplete or broken.
 
 | Feature | Why Expected | Complexity | Dependencies | Notes |
 |---------|--------------|------------|--------------|-------|
-| **Like/dislike buttons on every song tile** | Every major music app (Spotify, Apple Music, YouTube Music, Pandora) provides inline feedback. Users expect to express preference on individual songs. In a running playlist context, this means "I enjoyed running to this" or "this was wrong for my run." | LOW | `PlaylistSong` model (exists), `SongTile` widget (exists). New: `SongFeedback` model, `SongFeedbackRepository` (SharedPreferences persistence). | The `SongTile` widget currently shows title, artist, BPM, match type, and star badge. Adding a like/dislike toggle is a visual addition plus a new data layer. Icon choice matters: use thumbs up/down (explicit feedback intent) not hearts (hearts imply "save to library" per Spotify convention). |
-| **Visual feedback state on song tiles** | Once a user has liked or disliked a song, they expect to see that state reflected whenever they see that song again -- in the current playlist, in history detail, and in the feedback library. | LOW | `SongFeedback` model, `SongTile` widget. | Thumbs-up icon filled/highlighted for liked songs, thumbs-down for disliked. Neutral state (no feedback) shows outlined/unfilled icons. The visual state must persist across app restarts and appear on the same song in different playlists (matched by artist+title lookup key). |
-| **Liked songs boost scoring** | Spotify, Pandora, and YouTube Music all prioritize songs the user has explicitly liked. A liked song should receive a scoring bonus in `SongQualityScorer` so it ranks higher in future playlists. | LOW | `SongQualityScorer` (exists), `SongFeedback` data. | Add a new scoring dimension: `+8 if song is liked`. This is comparable to the existing `artistMatchWeight` (+10). The bonus should be significant enough to noticeably promote liked songs but not so dominant that it overrides BPM matching or runnability. |
-| **Disliked songs filtered or heavily penalized** | Every platform removes disliked songs from future recommendations. Pandora never plays a thumbed-down song again. Apple Music's "Suggest Less" suppresses the song. Users who dislike a song in a running app expect to never see it in a playlist again. | LOW | `SongQualityScorer` (exists), `SongFeedback` data, `PlaylistGenerator` (exists). | Two options: (A) Hard filter -- disliked songs are removed from the candidate pool before scoring. (B) Heavy penalty -- disliked songs get `-20` in scoring. Recommend option A (hard filter) because the user's intent is unambiguous: "I do not want this song." A penalty still allows the song to appear if the candidate pool is small. Hard filter matches Pandora's behavior and user expectations. |
-| **Feedback library screen** | Users need a place to see all their feedback decisions, correct mistakes (undo a dislike), and review their liked songs. Apple Music has this (Loved Songs playlist), Spotify has Liked Songs. Without it, feedback feels like a black box. | MEDIUM | `SongFeedback` repository, new screen. | Screen shows two tabs or filters: Liked / Disliked. Each entry shows song title, artist, and the date of feedback. Tap to toggle feedback (change like to dislike or clear feedback entirely). Sort by most recent feedback. Search/filter optional but not MVP. |
-| **Undo feedback** | Both Pandora and Apple Music allow undoing feedback. Users make mistakes, change their minds, or accidentally tap. Without undo, users feel locked into decisions. | LOW | `SongFeedback` repository. | Three states: liked, disliked, neutral (no feedback). Tapping the active icon again should clear feedback back to neutral. Tapping the opposite icon should switch (liked -> disliked). This is the standard toggle pattern. Additionally, show a brief snackbar with "Undo" action after any feedback tap (Spotify pattern). |
-| **Feedback accessible from both playlist screen and history detail** | Users generate playlists and may want to give feedback immediately. But they also review past playlists (history detail screen) and want to give feedback retroactively after their run. Both surfaces must support like/dislike. | LOW | `SongTile` widget (shared between playlist screen and history detail screen). | Since `SongTile` is already shared across both screens, adding feedback to the widget automatically makes it available everywhere. The feedback state is stored by song identity (artist+title), not by playlist, so a like given on the history screen applies globally. |
+| **Typeahead search with debounced input** | Every music app (Spotify, Apple Music, YouTube Music) provides instant-feeling search with results appearing as the user types. Users expect results within ~200ms of pausing typing. Searching 5,066 curated songs locally should feel instantaneous. | LOW | `CuratedSongRepository` (exists, provides the searchable dataset). New: search index or filtered list, debounce timer. | Debounce at 200ms (industry standard for mobile). Show results after 1 character (dataset is small enough). Limit visible results to 8-10 items. Use Flutter's built-in `Autocomplete` widget or `SearchAnchor` -- both support custom result builders. For 5K songs, a simple `String.contains` on lowercased title+artist is fast enough; no trie/index needed. |
+| **Highlighted matching text in results** | Spotify, Apple Music, and Google all bold or highlight the portion of the result that matches the user's query. This visual cue helps users scan results quickly and confirms they're finding what they expect. Autocomplete UX research (Smart Interface Design Patterns) calls this essential for scannability. | LOW | Search result widget. | Use `TextSpan` with bold styling on the matched substring. Match on both song title and artist name, highlight whichever matched. |
+| **Song result tiles showing title + artist + genre** | Users need enough context to identify the right song. "Lose Yourself" alone is ambiguous; "Lose Yourself - Eminem (Hip-Hop)" is clear. Running apps like jog.fm and MOOV Beat Runner show BPM alongside results. | LOW | `CuratedSong` model (has title, artistName, genre, bpm). | Show: title (primary), artist (secondary), genre chip, and BPM badge if available. This matches the existing `SongTile` pattern but in a more compact search-result format. |
+| **Add to "Songs I Run To" action** | The primary action from search results. Users expect a clear, single-tap way to add a found song to their favorites/running list. Apple Music uses a "+" button; Spotify uses "Add to Playlist." For this app, a single tap should add to the "Songs I Run To" list. | LOW | "Songs I Run To" data model and persistence (new). | Show a "+" icon button on each search result. Tap adds immediately with haptic feedback and visual confirmation (checkmark replaces "+"). If already in the list, show a checkmark and disable/gray out the add action. |
+| **"Songs I Run To" list view with removal** | Users need to see, browse, and manage their curated song list. Apple Music's Favorites playlist and Spotify's Liked Songs both show a scrollable list with the ability to remove items. Users expect to be able to undo accidental additions. | LOW | "Songs I Run To" persistence, list widget. | Simple list view with song tiles. Swipe-to-dismiss or trailing delete icon for removal. Show song count in the header. Sort by most recently added (default) with option for alphabetical. |
+| **"Songs I Run To" songs appear in generated playlists** | The entire point of the list. Songs the user explicitly selected for running must have a strong scoring boost in `SongQualityScorer`. This is the payoff that makes the feature feel connected to the app's core function. | MEDIUM | `SongQualityScorer` (exists), `PlaylistGenerator` (exists), "Songs I Run To" data. | These songs should receive a stronger boost than the existing `likedSongWeight` (+5). Recommend +8 to +10, comparable to `artistMatchWeight` (+10). Rationale: a user who proactively searched for and added a song has stronger intent than one who merely liked a song that appeared in a playlist. The scorer already supports `isLiked`; add a parallel `isRunToSong` boolean or merge both into a single "user affinity" score with different weights. |
+| **Empty state for search** | When the search field is focused but empty, or when no results match, users expect helpful guidance rather than a blank screen. Apple Music shows recent searches; Spotify shows trending. For a local dataset, show a prompt like "Search songs by title or artist." | LOW | Search UI. | Three states: (1) empty input = "Search 5,000+ songs by title or artist" prompt, (2) typing with results = result list, (3) no matches = "No songs found for '[query]'" with suggestion to try different terms. No recent search history needed for MVP -- the dataset is local and fast. |
+| **Empty state for "Songs I Run To"** | When the list is empty, guide users to add songs rather than showing a blank screen. This is critical for feature discoverability. | LOW | "Songs I Run To" screen. | Show: icon (e.g., Icons.playlist_add), "No songs yet", "Search for songs you love running to and add them here." Include a prominent "Search Songs" button that navigates to the search screen. |
 
-### Differentiators (Competitive Advantage)
+## Differentiators
 
-Features that go beyond standard music app patterns. These are where the running playlist context creates unique value.
+Features that set the app apart from competitors. Not universally expected, but create unique value in the running music context.
 
 | Feature | Value Proposition | Complexity | Dependencies | Notes |
 |---------|-------------------|------------|--------------|-------|
-| **Post-run review screen** | No competitor in the BPM-matching space offers a post-run review flow. After completing a run, the user opens the app and sees a "How was your playlist?" screen showing each song with like/dislike buttons and optional "perfect for running" / "not great for running" tags. This captures fresh feedback while the experience is vivid. Spotify has no post-session review. Pandora's feedback is real-time only. This is a novel UX for the running context. | MEDIUM | Playlist history (exists), feedback model, new screen or overlay. | The screen should be triggered when the user opens the app and a recently generated playlist (last 4 hours) has not been reviewed. Show songs in playlist order. Make it skippable ("Skip Review" button). The screen is purely for feedback collection -- it does not regenerate or modify the playlist. Consider: is this a new screen or a modal overlay on the home screen? Recommend: a card on the home screen that says "Rate your last playlist" that opens a dedicated review screen. Less intrusive than a modal. |
-| **Taste learning from feedback patterns** | Analyze accumulated likes/dislikes to discover implicit preferences the user never explicitly set. Example: user consistently likes songs from the electronic genre but their taste profile only has Pop and Hip-Hop. The system detects this pattern and either (A) auto-updates the taste profile, or (B) suggests "We noticed you like Electronic -- add it to your profile?" This goes beyond simple scoring boosts -- it creates a feedback loop that improves the taste profile itself. No running music app does this. | HIGH | `SongFeedback` with genre/artist/decade metadata, `TasteProfile` model (exists), analysis logic. | Two approaches: (A) **Automatic updates** -- system silently adjusts taste profile weights. Risk: user loses control, recommendations shift without explanation. (B) **Suggestion-based** -- system surfaces insights as suggestions the user can accept or dismiss. "You've liked 8 electronic songs -- add Electronic to your genres?" This is more transparent and builds trust. Recommend option B (suggestion-based). Implementation: after N likes (threshold ~10), run pattern analysis on feedback metadata. Compare genre/artist/decade distribution of liked songs against current taste profile. Surface top 1-2 gaps as suggestions. |
-| **Freshness toggle: "Keep it Fresh" vs "Optimize for Taste"** | Users sometimes want familiar favorites, sometimes want discovery. Spotify's approach is algorithmic (Favorites Mix vs Discover Weekly are separate playlists). Our approach can be simpler: a single toggle that controls how aggressively the generator deprioritizes recently-used songs. "Keep it Fresh" = strong recency penalty, more variety. "Optimize for Taste" = standard scoring, best-matching songs regardless of repetition. This is a clear, user-controllable preference that no running app offers. | MEDIUM | Freshness tracking (generation timestamps per song), `PlaylistGenerator` modification, UI toggle. | The toggle belongs on the playlist generation screen (next to the run plan and taste profile selectors). Default to "Optimize for Taste" for new users (they have no history to be fresh from). After the user has generated 5+ playlists, suggest switching to "Keep it Fresh." The toggle is a simple boolean that controls whether the freshness scoring dimension is active. |
-| **Freshness tracking: "last appeared in playlist" timestamps** | Track when each song was last included in a generated playlist. This data powers the freshness scoring dimension. Songs that appeared recently get a penalty; songs that have not appeared in a while (or ever) get a bonus. Spotify does this internally for Discover Weekly and Daily Mix. | MEDIUM | New persistence layer: `SongAppearanceHistory` (SharedPreferences or lightweight local DB). Updated during playlist generation. | Store as a map: `songLookupKey -> DateTime lastGenerated`. Updated every time `PlaylistGenerator.generate()` produces a playlist. The map grows with usage but is bounded by the curated song pool size (~5,066 entries). SharedPreferences can handle this as a JSON blob. Consider periodic cleanup of entries older than 90 days. |
-| **Freshness scoring dimension** | Add a new dimension to `SongQualityScorer` that penalizes recently-generated songs. The penalty decays over time (exponential decay matching human memory models). A song generated yesterday gets a strong penalty. A song generated 2 weeks ago gets a mild penalty. A song generated 2 months ago gets no penalty. | MEDIUM | `SongQualityScorer` (exists), freshness tracking data. | Suggested penalty curve: -8 if generated in last 3 days, -5 if last 7 days, -3 if last 14 days, -1 if last 30 days, 0 if older or never. This uses the same integer scoring system as existing dimensions. Max penalty (-8) equals the danceability max weight, making it significant but not overwhelming. Only active when freshness toggle is on. |
-| **Disliked artist auto-detection** | When a user dislikes 3+ songs by the same artist, surface a suggestion: "You've disliked 3 songs by [Artist]. Add them to your disliked artists?" This bridges the gap between song-level feedback and artist-level preferences. Currently, the `dislikedArtists` list in `TasteProfile` requires manual entry. | LOW | `SongFeedback` with artist metadata, `TasteProfile.dislikedArtists` (exists). | Pattern detection: group disliked songs by artist. If count >= 3, trigger suggestion. This is a specific case of the broader taste learning feature but is called out separately because the existing `dislikedArtistPenalty` (-15) is already the strongest negative signal in the scorer. Auto-detecting disliked artists bridges explicit feedback to the existing scoring system with minimal new logic. |
+| **"Songs I Run To" feeds taste learning** | When songs are added to the running list, their metadata (genre, artist, decade) feeds the existing `TastePatternAnalyzer`. This means proactively adding songs teaches the system about preferences just like post-run feedback does, but without requiring the user to actually run first. No running app or general music app uses explicit song curation to refine a taste profile. | LOW | `TastePatternAnalyzer` (exists), "Songs I Run To" data with genre/artist metadata. | Treat "Songs I Run To" entries as equivalent to "liked" feedback for taste learning purposes. The analyzer already processes liked songs by genre/artist frequency -- simply include "run to" songs in the same input set. This creates a powerful onboarding shortcut: a new user can add 5-10 songs and immediately get better playlists without waiting for feedback to accumulate. |
+| **BPM display on "Songs I Run To" with cadence compatibility indicator** | Show each song's BPM alongside the user's current target cadence. Highlight songs that are BPM-compatible (exact, half-time, or double-time match) with the current run plan. This helps users understand WHY a song might or might not appear in their generated playlists. No running app shows this relationship between favorites and cadence. | LOW | `CuratedSong.bpm` (exists), `StrideCalculator` cadence (exists), `BpmMatcher` (exists). | Show a small chip: green "170 BPM" (exact match), amber "85 BPM" (half-time), or gray "120 BPM" (no match). This is informational only -- songs that do not match the current BPM are still kept in the list but the user understands they will not appear in every playlist. |
+| **Spotify playlist browse and song import (foundation)** | Connect Spotify account, browse user's playlists, view tracks, select songs to add to "Songs I Run To." This transforms Spotify from a playback destination into a song discovery source. Users who already have running playlists on Spotify can import their preferences without manual re-entry. Competitors like RockMyRun and PaceDJ do not offer Spotify playlist import for preference seeding. | HIGH | Spotify OAuth (PKCE flow), Spotify Web API client, playlist/track models, UI for browse/select. | Build the full architecture: OAuth service, API client, playlist models, browse UI. But gate behind a feature flag or "Connect Spotify" button that gracefully handles the case where no Spotify app credentials exist. The browse flow: (1) connect account, (2) see list of user's playlists with cover art/name/track count, (3) tap playlist to see tracks, (4) select individual songs or "Add All" to import into "Songs I Run To." Use PKCE authorization code flow (required for mobile apps). Scopes needed: `playlist-read-private playlist-read-collaborative` (the existing `spotifyScopes` constant already includes these plus more). |
+| **Spotify playlist song preview before import** | When browsing a Spotify playlist's tracks, show each song's title, artist, and whether it exists in the curated catalog (with BPM data). Songs in the curated catalog get a "verified running song" badge. Songs not in the catalog can still be added but are marked as "BPM unknown -- will use API lookup." | MEDIUM | Spotify track list, curated song lookup set (exists via `CuratedSongRepository.buildLookupSet`). | Use the existing `SongKey.normalize` to match Spotify tracks against the curated catalog. This cross-referencing is O(1) per song using the existing lookup set. Display: "[checkmark] In catalog - 172 BPM" or "[question] Not in catalog - BPM lookup needed." This transparency helps users understand the app's capabilities. |
+| **Bulk import from Spotify playlist** | "Add All Running-Compatible Songs" button that imports only the songs from a Spotify playlist that exist in the curated catalog or have BPM data in a running-compatible range (120-200 BPM). Saves users from manually tapping each song. | LOW | Spotify playlist tracks, curated song matching, BPM range filter. | Filter logic: include songs where (a) they exist in curated catalog, OR (b) Spotify reports a BPM in running range. Show count before confirming: "Add 12 of 47 songs (running-compatible)." This is a power-user feature but dramatically reduces friction for users with large existing playlists. |
+| **Search with dual source: local first, Spotify fallback** | When searching, always search the local curated catalog first (instant results). If the user's query has few or no local results AND Spotify is connected, show a "Search Spotify" option below local results. This keeps the fast local experience primary while extending reach. | MEDIUM | Local search (curated songs), Spotify search API (`/v1/search?type=track`), dual-result UI. | Local results appear instantly. Below the local results, show a divider and "Search on Spotify" button (only when Spotify is connected). Tapping it fires the Spotify search API with 300ms debounce. Spotify results appear in a separate section with Spotify branding. Songs found on Spotify can be added to "Songs I Run To" as external songs (stored with Spotify track ID for future enrichment). |
 
-### Anti-Features (Deliberately NOT Building)
+## Anti-Features
 
-| Feature | Why It Seems Useful | Why It Is Problematic | What to Do Instead |
-|---------|--------------------|-----------------------|-------------------|
-| **Star ratings (1-5 scale)** | "More granular feedback gives better signal" | Research consistently shows binary feedback (like/dislike) outperforms rating scales for music. Cornell's Piki research found that binary feedback trained algorithms just as effectively as scaled ratings. Users also rate inconsistently -- a 3-star today might be a 4-star tomorrow. Pandora's entire business was built on binary thumbs. Adding granularity adds cognitive load without improving recommendation quality. In a running context, the user's evaluation is inherently binary: "good for running" or "not good for running." | Binary like/dislike. Two taps, zero cognitive load. |
-| **Feedback on runs rather than songs** | "Rate the whole playlist as good/bad for this run" | A playlist is a collection of songs. Rating the whole playlist loses the granular signal about WHICH songs worked and which did not. A 10-song playlist where 8 songs were great and 2 were terrible gets a "good" rating that teaches the system nothing about the 2 bad songs. | Song-level feedback. The post-run review screen makes it fast to rate all songs individually. |
-| **Skip detection / implicit feedback** | "Track which songs the user skips when listening externally" | The app does not control playback. Users listen on Spotify or YouTube Music. There is no way to detect skips, completion rates, or listening duration. Any attempt to approximate this (e.g., "did they tap the next song link quickly?") would be unreliable guesswork. | Rely exclusively on explicit feedback (like/dislike taps). Be transparent about it. |
-| **Automatic taste profile modification** | "Auto-update the taste profile based on feedback patterns" | Violates user agency. The taste profile is the user's explicit declaration of their preferences. Silently modifying it creates confusion ("I set Pop and Hip-Hop but now I'm getting Electronic -- did I change something?"). Research on music recommendation transparency (2025 Fairness review, Music Tomorrow) emphasizes that users must understand WHY recommendations change. | Suggestion-based learning. Surface insights as cards the user can accept or dismiss. "We noticed you like Electronic songs -- add to your profile?" User stays in control. |
-| **Collaborative filtering** | "Recommend songs that similar users liked" | Requires a multi-user backend, usage analytics, and sufficient user base for meaningful patterns. The app is local-first with no user accounts. Even with a backend, the running music niche is too narrow for reliable collaborative filtering -- a user who likes EDM for running might hate EDM while working. Context-dependent preferences break collaborative filtering assumptions. | Content-based filtering through the existing scoring system + explicit feedback. The 8-dimension scorer already captures what makes a song good for running. Feedback refines this per-user. |
-| **Mood/energy tagging on feedback** | "Let users tag WHY they liked/disliked (too slow, too intense, wrong genre)" | Adds friction to feedback. Every extra tap reduces feedback rates. Pandora found that simple thumbs up/down drives 75 billion data points precisely because it is frictionless. Adding tags turns a 1-tap action into a 3-tap action and dramatically reduces participation. The running context also makes detailed tagging impractical (user is reviewing post-run, tired, wants it fast). | Binary feedback only. If the system needs to know WHY, it can infer from the song's metadata (genre, BPM, energy, decade) and look for patterns across multiple likes/dislikes. This is what taste learning does. |
-| **Social sharing of liked songs** | "Share your running playlist favorites with friends" | Feature creep. Social features require sharing infrastructure, deep links, and social graph. The app is a utility, not a social platform. Running music preferences are highly personal and context-dependent (BPM-matched to YOUR cadence). Sharing a playlist matched to your 170 spm cadence is useless to a friend running at 160 spm. | The clipboard copy feature already exists for sharing full playlists. That is sufficient. |
-| **Real-time feedback during playlist generation** | "As the playlist generates, show each song and let users approve/reject before finalizing" | Generation is fast (subsecond from curated pool). Adding an approval step slows the experience dramatically. Users want a playlist NOW, not an approval workflow. The swipe-to-dismiss + replacement flow already serves the "reject a specific song" use case post-generation. | Post-generation feedback via like/dislike + swipe-to-dismiss (existing). |
-| **Weighted freshness per genre/artist** | "Different freshness decay rates for different genres -- EDM can repeat sooner than singer-songwriter" | Over-engineering. The freshness system is a simple recency penalty. Adding per-genre or per-artist decay rates creates a tuning nightmare with minimal user benefit. Users cannot perceive the difference between "this EDM song was penalized less" and "this singer-songwriter song was penalized more." | Single global freshness decay curve. Simple, predictable, tunable. |
+Features to explicitly NOT build. Each was considered and rejected for specific reasons.
+
+| Anti-Feature | Why It Seems Useful | Why It Is Problematic | What to Do Instead |
+|--------------|--------------------|-----------------------|-------------------|
+| **Full Spotify playback integration** | "Let users play songs directly from the app" | Requires Spotify Premium for playback SDK. The app is not a music player -- it is a playlist generator. Adding playback creates maintenance burden (SDK updates, DRM, offline handling) and scope creep. The existing Spotify/YouTube URL links already serve the playback need. | Keep existing URL-based links to Spotify and YouTube Music. The app generates, the user plays externally. |
+| **Spotify playlist creation / export** | "Export generated playlist as a Spotify playlist" | Requires `playlist-modify-public` or `playlist-modify-private` scopes (already in `spotifyScopes`) AND a registered Spotify app. With the dashboard blocked and Developer Mode restrictions tightening, building export now creates a feature that cannot be tested. Also, the February 2026 API changes restructure playlist response formats, making this a moving target. | Defer to a future milestone when Spotify app registration reopens. The existing clipboard copy of playlist text is the interim export mechanism. |
+| **Spotify "Liked Songs" import** | "Import all of the user's Spotify liked songs" | Liked Songs can be thousands of tracks across all genres and contexts. A user might have 2,000 liked songs, of which only 50 are running-appropriate. Importing all of them pollutes the "Songs I Run To" list and overwhelms the scoring system. The user's Spotify likes include songs for cooking, studying, relaxing -- contexts completely irrelevant to running. | Import from specific playlists, not the full liked library. If a user has a "Running" playlist on Spotify, import that. The playlist-level selection acts as a natural filter. |
+| **Trie or inverted index for local search** | "Build a proper search index for performance" | The dataset is 5,066 songs. A simple case-insensitive `String.contains` on a pre-lowercased copy of each song's "artist - title" string can scan the entire list in under 5ms on modern mobile hardware. Building a trie or inverted index adds complexity for zero perceptible performance gain. | Simple linear scan with `where()` on a pre-cached list. Profile first, optimize only if measured latency exceeds 100ms (it will not). |
+| **Fuzzy matching / typo tolerance in search** | "Users might misspell artist names" | Fuzzy matching requires a string distance library (Levenshtein, Jaro-Winkler), adds complexity to result ranking, and creates confusing results when the dataset is small. With 5,066 songs, a substring match is sufficient -- "beyonc" matches "Beyonce," "eminm" does not match "Eminem" but that is acceptable. Users will see "no results" and correct their spelling. | Exact substring matching. The autocomplete dropdown gives immediate feedback, so users self-correct in real time. Consider adding `startsWith` priority (results starting with the query rank above contains-only matches). |
+| **Song recommendations based on "Songs I Run To"** | "Recommend similar songs based on what the user added" | Requires either the Spotify Recommendations API (restricted since November 2024 for new apps) or a custom similarity engine. The curated catalog is pre-filtered for running suitability -- the scoring system already handles ranking. Adding a separate recommendation layer creates a parallel system that competes with the existing quality scorer. | Let the scoring system do its job. Songs in "Songs I Run To" boost the artists and genres they represent through taste learning. The playlist generator naturally includes more songs from those artists/genres. This IS the recommendation system. |
+| **Spotify OAuth token refresh in background** | "Keep the Spotify connection alive automatically" | Background token refresh requires persistent storage of refresh tokens, background task scheduling, and handling edge cases (token revoked, Spotify account disconnected). For a foundation-phase integration where the Spotify features are optional, this adds complexity for a feature that may not be usable (dashboard blocked). | Refresh tokens on-demand when the user opens a Spotify feature. If the token is expired, prompt re-authentication. Simple, stateless, no background tasks. Store refresh token in secure storage (flutter_secure_storage) for next session. |
+| **Album art / song artwork in search results** | "Show cover art like Spotify does" | Album art requires either Spotify API calls per result (rate-limited, adds latency) or bundling artwork with the curated dataset (adds 50-100MB to app size). The curated dataset has no artwork URLs. | Use genre-colored icons or initials as visual anchors in search results. The text (title + artist + genre) provides sufficient identification. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Song Feedback Data Layer (foundation for everything)
+Song Search (local curated catalog)
     |
-    |-- SongFeedback model (songKey, feedbackType, timestamp)
+    |-- CuratedSong search index (preloaded list, lowercased for matching)
     |       |
-    |       +-- SongFeedbackRepository (SharedPreferences persistence)
-    |       |       |
-    |       |       +-- Load/save/clear feedback
-    |       |       +-- Query by song key
-    |       |       +-- Query all liked / all disliked
-    |       |
-    |       +-- SongFeedbackNotifier (Riverpod provider)
-    |               |
-    |               +-- Exposes feedback state to UI
-    |               +-- Provides like/dislike/clear methods
+    |       +-- Search UI with debounced TextField
+    |       +-- Result list with highlighted matches
+    |       +-- "Add to Songs I Run To" action per result
     |
-    |-- Feedback UI on SongTile
+    |-- "Songs I Run To" Data Layer (new)
     |       |
-    |       +-- Thumbs up / thumbs down icons on every song tile
-    |       +-- Visual state: filled (active) vs outlined (inactive)
-    |       +-- Available in: playlist screen, history detail, review screen
+    |       +-- RunToSong model (songKey, title, artist, genre, bpm, source, addedAt)
+    |       +-- RunToSongRepository (SharedPreferences persistence)
+    |       +-- RunToSongNotifier (Riverpod StateNotifier)
+    |       |
+    |       +-- Scoring Integration
+    |       |       +-- SongQualityScorer: +8..+10 for "run to" songs
+    |       |       +-- PlaylistGenerator: include in likedSongKeys or parallel set
+    |       |
+    |       +-- Taste Learning Integration
+    |               +-- Feed run-to songs into TastePatternAnalyzer as liked entries
+    |               +-- Genre/artist patterns from curated songs inform suggestions
     |
-    |-- Scoring Integration
+    |-- "Songs I Run To" List Screen (new)
     |       |
-    |       +-- SongQualityScorer: +8 for liked songs
-    |       +-- PlaylistGenerator: hard filter disliked songs from candidates
+    |       +-- Scrollable list with song tiles
+    |       +-- Remove action (swipe or icon)
+    |       +-- Empty state with search CTA
+    |       +-- BPM compatibility indicators
+    |       +-- Navigation from home screen
     |
-    |-- Feedback Library Screen
-    |       |
-    |       +-- Lists all liked/disliked songs
-    |       +-- Toggle/clear feedback per song
-    |       +-- Navigation from settings or home screen
-    |
-    |-- Post-Run Review (depends on feedback UI + playlist history)
-    |       |
-    |       +-- Home screen card: "Rate your last playlist"
-    |       +-- Opens review screen showing songs with feedback buttons
-    |       +-- Triggered when recent unreviewed playlist exists
-    |
-    |-- Taste Learning (depends on feedback accumulation)
-    |       |
-    |       +-- Pattern analysis engine
-    |       |       +-- Genre distribution of liked vs profile genres
-    |       |       +-- Artist frequency in liked songs
-    |       |       +-- Decade patterns in liked songs
-    |       |
-    |       +-- Suggestion cards on home screen or feedback library
-    |       |       +-- "Add Electronic to your genres?"
-    |       |       +-- "Add [Artist] to your favorites?"
-    |       |       +-- "Block [Artist]? (3 dislikes)"
-    |       |
-    |       +-- Suggestion acceptance -> TasteProfile.copyWith()
-    |
-    |-- Freshness Tracking (independent of feedback, parallel)
-    |       |
-    |       +-- SongAppearanceHistory (songKey -> lastGeneratedAt)
-    |       +-- Updated during PlaylistGenerator.generate()
-    |       +-- SharedPreferences persistence
-    |
-    |-- Freshness Scoring Dimension (depends on tracking)
-    |       |
-    |       +-- SongQualityScorer: -8 to 0 based on recency
-    |       +-- Only active when freshness toggle is ON
-    |
-    |-- Freshness Toggle UI (depends on freshness scoring)
+    |-- Spotify Integration Foundation (new, independent of search)
             |
-            +-- Toggle on playlist generation screen
-            +-- "Keep it Fresh" vs "Optimize for Taste"
-            +-- Default: Optimize for Taste
-            +-- Persisted per taste profile or globally
+            +-- Spotify OAuth Service (PKCE flow)
+            |       +-- Token storage (flutter_secure_storage)
+            |       +-- Token refresh on-demand
+            |       +-- Connection state management
+            |
+            +-- Spotify API Client
+            |       +-- GET /me/playlists (user's playlists)
+            |       +-- GET /playlists/{id}/tracks (playlist tracks)
+            |       +-- GET /v1/search?type=track (song search, future)
+            |
+            +-- Playlist Browse UI
+            |       +-- Playlist list with name, track count
+            |       +-- Playlist detail with track list
+            |       +-- Select songs -> add to "Songs I Run To"
+            |       +-- Cross-reference with curated catalog
+            |
+            +-- Feature Flag / Graceful Degradation
+                    +-- "Connect Spotify" button (settings or songs screen)
+                    +-- Hide Spotify features when not configured
+                    +-- Error handling for expired/revoked tokens
 ```
 
 ### Dependency Notes
 
-- **SongFeedback data layer is the foundation.** Every other feedback feature depends on it. Build first.
-- **Scoring integration is the immediate payoff.** Once feedback data exists, integrating it into `SongQualityScorer` makes feedback actually DO something. Ship this with the data layer to close the feedback loop immediately.
-- **Feedback library can come after scoring integration.** Users can give feedback and see results (better playlists) before needing a dedicated management screen.
-- **Post-run review depends on feedback UI but is independent of scoring integration.** It is a feedback COLLECTION mechanism, not a feedback APPLICATION mechanism.
-- **Taste learning requires accumulated feedback.** Do not build the analysis engine until there is enough feedback to analyze. Gate behind a minimum threshold (e.g., 10+ liked songs).
-- **Freshness tracking is completely independent of feedback.** It can be built in parallel. It depends only on playlist generation (which already exists).
-- **Freshness toggle is a UI concern that depends on the freshness scoring dimension being implemented.** Ship the scoring dimension first, toggle second.
+- **Local song search is completely independent of Spotify.** Build and ship search first. It delivers value with zero external dependencies.
+- **"Songs I Run To" data layer is the central piece.** Both search and Spotify import feed into it. Build the data model and persistence before either UI.
+- **Scoring integration should ship with the data layer.** When a user adds a song, it should immediately improve their next playlist. Close the loop fast.
+- **Taste learning integration is nearly free.** The `TastePatternAnalyzer` already processes liked songs by genre/artist. Including "run to" songs in that input set requires minimal code changes.
+- **Spotify foundation is architecturally independent** but depends on "Songs I Run To" as the destination for imported songs. Build the data layer first, then Spotify import flows into it.
+- **Spotify OAuth is the highest-risk component** due to the dashboard registration block. Design the OAuth service with a clean interface so it can be implemented later when registration opens, while the rest of the Spotify UI can be built and tested with mock data.
 
 ---
 
-## How Major Platforms Handle Feedback, Learning, and Freshness
+## How Music Apps Handle These Features
 
-### Spotify
+### Song Search UX Conventions
 
-**Feedback mechanism:** Heart icon (add to Liked Songs) + "Hide this song" in context menu. The 2023 reintroduction of the dislike button provides a more explicit negative signal. Explicit feedback (saves, playlist adds, shares) weighs more than implicit signals (skips, completion rate) because background listening makes implicit signals unreliable.
+**Spotify:** Search is the top-level navigation tab. Results appear as the user types with ~200ms debounce. Results are categorized: Top Result (large card), Songs, Artists, Albums, Playlists. Matched text is not explicitly highlighted (Spotify relies on ranking quality). Search is full-catalog (80M+ tracks).
 
-**Taste learning:** Spotify uses collaborative filtering, natural language processing of playlist/track metadata, and audio feature analysis. For explicit feedback, a liked song increases affinity for similar artists, genres, and audio features. The system maintains separate user taste clusters (e.g., "lo-fi beats" cluster vs "contemporary jazz" cluster) to avoid averaging across different listening contexts.
+**Apple Music:** Search field at the top of Browse/Library. Shows "Recent Searches" on focus. Results categorized similarly to Spotify. Apple highlights matched text in search suggestions.
 
-**Freshness:** Discover Weekly regenerates weekly with entirely new songs. Daily Mix uses diversity injection -- inserting slightly different songs between similar ones. A "Fewer Repeats" shuffle mode (November 2025) considers previously played tracks when generating randomized playlists. Internally, Spotify scores playlist candidates for "freshness" by analyzing how recently songs were played and whether repeats appear too quickly.
+**YouTube Music:** Search with autocomplete suggestions that include both text completions and specific songs. Shows "Search on YouTube Music" to broaden results beyond the music catalog.
 
-**Relevance to our app:** Spotify's approach confirms that binary feedback (like/hide) is sufficient for personalization. Their freshness approach (recency penalty + diversity injection) maps directly to our proposed freshness scoring dimension. However, Spotify has implicit signals we do not -- our system must be more aggressive with explicit feedback weighting to compensate.
+**Industry consensus for autocomplete (Smart Interface Design Patterns, Algolia):**
+- Show suggestions immediately on focus (recent searches or prompts)
+- Debounce at 200ms (under 300ms to feel responsive)
+- Limit to 5-10 visible results (reduces visual overwhelm)
+- Highlight matching text for scannability
+- Support keyboard navigation (up/down arrows) on desktop
+- Touch targets minimum 48dp on mobile
+- Show a clear "no results" state with helpful guidance
 
-### Apple Music
+### "Favorite Songs" / "My Songs" List Management
 
-**Feedback mechanism:** "Love" and "Suggest Less Like This" on songs, albums, and artists. Three-tier system: Love (positive), neutral (default), Suggest Less (negative). No hard "dislike" -- the language is deliberately softer ("Suggest Less"). Available via long-press context menu on iOS, ellipsis menu on Mac.
+**Spotify Liked Songs:** Single tap of heart icon adds to Liked Songs. The list is accessible from Library. Songs show title, artist, album, duration, and date added. Sortable by recently added, title, artist, album, or custom order. Searchable within the list. No limit on list size.
 
-**Taste learning:** Apple Music's Listen Now tab shows strong recency bias (last 24-72 hours). The algorithm heavily weights recent explicit signals. One poorly-targeted listen can temporarily skew recommendations (a known user complaint, documented as recently as February 2026 by AppleInsider). Apple's approach is more opaque than Spotify's.
+**Apple Music Favorites (iOS 17+):** Tap star icon to favorite. Creates auto-managed "Favorite Songs" playlist. Favorites influence "Listen Now" recommendations. Can favorite songs, albums, artists, and playlists. Toggle in Settings for whether favorites auto-add to library.
 
-**Freshness:** Favorites Mix is the "exploitation" surface (familiar songs the user loves). New Music Mix and Discovery Station are the "exploration" surfaces. The final recommendation list is filtered for diversity, freshness, and editorial rules.
+**MOOV Beat Runner:** Star button during or after running adds to "My Songs." Simple list, no sorting or filtering. Demonstrates the concept of "songs I run to" in a competitor.
 
-**Relevance to our app:** Apple's "Suggest Less" is softer than our needs. For a running playlist, users want certainty: "Do not put this song in my running playlist again." Hard filter (not soft suppression) is the right approach. Apple's recency sensitivity is a warning: we should not let a single feedback session dramatically swing recommendations.
+**Pandora:** No explicit favorites list. Thumbs-up songs get boosted within their station context. No cross-station favorites management.
 
-### Pandora
+**Key UX pattern across all platforms:** One-tap add, visible in a dedicated list, removable, and the list DOES SOMETHING (influences recommendations/playlists).
 
-**Feedback mechanism:** Thumbs up / thumbs down. The original and most studied binary feedback system. Built on the Music Genome Project (450+ musical attributes per song). Thumbs up increases frequency of songs with similar attributes. Thumbs down removes the specific song AND reduces frequency of songs with similar attributes. Feedback is station-specific (a thumbs-down on a pop station does not affect a rock station). Undo is available by giving the opposite thumb.
+### Spotify Playlist Browse and Import
 
-**Taste learning:** Pandora's system explicitly maps feedback to musical attributes. Thumbing up a song with strong bass, syncopated rhythm, and female vocals teaches the system to prefer those attributes. The learning is transparent to the user in the sense that the algorithm tells you "Playing because of [attribute]." Pandora uses ~70 different algorithms: 10 for content analysis, 40 for collective intelligence, 30 for personalized filtering.
+**Soundiiz / SongShift / FreeYourMusic:** Dedicated playlist transfer apps. Connect source and destination services. Browse playlists, select which to transfer. Show track matching results (matched/unmatched). Allow per-song review before transfer. These apps confirm that playlist-level import (not full library import) is the right granularity.
 
-**Freshness:** Pandora limits repeat plays within a station. The FCC-inspired "variety rule" prevents the same song from appearing too frequently within a listening period.
+**Spotify OAuth flow for mobile (official docs):** Use Authorization Code with PKCE (Proof Key for Code Exchange). No client secret stored on device. Exchange code for access + refresh tokens. Tokens expire after 1 hour; refresh with refresh token. Required scope for playlist reading: `playlist-read-private` (private playlists), `playlist-read-collaborative` (collaborative playlists).
 
-**Relevance to our app:** Pandora's attribute-based learning is the closest analog to our system. Our `SongQualityScorer` already uses song attributes (genre, BPM, danceability, runnability, decade). Feedback should reinforce or penalize at the attribute level, not just the song level. Pandora's station-specific feedback does NOT apply -- our users have one playlist context (running), so feedback should be global. Pandora's undo pattern (tap opposite thumb) is the right model.
+**February 2026 Spotify API changes (official changelog):**
+- `GET /users/{id}/playlists` REMOVED -- use `GET /me/playlists` instead
+- `tracks` field in playlist responses renamed to `items`
+- Non-owned playlists return metadata only, not full contents
+- `popularity` field removed from track objects
+- `available_markets` removed from all content types
+- Batch endpoints removed; must use individual item endpoints
 
-### YouTube Music
-
-**Feedback mechanism:** Thumbs up / thumbs down on songs. Liking tells the system you enjoy the song, style, and artist. Disliking suppresses the song and reduces similar recommendations. YouTube Music also offers Music Tuner (filters for tempo, popularity, mood) which is a form of explicit preference control beyond feedback.
-
-**Freshness:** YouTube Music uses post-filtering to ensure playlists do not feature multiple songs by the same artist in sequence (we already do this via `enforceArtistDiversity`). Session-based variety ensures songs from different styles appear even within a single playlist.
-
-**Relevance to our app:** YouTube Music's Music Tuner concept (user-controllable filters for tempo, mood) is analogous to our taste profile. Their artist diversity post-filtering validates our existing approach. Their thumbs pattern is standard.
-
-### Running-Specific Apps (RockMyRun, PaceDJ, Weav Run)
-
-**Feedback mechanism:** None of the BPM-matching running music apps have meaningful song feedback systems. RockMyRun lets users favorite workout mixes (not individual songs). PaceDJ lets users include/exclude songs from their library. Weav Run has no feedback mechanism.
-
-**Taste learning:** None. Running music apps rely entirely on upfront configuration (genre picks, BPM targets).
-
-**Freshness:** RockMyRun and Weav Run are streaming services -- freshness comes from their catalog updates, not user-side tracking. PaceDJ scans the user's library, so freshness is inherently limited to what the user has.
-
-**Relevance to our app:** This is the biggest differentiator opportunity. No running music app has a feedback loop. Adding like/dislike, taste learning, and freshness to a BPM-matched running playlist generator is novel in this space.
-
----
-
-## Feedback UX Patterns: Best Practices
-
-### Icon Choice
-
-Use **thumbs up / thumbs down**, not hearts.
-
-- Hearts (Spotify's convention) imply "save to my library." This app has no library concept for external songs.
-- Thumbs (Pandora, YouTube Music convention) imply "I like/dislike this." This matches the intent.
-- Running context reinforces binary: the song was either good for running or not.
-
-### Placement on Song Tile
-
-The existing `SongTile` has this layout:
-```
-[Track #] [Title / Artist] [BPM chip]
-```
-
-Recommended addition:
-```
-[Track #] [Title / Artist] [thumbs-down] [thumbs-up] [BPM chip]
-```
-
-Or, to save horizontal space:
-```
-[Track #] [Title / Artist] [BPM chip]
-                            [thumbs-up / thumbs-down]
-```
-
-Consider placing feedback icons on the trailing edge, replacing the BPM chip's position, or below the artist line. The icons must be touch-target sized (minimum 44x44 points iOS, 48x48 dp Android) per mobile UX guidelines.
-
-Alternative: show feedback icons only on long-press or via the existing bottom sheet (when user taps the song tile). This is cleaner visually but adds a tap. Recommend: show icons inline for the post-run review screen (where the purpose is rating), and behind the bottom sheet for the regular playlist view (where the purpose is playback links).
-
-### Feedback Confirmation
-
-- Brief haptic feedback on tap (HapticFeedback.lightImpact)
-- Icon fills/highlights immediately (optimistic UI)
-- Snackbar with "Undo" appears for 3 seconds (Spotify pattern)
-- Animation: icon bounces briefly (under 300ms per UX research)
-
-### Three-State Toggle
-
-Each song has three states:
-1. **Liked** (thumbs up filled, primary color)
-2. **Disliked** (thumbs down filled, error color)
-3. **Neutral** (both icons outlined, no fill)
-
-State transitions:
-- Neutral -> tap thumbs up -> Liked
-- Neutral -> tap thumbs down -> Disliked
-- Liked -> tap thumbs up -> Neutral (toggle off)
-- Liked -> tap thumbs down -> Disliked (switch)
-- Disliked -> tap thumbs down -> Neutral (toggle off)
-- Disliked -> tap thumbs up -> Liked (switch)
-
-This matches Pandora's undo model and is the most intuitive for binary feedback.
-
----
-
-## Taste Learning: How Pattern Detection Should Work
-
-### Data Available Per Liked/Disliked Song
-
-From the curated song dataset and BPM API, each song has:
-- **Artist** (string)
-- **Genre** (RunningGenre enum)
-- **BPM** (int)
-- **Decade** (string, e.g., "2010s")
-- **Danceability** (int, 0-100)
-- **Runnability** (int, 0-100)
-
-When a user likes or dislikes a song, store all available metadata alongside the feedback. This enables pattern analysis without re-looking up the song later.
-
-### Pattern Analysis Algorithm
-
-After accumulating N liked songs (threshold: 10), analyze:
-
-1. **Genre distribution:** What percentage of liked songs fall in each genre? Compare to taste profile genres. If a genre appears in 30%+ of likes but is not in the profile, suggest adding it.
-
-2. **Artist frequency:** Which artists appear 2+ times in liked songs? If not already in taste profile artists, suggest adding them.
-
-3. **Decade distribution:** Which decades dominate liked songs? If a decade represents 40%+ of likes and is not in the taste profile decades, suggest adding it.
-
-4. **Disliked artist detection:** Which artists appear 3+ times in disliked songs? Suggest adding to disliked artists list.
-
-5. **Energy pattern:** Compute average runnability/danceability of liked vs disliked songs. If liked songs cluster around high danceability (>70) but the user's energy level is "balanced," suggest "intense."
-
-### Suggestion Presentation
-
-Surface as dismissable cards on the home screen or feedback library:
-
-```
-"Based on your likes..."
-[Genre chip] Electronic   [Add to Profile] [Dismiss]
-
-"You've disliked 4 songs by [Artist]"
-[Block this artist]  [Keep allowing]
-```
-
-Suggestions should:
-- Appear at most once per pattern (do not re-suggest dismissed items)
-- Be limited to 1-2 suggestions at a time (avoid overwhelming)
-- Require explicit user acceptance (never auto-apply)
-- Track which suggestions were dismissed (do not re-surface)
-
----
-
-## Freshness: How Recency Tracking Should Work
-
-### What "Freshness" Means in This App
-
-A song is "fresh" if it has not appeared in a recently generated playlist. The freshness system prevents the "same 15 songs every run" problem that emerges when the scoring algorithm converges on a fixed set of top-scoring songs for a given BPM and taste profile.
-
-### Tracking Mechanism
-
-During `PlaylistGenerator.generate()`, after producing the final `Playlist`:
-1. For each `PlaylistSong` in the output, update `SongAppearanceHistory` with the current timestamp.
-2. Persist the history to SharedPreferences.
-
-Storage format:
-```json
-{
-  "artist|title": "2026-02-06T14:30:00Z",
-  "artist2|title2": "2026-02-05T09:15:00Z"
-}
-```
-
-### Scoring Penalty
-
-The freshness penalty decays over time (stepped decay, matching the integer scoring system):
-
-| Last Appeared | Penalty | Rationale |
-|---------------|---------|-----------|
-| Within 3 days | -8 | User just ran with this song; strong penalty |
-| 4-7 days | -5 | Recent but not immediate; moderate penalty |
-| 8-14 days | -3 | Getting stale in memory; mild penalty |
-| 15-30 days | -1 | Fading; minimal penalty |
-| 31+ days or never | 0 | Fresh or forgotten; no penalty |
-
-This curve is inspired by Spotify's freshness scoring (documented in engineering blog) and memory decay models (ACT-R declarative memory module, used in academic music recommendation research).
-
-### User Control
-
-The freshness toggle controls whether this penalty is active:
-- **"Keep it Fresh"** = freshness penalty active. Playlists will have more variety across sessions.
-- **"Optimize for Taste"** = freshness penalty disabled. The algorithm picks the best-scoring songs regardless of recency.
-
-Default: "Optimize for Taste" for new users (no history to be fresh from). After 5+ playlists generated, the system could suggest switching to "Keep it Fresh."
+**Key UX pattern for import flows:** Show playlist list first (not individual songs). Let user tap into a playlist to see its tracks. Provide "Select All" and individual selection. Show import progress. Report results (X songs added, Y already in list, Z not found in catalog).
 
 ---
 
 ## MVP Recommendation
 
-For v1.3 MVP, prioritize in this order:
+Prioritize in this order:
 
-1. **Song feedback data layer + SongTile integration** (foundation -- everything depends on this)
-2. **Scoring integration: liked boost + disliked filter** (closes the feedback loop -- feedback DOES something)
-3. **Feedback library screen** (users can manage their feedback decisions)
-4. **Freshness tracking + scoring dimension** (prevents playlist staleness)
-5. **Freshness toggle UI** (user control over freshness behavior)
-6. **Post-run review screen** (novel differentiator for running context)
+1. **"Songs I Run To" data layer** -- Model, persistence, Riverpod provider. Foundation for everything.
+   - Rationale: Both search and Spotify import need a destination. Build the container first.
 
-Defer to post-v1.3:
-- **Taste learning / pattern analysis:** Requires accumulated feedback data. Build the analysis engine after users have had time to generate feedback. The data layer should store song metadata with feedback now so the analysis can run later.
-- **Suggestion cards for taste profile updates:** Depends on taste learning. Defer.
-- **Disliked artist auto-detection:** Simple enough to include in v1.3 if time allows, but not critical path.
+2. **Local song search with autocomplete** -- Search curated catalog, show results, add to "Songs I Run To."
+   - Rationale: Delivers immediate value with zero external dependencies. Users can start curating their running songs today.
 
----
+3. **"Songs I Run To" list screen** -- View, manage, remove songs. Empty state with search CTA.
+   - Rationale: Users need to see and manage what they've added. Critical for trust and control.
 
-## Feature Prioritization Matrix
+4. **Scoring integration** -- "Songs I Run To" entries boost scoring in `SongQualityScorer`.
+   - Rationale: Closes the loop. Adding songs should immediately improve playlists.
 
-| Feature | User Value | Implementation Cost | Priority | Rationale |
-|---------|------------|---------------------|----------|-----------|
-| Song feedback data layer | HIGH | MEDIUM | P0 | Foundation for all feedback features. Must be built first. |
-| Like/dislike on SongTile | HIGH | LOW | P0 | The user-facing entry point for feedback. Ships with data layer. |
-| Liked song scoring boost (+8) | HIGH | LOW | P0 | Closes the feedback loop immediately. Feedback DOES something. |
-| Disliked song hard filter | HIGH | LOW | P0 | Users expect disliked songs to vanish. Binary intent, binary action. |
-| Feedback state persistence | HIGH | LOW | P0 | Feedback must survive app restarts. SharedPreferences JSON blob. |
-| Undo feedback (snackbar + toggle) | MEDIUM | LOW | P1 | Standard pattern, prevents user frustration from accidental taps. |
-| Feedback library screen | MEDIUM | MEDIUM | P1 | Management screen for all feedback. Two-tab list (liked/disliked). |
-| Freshness tracking (appearance history) | HIGH | MEDIUM | P1 | Prevents "same 15 songs" convergence problem. |
-| Freshness scoring dimension | HIGH | LOW | P1 | Uses tracked data to penalize recent songs. |
-| Freshness toggle UI | MEDIUM | LOW | P2 | User control over freshness. Simple toggle widget. |
-| Post-run review screen | HIGH | MEDIUM | P2 | Novel differentiator. Captures feedback while experience is fresh. |
-| Taste learning / pattern analysis | MEDIUM | HIGH | P3 | Requires accumulated data. Defer until feedback is widely used. |
-| Suggestion cards for profile updates | MEDIUM | MEDIUM | P3 | Depends on taste learning engine. |
-| Disliked artist auto-detection | LOW | LOW | P3 | Nice-to-have. Simple pattern detection on disliked songs. |
+5. **Taste learning integration** -- Feed "run to" songs into `TastePatternAnalyzer`.
+   - Rationale: Nearly free given existing infrastructure. Amplifies the value of manual song curation.
+
+6. **Spotify OAuth foundation** -- PKCE flow, token management, connection state.
+   - Rationale: Architecturally independent. Can be built and tested even without active Spotify app credentials (mock the token exchange).
+
+7. **Spotify playlist browse and import** -- List playlists, view tracks, select and import to "Songs I Run To."
+   - Rationale: Highest complexity, highest external dependency risk. Build last, gate behind feature flag.
+
+**Defer to future milestone:**
+- **Spotify search as fallback to local search:** Requires a working Spotify app. Defer until dashboard registration reopens.
+- **Spotify playlist export:** Requires write scopes and a registered app. Defer.
+- **Background token refresh:** Over-engineering for a foundation phase. Defer.
 
 ---
 
-## Competitive Positioning After v1.3
+## Feature Interaction with Existing Systems
 
-| Feature | Spotify | Apple Music | Pandora | YouTube Music | RockMyRun | PaceDJ | This App (v1.3) |
-|---------|---------|-------------|---------|---------------|-----------|--------|-----------------|
-| Song-level feedback | Heart + Hide | Love + Suggest Less | Thumbs up/down | Thumbs up/down | No | No | Thumbs up/down |
-| Feedback affects next playlist | Yes (gradual) | Yes (gradual) | Yes (immediate) | Yes (gradual) | N/A | N/A | Yes (immediate, next generation) |
-| Feedback library / management | Liked Songs playlist | Loved songs (Mac only) | Thumbed tracks per station | Liked songs | No | No | Dedicated library screen |
-| Post-session review | No | No | No | No | No | No | Yes (post-run review) |
-| Freshness / variety control | Algorithmic (Fewer Repeats mode) | Separate Mix surfaces | Variety rules | Post-filtering | Catalog updates | N/A | User toggle + recency penalty |
-| Taste learning from feedback | Yes (deep ML) | Yes (opaque) | Yes (attribute mapping) | Yes (ML) | No | No | Pattern analysis with suggestions |
-| Running-specific context | No | No | No | No | Yes (mixes, not songs) | Yes (BPM filter) | Yes (BPM + taste + feedback + freshness) |
+### How "Songs I Run To" Relates to Existing Song Feedback
 
-This app becomes the only running music tool that combines BPM matching, multi-dimensional scoring, explicit feedback, taste learning, and freshness control. General music apps have deeper recommendation engines but no running context. Running apps have BPM matching but no feedback loop. This app bridges both.
+| Aspect | Song Feedback (existing) | "Songs I Run To" (new) |
+|--------|--------------------------|------------------------|
+| **Intent** | "I liked/disliked this song after hearing it" | "I want to run to this song" |
+| **When expressed** | Post-run (reactive) | Anytime (proactive) |
+| **Signal strength** | Moderate (+5 in scorer) | Strong (+8 to +10 in scorer) |
+| **Discovery** | App shows song, user reacts | User searches for song proactively |
+| **Persistence** | `SongFeedback` model + `SongFeedbackPreferences` | New `RunToSong` model + new persistence |
+| **Taste learning** | Already integrated | Should integrate identically |
+| **Overlap handling** | -- | A song can be both "liked" and "run to" -- scores should NOT stack (use max, not sum) |
+
+The two systems are complementary, not competing. Song feedback is reactive ("I heard this, it was good/bad"). "Songs I Run To" is proactive ("I know I want this"). Both feed into the same scoring and taste learning pipeline.
+
+### How Spotify Import Relates to Existing Curated Song Repository
+
+Songs imported from Spotify may or may not exist in the curated catalog:
+
+- **In catalog:** Matched via `SongKey.normalize(artist, title)`. Full metadata available (genre, BPM, danceability, runnability). Score normally.
+- **Not in catalog:** Stored with Spotify track ID and basic metadata (title, artist). BPM unknown until looked up via GetSongBPM API or future Spotify audio features. Score with neutral defaults for missing dimensions (the existing scorer already handles this -- `runnabilityNeutral = 5`, `danceabilityNeutral = 3`).
+
+The `RunToSong` model should include an optional `spotifyTrackId` field and a `source` enum (`curated`, `spotify`, `manual`) to track provenance.
 
 ---
 
@@ -424,49 +253,67 @@ This app becomes the only running music tool that combines BPM matching, multi-d
 
 | Finding | Confidence | Source | Notes |
 |---------|------------|--------|-------|
-| Binary feedback outperforms rating scales for music | HIGH | Cornell Piki research, Pandora's 75B feedback points, Spotify's binary (heart/hide) design | Multiple independent sources converge |
-| Disliked songs should be hard-filtered, not soft-penalized | MEDIUM | Pandora never replays thumbed-down songs; Apple "Suggest Less" is less decisive | Pandora's approach matches user intent better; Apple's softer approach gets complaints |
-| Thumbs up/down icons preferred over hearts for feedback context | MEDIUM | Pandora + YouTube Music convention for "rate this" vs Spotify hearts for "save this" | Convention-based reasoning; user testing would strengthen |
-| Freshness penalty with time decay matches user expectations | MEDIUM | Spotify's "Fewer Repeats" mode, ACT-R memory decay models, Apple's recency filtering | Academic + industry support; specific decay curve is estimated, not proven |
-| Post-run review is a novel differentiator | HIGH | No running app offers this; no general music app offers post-session review | Confirmed via competitor analysis of RockMyRun, PaceDJ, Weav, Spotify, Apple Music, Pandora, YouTube Music |
-| Taste learning should be suggestion-based, not automatic | MEDIUM | Apple Music transparency complaints, Music Tomorrow fairness research (2025), Pandora's transparent attribute mapping | Industry trend toward transparency; automatic modification gets user complaints |
-| No running music app has a song-level feedback loop | HIGH | Direct competitor analysis | Verified: RockMyRun, PaceDJ, Weav Run have no song-level feedback |
-| SharedPreferences adequate for feedback storage at ~5000 songs | MEDIUM | SharedPreferences handles JSON blobs up to a few MB; 5000 entries with timestamps is well under this | Technical assessment from existing codebase patterns; may need migration to Hive/SQLite at scale |
+| 200ms debounce is optimal for typeahead | HIGH | Algolia docs, Smart Interface Design Patterns, multiple UX research articles | Industry consensus across multiple independent sources |
+| 5-10 results is the right limit for autocomplete | HIGH | Smart Interface Design Patterns, Baymard Institute mobile research | Consistent across all autocomplete UX research |
+| Linear scan of 5K songs is fast enough (no index needed) | HIGH | Flutter performance characteristics, dataset size analysis | 5K string comparisons in Dart takes <5ms. Measured performance for similar datasets in production apps. |
+| Spotify Developer Dashboard blocked for new apps | HIGH | Multiple Spotify community posts (December 2025 - February 2026), official blog post about extended access criteria | Ongoing as of research date. No ETA for reopening. |
+| February 2026 API changes remove batch endpoints and user profile fields | HIGH | Official Spotify developer changelog | Primary source documentation |
+| `GET /me/playlists` remains available after February 2026 changes | MEDIUM | Not explicitly listed in removed endpoints; endpoint documentation still live | Absence of evidence is not evidence of absence, but the changelog lists all removals and this is not among them |
+| PKCE is required for mobile OAuth (not implicit grant) | HIGH | Spotify official authorization docs | Explicitly stated in docs |
+| "Run to" songs should score +8 to +10 (higher than liked +5) | MEDIUM | Reasoned from existing scoring weights and user intent analysis | No external source; derived from codebase analysis of relative weights |
+| Playlist-level import (not full library) is the right granularity | MEDIUM | Soundiiz, SongShift, FreeYourMusic all use playlist-level selection | Pattern observed across transfer tools; Apple Music Favorites import (full library) generates user complaints about overwhelm |
+| MOOV Beat Runner's "My Songs" star-to-add pattern validates "Songs I Run To" | MEDIUM | App Store listing and MOOV help center | Only one running app implements this; validates the concept but limited sample |
 
 ---
 
 ## Sources
 
-### Platform Feedback Systems
-- [Spotify Recommendation System Complete Guide (Music Tomorrow, 2025)](https://www.music-tomorrow.com/blog/how-spotify-recommendation-system-works-complete-guide) -- Explicit/implicit feedback weighting, taste clustering, freshness
-- [Cornell Research: Dislike Button Improves Recommendations](https://cis.cornell.edu/dislike-button-would-improve-spotify-recommendations) -- Binary feedback effectiveness, Piki research system
-- [Pandora Thumbs System Explained (SoftHandTech)](https://softhandtech.com/what-are-thumbs-on-pandora/) -- Station-specific feedback, attribute learning, undo patterns
-- [Apple Music Love/Dislike Guide (MacRumors)](https://www.macrumors.com/how-to/customize-apple-music/) -- Three-tier feedback, scope per song/album/artist
-- [YouTube Music Algorithm Guide (BeatsToRapOn)](https://beatstorapon.com/blog/ultimate-youtube-music-algorithm-a-comprehensive-guide/) -- Thumbs up/down, Music Tuner, session-based variety
-- [Spotify DISLIKE BUTTON Community Discussion](https://community.spotify.com/t5/Live-Ideas/All-platforms-Dislike-an-item-and-avoid-it/idi-p/5749554) -- User expectations for dislike functionality
+### Autocomplete / Typeahead UX
+- [Smart Interface Design Patterns - Better Autocomplete UX](https://smart-interface-design-patterns.com/articles/autocomplete-ux/) -- Always show suggestions on focus, diverse result types, tap-ahead functionality
+- [Algolia - Debounce Sources](https://www.algolia.com/doc/ui-libraries/autocomplete/guides/debouncing-sources) -- 200ms debounce, source-level debouncing patterns
+- [Design Monks - Search UX Best Practices 2026](https://www.designmonks.co/blog/search-ux-best-practices) -- Modern search patterns including voice and NLP
+- [LogRocket - Search Bar UI Best Practices](https://blog.logrocket.com/ux-design/design-search-bar-intuitive-autocomplete/) -- Search bar design, autocomplete patterns
+- [Baymard Institute - Mobile Search Autocomplete](https://baymard.com/mcommerce-usability/benchmark/mobile-page-types/search-autocomplete) -- 424 mobile autocomplete examples analyzed
+- [Medium - Optimizing Typeahead Search](https://medium.com/geekculture/how-to-optimize-typeahead-search-in-your-web-application-8246cac5b05f) -- 200ms debounce, 5-10 result limit
 
-### Freshness and Variety
-- [Spotify Prompted Playlists (Spotify Newsroom, Dec 2025)](https://newsroom.spotify.com/2025-12-10/spotify-prompted-playlists-algorithm-gustav-soderstrom/) -- User-controlled freshness, daily/weekly refresh
-- [Spotify Fewer Repeats Shuffle (TechBuzz)](https://www.techbuzz.ai/articles/spotify-fixes-shuffle-s-repetition-problem-with-smarter-algorithm) -- Recency-aware shuffle, freshness scoring
-- [Apple Music Algorithm Guide 2026 (BeatsToRapOn)](https://beatstorapon.com/blog/the-apple-music-algorithm-in-2026-a-comprehensive-guide-for-artists-labels-and-data-scientists/) -- Recency bias, diversity filtering, freshness signals
-- [Measuring Recency Bias in Sequential Recommendation (ArXiv, 2024)](https://arxiv.org/html/2409.09722v1) -- Academic analysis of recency bias in recommendation systems
-- [ACT-R Memory Model for Music Recommendation (Springer, 2024)](https://link.springer.com/chapter/10.1007/978-3-031-55109-3_4) -- Time-decayed frequency/recency modeling
+### Flutter Search Implementation
+- [Flutter Autocomplete Widget (official)](https://api.flutter.dev/flutter/material/Autocomplete-class.html) -- Built-in autocomplete with custom builders
+- [flutter_typeahead package](https://pub.dev/packages/flutter_typeahead) -- 300ms default debounce, configurable, supports async
+- [Flutter SearchAnchor Debouncing](https://stassop.medium.com/debouncing-flutter-searchanchor-65101042e5aa) -- Debouncing patterns for Flutter's SearchAnchor
 
-### Feedback UX Design
-- [Mobile Gesture UI Design Tips (ZeePalm)](https://www.zeepalm.com/blog/10-gesture-ui-design-tips-for-ios-and-android-apps) -- Touch targets, haptic feedback, animation timing
-- [Apple Music Suggest Less Complaints (AppleInsider, Feb 2026)](https://appleinsider.com/articles/26/02/06/one-song-can-ruin-your-entire-apple-music-algorithm-there-needs-to-be-a-fix) -- User frustration with opaque recommendation changes
+### Spotify API Status and Changes
+- [Spotify Community - New Integrations On Hold](https://community.spotify.com/t5/Spotify-for-Developers/New-integrations-are-currently-on-hold/td-p/7296575) -- Dashboard blocked since December 2025
+- [Spotify Community - Unable to Create App](https://community.spotify.com/t5/Spotify-for-Developers/Unable-to-create-app/td-p/7283365) -- Multiple developer reports of blocked registration
+- [Spotify - Web API Changes February 2026](https://developer.spotify.com/documentation/web-api/references/changes/february-2026) -- Endpoint removals, field changes, playlist response restructuring
+- [Spotify - Updating Extended Access Criteria (April 2025)](https://developer.spotify.com/blog/2025-04-15-updating-the-criteria-for-web-api-extended-access) -- Premium requirement, test user limits
+- [Voclr.it - Why Spotify Restricted API Access](https://voclr.it/news/why-spotify-has-restricted-its-api-access-what-changed-and-why-it-matters-in-2026/) -- Third-party metadata alternatives (ListenBrainz, Last.fm)
+- [TechBooky - Spotify Locks Developer API Behind Premium](https://www.techbooky.com/spotify-locks-developer-api-behind-premium-restricts-test-users/) -- Developer Mode restrictions February/March 2026
 
-### Taste Learning and Recommendation Research
-- [Implicit vs Explicit Feedback in Music Recommendation (ACM)](https://dl.acm.org/doi/10.1145/1869446.1869453) -- Complementary relationship between feedback types
-- [Negative Feedback for Music Personalization (ArXiv, 2024)](https://arxiv.org/html/2406.04488) -- How negative feedback improves recommendation quality
-- [Fairness and Transparency in Music Streaming Algorithms (Music Tomorrow, 2025)](https://www.music-tomorrow.com/blog/fairness-transparency-music-recommender-systems) -- Transparency, feedback loops, user agency
-- [How Spotify Uses AI to Recommend Music (IABAC)](https://iabac.org/blog/how-spotify-uses-ai-to-recommend-music) -- Pattern detection from explicit signals
+### Spotify API Documentation
+- [Spotify - Get Current User's Playlists](https://developer.spotify.com/documentation/web-api/reference/get-a-list-of-current-users-playlists) -- Still available post-February 2026
+- [Spotify - Playlists Concepts](https://developer.spotify.com/documentation/web-api/concepts/playlists) -- Scope requirements for owned/followed/collaborative playlists
+- [Spotify - Authorization](https://developer.spotify.com/documentation/web-api/concepts/authorization) -- PKCE flow for mobile apps
+- [Spotify - Scopes](https://developer.spotify.com/documentation/web-api/concepts/scopes) -- Required scopes for playlist access
+- [Spotify - Rate Limits](https://developer.spotify.com/documentation/web-api/concepts/rate-limits) -- Rolling 30-second window, no per-endpoint quotas published
 
-### Running and Music
-- [Nike: Picking Music to Power a Run](https://www.nike.com/a/picking-music-to-power-a-run) -- BPM sweet spots for running intensity
-- [RockMyRun App](https://www.rockmyrun.com/) -- Competitor analysis, no song-level feedback
-- [PaceDJ App](https://www.pacedj.com/) -- Competitor analysis, library BPM scanning
+### Music App UX Patterns
+- [Apple Support - Add and Find Favorites in Apple Music](https://support.apple.com/en-us/111118) -- iOS 17+ favorites, auto-playlist, influence on recommendations
+- [Spotify UX Case Study (UX Magazine)](https://uxmag.com/articles/a-ux-ui-case-study-on-spotify) -- Cards and carousels for content display
+- [Spotify Playlist Feature User Flow (Medium)](https://medium.com/@aliciagarciadettke/how-i-designed-a-user-flow-for-spotifys-playlist-feature-e9d8c1de09ce) -- Playlist creation and sharing flow design
+- [How to Organize Favorite Songs in Apple Music (HowToGeek)](https://www.howtogeek.com/ways-i-organize-my-favorite-songs-and-playlists-in-apple-music/) -- Favorites management patterns
+
+### Running Music Apps
+- [MOOV Beat Runner Help Center](https://helpcentre.moov-music.com/en/knowledge-base/moov-beat-runner/) -- "My Songs" star button, genre selection
+- [RockMyRun](https://www.rockmyrun.com/) -- Favorite mixes (not songs), no import
+- [PaceDJ](https://www.pacedj.com/) -- Library BPM scanning, no playlist import
+- [Weav Run (Runner's World)](https://www.runnersworld.com/runners-stories/a32257227/running-app-weav-improves-cadence-stride/) -- Curated playlists, tempo adjustment, no user favorites
+- [Chosic - Spotify Playlist Generator](https://www.chosic.com/playlist-generator/) -- Seed-based recommendation with up to 5 seeds
+
+### Playlist Transfer Tools
+- [Soundiiz](https://soundiiz.com/) -- Cross-platform playlist transfer
+- [SongShift](https://apps.apple.com/us/app/songshift/id1097974566) -- iOS playlist transfer
+- [FreeYourMusic - Add Multiple Songs to Spotify](https://freeyourmusic.com/blog/how-to-add-multiple-songs-to-a-playlist) -- Bulk song management
 
 ---
-*Feature research for: v1.3 Song Feedback, Taste Learning & Playlist Freshness -- Running Playlist AI*
-*Researched: 2026-02-06*
+*Feature research for: Song Search, "Songs I Run To" & Spotify Integration -- Running Playlist AI*
+*Researched: 2026-02-08*

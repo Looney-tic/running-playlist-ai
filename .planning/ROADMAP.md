@@ -148,11 +148,11 @@ Plans:
   2. In "keep it fresh" mode, songs from a playlist generated yesterday rank lower than songs not played recently
   3. User can toggle between "keep it fresh" and "optimize for taste" modes, and the toggle persists across app restarts
   4. In "optimize for taste" mode, recently played songs receive no freshness penalty
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 25-01: TBD
-- [ ] 25-02: TBD
+- [ ] 25-01-PLAN.md -- TDD: PlayHistory domain model, freshness penalty scoring, FreshnessMode enum, persistence, providers
+- [ ] 25-02-PLAN.md -- Wire freshnessPenalty into scorer + generator + all 3 generation paths + UI toggle
 
 ### Phase 26: Post-Run Review
 **Goal**: Users can rate all songs from their most recent playlist in a single review flow after a run

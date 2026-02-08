@@ -173,6 +173,12 @@ class HomeScreen extends ConsumerWidget {
                 icon: const Icon(Icons.history),
                 label: const Text('Playlist History'),
               ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/song-feedback'),
+                icon: const Icon(Icons.thumb_up_alt_outlined),
+                label: const Text('Song Feedback'),
+              ),
             ],
           ),
         ),

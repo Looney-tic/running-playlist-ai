@@ -27,3 +27,15 @@ final curatedLookupKeysProvider =
   final songs = await CuratedSongRepository.loadCuratedSongs();
   return CuratedSongRepository.buildLookupSet(songs);
 });
+
+/// Provides a lookup map from song lookupKey to genre enum name.
+///
+/// Used by the taste pattern analyzer to enrich feedback entries
+/// (which lack genre data) with genre from the curated dataset.
+final curatedGenreLookupProvider =
+    FutureProvider<Map<String, String>>((ref) async {
+  final songs = await CuratedSongRepository.loadCuratedSongs();
+  return {
+    for (final s in songs) s.lookupKey: s.genre,
+  };
+});

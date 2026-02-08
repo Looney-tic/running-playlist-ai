@@ -6,6 +6,8 @@ import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/widgets/segment_header.dart';
 import 'package:running_playlist_ai/features/playlist/presentation/widgets/song_tile.dart';
 import 'package:running_playlist_ai/features/playlist/providers/playlist_providers.dart';
+import 'package:running_playlist_ai/features/playlist_freshness/domain/playlist_freshness.dart';
+import 'package:running_playlist_ai/features/playlist_freshness/providers/playlist_freshness_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
@@ -254,6 +256,8 @@ class _IdleView extends ConsumerWidget {
             _RunPlanSelector(),
             const SizedBox(height: 8),
             _TasteProfileSelector(),
+            const SizedBox(height: 8),
+            _FreshnessToggle(),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onGenerate,
@@ -400,6 +404,12 @@ class _PlaylistView extends ConsumerWidget {
             ],
           ),
         ),
+        // Freshness mode toggle
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _FreshnessToggle(),
+        ),
+        const SizedBox(height: 4),
         // Cadence nudge row
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -835,6 +845,40 @@ class _TasteProfileSelectorSheet extends StatelessWidget {
           }),
           const SizedBox(height: 8),
         ],
+      ),
+    );
+  }
+}
+
+/// Toggle between keep-it-fresh and optimize-for-taste modes.
+///
+/// Uses a Material 3 [SegmentedButton] for compact, consistent styling
+/// with existing selector patterns. The selected mode persists via
+/// SharedPreferences through [freshnessModeProvider].
+class _FreshnessToggle extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(freshnessModeProvider);
+
+    return SegmentedButton<FreshnessMode>(
+      segments: const [
+        ButtonSegment(
+          value: FreshnessMode.keepItFresh,
+          label: Text('Keep it Fresh'),
+          icon: Icon(Icons.auto_awesome),
+        ),
+        ButtonSegment(
+          value: FreshnessMode.optimizeForTaste,
+          label: Text('Best Taste'),
+          icon: Icon(Icons.favorite),
+        ),
+      ],
+      selected: {mode},
+      onSelectionChanged: (selected) {
+        ref.read(freshnessModeProvider.notifier).setMode(selected.first);
+      },
+      style: SegmentedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
       ),
     );
   }

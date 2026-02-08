@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/post_run_review/providers/post_run_review_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
+import 'package:running_playlist_ai/features/taste_learning/presentation/taste_suggestion_card.dart';
+import 'package:running_playlist_ai/features/taste_learning/providers/taste_learning_providers.dart';
 import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
 
 /// Home hub screen with navigation to all app features.
@@ -24,6 +26,7 @@ class HomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     final unreviewedPlaylist = ref.watch(unreviewedPlaylistProvider);
+    final suggestions = ref.watch(tasteSuggestionProvider);
     final hasProfile = tasteProfile != null;
     final hasPlan = runPlan != null;
 
@@ -72,6 +75,17 @@ class HomeScreen extends ConsumerWidget {
                   color: theme.colorScheme.tertiaryContainer,
                   onTap: () => context.push('/post-run-review'),
                 ),
+
+              // Taste learning suggestion cards
+              ...suggestions.map((suggestion) => TasteSuggestionCard(
+                    suggestion: suggestion,
+                    onAccept: () => ref
+                        .read(tasteSuggestionProvider.notifier)
+                        .acceptSuggestion(suggestion),
+                    onDismiss: () => ref
+                        .read(tasteSuggestionProvider.notifier)
+                        .dismissSuggestion(suggestion),
+                  )),
 
               // Quick-regenerate and cadence nudge (shown when run plan exists)
               if (hasPlan) ...[

@@ -14,6 +14,7 @@ import 'package:running_playlist_ai/features/playlist/domain/song_link_builder.d
 import 'package:running_playlist_ai/features/playlist/providers/playlist_history_providers.dart';
 import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
 import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
+import 'package:running_playlist_ai/features/song_feedback/providers/song_feedback_providers.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
 import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
 
@@ -93,6 +94,21 @@ class PlaylistGenerationNotifier
   /// Delay between API calls for uncached BPMs to avoid rate limiting.
   static const _apiCallDelay = Duration(milliseconds: 300);
 
+  /// Reads current feedback and splits into disliked/liked key sets.
+  ({Set<String> disliked, Set<String> liked}) _readFeedbackSets() {
+    final feedbackMap = ref.read(songFeedbackProvider);
+    final disliked = <String>{};
+    final liked = <String>{};
+    for (final entry in feedbackMap.entries) {
+      if (entry.value.isLiked) {
+        liked.add(entry.key);
+      } else {
+        disliked.add(entry.key);
+      }
+    }
+    return (disliked: disliked, liked: liked);
+  }
+
   /// Generates a playlist from the current run plan and taste profile.
   ///
   /// Reads RunPlan from [runPlanNotifierProvider] and TasteProfile from
@@ -108,6 +124,7 @@ class PlaylistGenerationNotifier
     // Ensure library notifiers have finished loading from preferences.
     await ref.read(runPlanLibraryProvider.notifier).ensureLoaded();
     await ref.read(tasteProfileLibraryProvider.notifier).ensureLoaded();
+    await ref.read(songFeedbackProvider.notifier).ensureLoaded();
 
     final runPlan = ref.read(runPlanNotifierProvider);
     if (runPlan == null) {
@@ -141,12 +158,17 @@ class PlaylistGenerationNotifier
         // Graceful degradation: generate without runnability data
       }
 
+      final feedback = _readFeedbackSets();
+
       final playlist = PlaylistGenerator.generate(
         runPlan: runPlan,
         tasteProfile: tasteProfile,
         songsByBpm: songsByBpm,
         curatedRunnability:
             curatedRunnability.isNotEmpty ? curatedRunnability : null,
+        dislikedSongKeys:
+            feedback.disliked.isNotEmpty ? feedback.disliked : null,
+        likedSongKeys: feedback.liked.isNotEmpty ? feedback.liked : null,
       );
 
       if (!mounted) return;
@@ -193,12 +215,17 @@ class PlaylistGenerationNotifier
       // Graceful degradation
     }
 
+    final feedback = _readFeedbackSets();
+
     final playlist = PlaylistGenerator.generate(
       runPlan: runPlan,
       tasteProfile: tasteProfile,
       songsByBpm: state.songPool,
       curatedRunnability:
           curatedRunnability.isNotEmpty ? curatedRunnability : null,
+      dislikedSongKeys:
+          feedback.disliked.isNotEmpty ? feedback.disliked : null,
+      likedSongKeys: feedback.liked.isNotEmpty ? feedback.liked : null,
     );
 
     state = PlaylistGenerationState.loaded(
@@ -245,12 +272,18 @@ class PlaylistGenerationNotifier
         // Graceful degradation
       }
 
+      await ref.read(songFeedbackProvider.notifier).ensureLoaded();
+      final feedback = _readFeedbackSets();
+
       final playlist = PlaylistGenerator.generate(
         runPlan: storedPlan,
         tasteProfile: tasteProfile,
         songsByBpm: songsByBpm,
         curatedRunnability:
             curatedRunnability.isNotEmpty ? curatedRunnability : null,
+        dislikedSongKeys:
+            feedback.disliked.isNotEmpty ? feedback.disliked : null,
+        likedSongKeys: feedback.liked.isNotEmpty ? feedback.liked : null,
       );
 
       if (!mounted) return;

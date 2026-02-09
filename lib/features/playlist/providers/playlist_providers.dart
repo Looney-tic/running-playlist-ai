@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/data/bpm_cache_preferences.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/data/getsongbpm_client.dart';
@@ -204,7 +205,8 @@ class PlaylistGenerationNotifier
       );
       ref.read(playHistoryProvider.notifier).recordPlaylist(playlist);
       // ignore: avoid_catches_without_on_clauses
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('Playlist generation error: $e\n$stackTrace');
       if (!mounted) return;
       state = const PlaylistGenerationState.error(
         'An unexpected error occurred. Please try again.',
@@ -327,7 +329,8 @@ class PlaylistGenerationNotifier
       );
       ref.read(playHistoryProvider.notifier).recordPlaylist(playlist);
       // ignore: avoid_catches_without_on_clauses
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('Playlist regeneration error: $e\n$stackTrace');
       if (!mounted) return;
       state = const PlaylistGenerationState.error(
         'An unexpected error occurred. Please try again.',

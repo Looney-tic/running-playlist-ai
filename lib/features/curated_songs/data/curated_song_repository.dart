@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:running_playlist_ai/features/curated_songs/domain/curated_song.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -102,12 +103,17 @@ class CuratedSongRepository {
   /// This is the ultimate fallback -- the app always has curated data,
   /// even on first launch offline.
   static Future<List<CuratedSong>> _loadBundledAsset() async {
-    final jsonString =
-        await rootBundle.loadString('assets/curated_songs.json');
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList
-        .map((item) => CuratedSong.fromJson(item as Map<String, dynamic>))
-        .toList();
+    try {
+      final jsonString =
+          await rootBundle.loadString('assets/curated_songs.json');
+      final jsonList = jsonDecode(jsonString) as List<dynamic>;
+      return jsonList
+          .map((item) => CuratedSong.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e, stackTrace) {
+      debugPrint('Failed to load bundled curated_songs.json: $e\n$stackTrace');
+      rethrow;
+    }
   }
 
   /// Saves curated songs to SharedPreferences cache with timestamp.

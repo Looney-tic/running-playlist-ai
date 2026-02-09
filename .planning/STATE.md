@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 29 in progress -- Scoring & Taste Integration
+**Current focus:** Phase 29 complete -- next: Phase 30
 
 ## Current Position
 
-Phase: 29 (second of 6 in v1.4)
-Plan: 01 of 2 complete
-Status: In progress
-Last activity: 2026-02-09 -- Completed 29-01-PLAN.md (Running songs into scoring + taste learning)
+Phase: 29 (second of 6 in v1.4) -- COMPLETE
+Plan: 02 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 29-02-PLAN.md (BPM compatibility indicator)
 
-Progress: [#######################.......] 74% (45/53 plans estimated)
+Progress: [########################......] 75% (46/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 3 from v1.4)
+- Total plans completed: 46 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 4 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -49,6 +49,8 @@ v1.4 decisions:
 - Used sheetContext for Navigator.pop and outer context for ScaffoldMessenger.showSnackBar
 - Running song keys merged via Set.addAll() into liked set for scoring -- idempotent with explicit likes
 - Synthetic feedback merge order {...synthetic, ...real} ensures real feedback takes precedence
+- Corrected plan test: songBpm 180 at cadence 170 is none (10 > ceil(170*0.05)=9 tolerance)
+- BPM chip uses cadence passed as int from parent (provider decoupled from card widget)
 
 ### Pending Todos
 
@@ -66,5 +68,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 29 plan 01 complete. Next: 29-02-PLAN.md
-Resume file: .planning/phases/29-scoring-taste-integration/29-02-PLAN.md
+Stopped at: Phase 29 complete, verified, and committed. Next: Phase 30
+Resume file: N/A

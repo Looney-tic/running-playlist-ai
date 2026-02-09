@@ -425,7 +425,7 @@ class _PlaylistView extends ConsumerWidget {
                 onPressed: () => ref
                     .read(strideNotifierProvider.notifier)
                     .nudgeCadence(-3),
-                icon: const Icon(Icons.remove),
+                icon: const Icon(Icons.keyboard_double_arrow_left),
                 tooltip: '-3 spm',
                 iconSize: 20,
               ),
@@ -433,9 +433,9 @@ class _PlaylistView extends ConsumerWidget {
                 onPressed: () => ref
                     .read(strideNotifierProvider.notifier)
                     .nudgeCadence(-1),
-                icon: const Icon(Icons.remove),
+                icon: const Icon(Icons.chevron_left),
                 tooltip: '-1 spm',
-                iconSize: 16,
+                iconSize: 20,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -451,15 +451,15 @@ class _PlaylistView extends ConsumerWidget {
                 onPressed: () => ref
                     .read(strideNotifierProvider.notifier)
                     .nudgeCadence(1),
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.chevron_right),
                 tooltip: '+1 spm',
-                iconSize: 16,
+                iconSize: 20,
               ),
               IconButton(
                 onPressed: () => ref
                     .read(strideNotifierProvider.notifier)
                     .nudgeCadence(3),
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.keyboard_double_arrow_right),
                 tooltip: '+3 spm',
                 iconSize: 20,
               ),

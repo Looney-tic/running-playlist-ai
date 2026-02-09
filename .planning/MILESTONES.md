@@ -116,3 +116,31 @@
 ---
 *Last updated: 2026-02-08*
 
+
+### v1.4: Smart Song Search & Spotify Foundation (Shipped: 2026-02-09)
+
+**Delivered:** Song search with typeahead autocomplete against curated catalog (5,066 songs), user-curated "Songs I Run To" collection with scoring boost and taste learning integration, BPM compatibility indicators, Spotify OAuth PKCE auth foundation with secure token storage, composite Spotify+local search with source badges, and Spotify playlist browse/import with multi-select batch import -- all built mock-first since Spotify Developer Dashboard is unavailable.
+
+**Phases completed:** 28-33 (11 plans total)
+
+**Key accomplishments:**
+- "Songs I Run To" collection: personal running song list with add/remove, persistence, empty state guidance
+- Scoring & taste integration: running songs boost playlist generation, feed taste learning, show BPM compatibility chips
+- Typeahead song search: instant autocomplete with match highlighting against 5,066 curated songs
+- Spotify OAuth foundation: PKCE auth flow with flutter_secure_storage, auto-refresh, graceful degradation
+- Composite search: curated + Spotify results merged with SongKey dedup and source badges
+- Spotify playlist import: browse playlists, multi-select tracks, batch import with already-imported indicators
+
+**Stats:**
+- 71 files created/modified
+- +11,139 lines changed
+- ~21,038 LOC Dart total (12,857 lib + 8,181 test)
+- 6 phases, 11 plans
+- 22 feature commits
+
+**Git range:** `feat(28-01)` → `feat(33-02)`
+
+**What's next:** TBD -- run `/gsd:new-milestone` to plan next milestone
+
+---
+

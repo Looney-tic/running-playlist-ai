@@ -8,20 +8,10 @@ A cross-platform app (Flutter -- web, Android, iOS) that generates BPM-matched p
 
 A runner opens the app, enters their run plan, and gets a playlist where every song's beat matches their footstrike cadence -- no manual searching, no guessing BPM.
 
-## Current Milestone: v1.4 Smart Song Search & Spotify Foundation
-
-**Goal:** Let users search for and select songs they run to (with smooth autocomplete), feeding those selections into taste learning and scoring. Lay the Spotify API foundation so playlist import slots in when credentials become available.
-
-**Target features:**
-- Song search with typeahead autocomplete (curated songs now, Spotify search ready)
-- "Songs I run to" concept — user-selected songs treated as liked songs for scoring + taste learning
-- Spotify API abstraction layer built against current docs (no live credentials yet)
-- Spotify playlist browse/select flow (connect → see playlists → pick playlists → select songs)
-
 ## Current State
 
-**Shipped:** v1.3 Song Feedback & Freshness (2026-02-08)
-**Codebase:** ~16,263 LOC Dart (lib + tests)
+**Shipped:** v1.4 Smart Song Search & Spotify Foundation (2026-02-09)
+**Codebase:** ~21,038 LOC Dart (12,857 lib + 8,181 test)
 
 **What works end-to-end:**
 - Stride calculator (pace + height -> cadence, optional calibration)
@@ -43,6 +33,11 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - Post-run review: rate all songs from last playlist in focused review screen
 - Playlist freshness: "Keep it Fresh" vs "Optimize for Taste" toggle with play history tracking
 - Taste learning: pattern detection surfaces genre/artist suggestions from feedback
+- "Songs I Run To": user-curated running song collection with add/remove/persist
+- Running songs scoring: songs boost playlist generation, feed taste learning, show BPM compatibility
+- Song search: typeahead autocomplete with match highlighting against curated catalog + Spotify
+- Spotify auth: OAuth PKCE connection with secure token storage (mock-first, real scaffold ready)
+- Spotify playlist import: browse playlists, multi-select tracks, batch import into collection
 
 ## Requirements
 
@@ -79,14 +74,15 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - ✓ Freshness toggle: user chooses between fresh variety vs taste-optimized playlists -- v1.3
 - ✓ Freshness tracking: record song play history to support freshness deprioritization -- v1.3
 - ✓ Post-run review: rate all songs from most recent playlist in a focused review flow -- v1.3
+- ✓ Song search with typeahead autocomplete against curated catalog (5,066 songs, 300ms debounce) -- v1.4
+- ✓ Search abstraction layer with curated + Spotify composite backend and source badges -- v1.4
+- ✓ "Songs I Run To" list with scoring boost, taste learning integration, and BPM compatibility -- v1.4
+- ✓ Spotify OAuth PKCE auth with secure token storage, auto-refresh, graceful degradation -- v1.4
+- ✓ Spotify playlist browse and multi-select track import with batch addSongs -- v1.4
 
 ### Active
 
-- [ ] Song search with typeahead autocomplete against curated dataset
-- [ ] Search abstraction layer ready for Spotify search backend
-- [ ] "Songs I run to" list — user-curated songs treated as liked for scoring + taste learning
-- [ ] Spotify API service layer built against current API docs (OAuth PKCE, playlists, search)
-- [ ] Spotify playlist browse and song selection flow (UI ready, no live credentials)
+(None -- run `/gsd:new-milestone` to define next milestone)
 
 ### Out of Scope
 
@@ -110,6 +106,9 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 - SongQualityScorer: 8 dimensions, max 41 points (artist=10, danceability=8, genre=6, curated=5, energy=4, BPM=3, diversity=-5, dislikedArtist=-15) plus likedSong=5 and freshnessPenalty
 - Curated dataset: 5,066 songs across 15 genres and 2,383 unique artists
 - Taste learning thresholds: genre 3 liked/30% ratio/5 min total, artist 2 liked, disliked 2, re-emergence +3 delta
+- Spotify Developer Dashboard still not accepting new app registrations (as of 2026-02-09)
+- All Spotify features built mock-first; real implementations ready for swap when credentials available
+- Abstract service pattern used for all Spotify features: SpotifyAuthService, SongSearchService, SpotifyPlaylistService
 
 ## Constraints
 
@@ -153,6 +152,12 @@ A runner opens the app, enters their run plan, and gets a playlist where every s
 | Evidence-count-delta for dismissed re-emergence | Tracks dismissed evidence count, requires +3 new entries to resurface | ✓ Good |
 | Pop before state change on dismiss | Avoids reactive rebuild pitfall when marking reviewed and navigating | ✓ Good |
 | Profile mutation via existing notifier | acceptSuggestion goes through TasteProfileLibraryNotifier.updateProfile() | ✓ Good |
+| Mock-first Spotify pattern | Dashboard unavailable; abstract service + mock allows development without credentials | ✓ Good |
+| SongKey.normalize for dedup | Consistent key format across feedback, running songs, and composite search | ✓ Good |
+| Batch addSongs method | Single state update + single persist for multi-track import efficiency | ✓ Good |
+| Composite search service | Merges curated + Spotify results with SongKey dedup, curated priority | ✓ Good |
+| flutter_secure_storage for tokens | Keychain (iOS), EncryptedSharedPreferences (Android) -- not plain SharedPrefs | ✓ Good |
+| Abstract class (not interface) | Consistent pattern across SpotifyAuthService, SongSearchService, SpotifyPlaylistService | ✓ Good |
 
 ---
-*Last updated: 2026-02-08 after v1.4 milestone started*
+*Last updated: 2026-02-09 after v1.4 milestone*

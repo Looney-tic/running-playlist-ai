@@ -9,18 +9,18 @@
 ## Songs I Run To
 
 - [x] **SONGS-01**: User can add songs to "Songs I Run To" list from search results
-- [ ] **SONGS-02**: User can view and remove songs from "Songs I Run To" list with empty state guidance
-- [ ] **SONGS-03**: Running songs receive scoring boost in playlist generation (treated like liked songs)
-- [ ] **SONGS-04**: Running songs are analyzed for taste patterns (genre/artist preferences fed to TastePatternAnalyzer)
-- [ ] **SONGS-05**: Running songs show BPM compatibility indicator relative to current cadence target
+- [x] **SONGS-02**: User can view and remove songs from "Songs I Run To" list with empty state guidance
+- [x] **SONGS-03**: Running songs receive scoring boost in playlist generation (treated like liked songs)
+- [x] **SONGS-04**: Running songs are analyzed for taste patterns (genre/artist preferences fed to TastePatternAnalyzer)
+- [x] **SONGS-05**: Running songs show BPM compatibility indicator relative to current cadence target
 
 ## Spotify Foundation
 
 - [x] **SPOTIFY-01**: App supports Spotify OAuth PKCE authorization flow with secure token storage
 - [x] **SPOTIFY-02**: Token management handles expiry, refresh, and graceful degradation when unavailable
 - [x] **SPOTIFY-03**: User can search Spotify catalog when connected, extending local search results with dual-source UI
-- [ ] **SPOTIFY-04**: User can browse their Spotify playlists when connected
-- [ ] **SPOTIFY-05**: User can select songs from Spotify playlists to import into "Songs I Run To"
+- [x] **SPOTIFY-04**: User can browse their Spotify playlists when connected
+- [x] **SPOTIFY-05**: User can select songs from Spotify playlists to import into "Songs I Run To"
 
 ## Future Requirements
 
@@ -49,8 +49,8 @@
 | SPOTIFY-01 | Phase 31 | 31-01, 31-02 | Delivered |
 | SPOTIFY-02 | Phase 31 | 31-01, 31-02 | Delivered |
 | SPOTIFY-03 | Phase 32 | 32-01 | Delivered |
-| SPOTIFY-04 | Phase 33 | — | Pending |
-| SPOTIFY-05 | Phase 33 | — | Pending |
+| SPOTIFY-04 | Phase 33 | 33-01, 33-02 | Delivered |
+| SPOTIFY-05 | Phase 33 | 33-01, 33-02 | Delivered |
 
 ---
 *Created: 2026-02-08*

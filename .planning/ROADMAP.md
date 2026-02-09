@@ -83,7 +83,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
 - [x] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
 - [x] **Phase 32: Spotify Search** - Spotify catalog search extending local results with dual-source UI
-- [ ] **Phase 33: Spotify Playlist Import** - Browse Spotify playlists and import songs to "Songs I Run To"
+- [x] **Phase 33: Spotify Playlist Import** - Browse Spotify playlists and import songs to "Songs I Run To"
 
 ## Phase Details
 
@@ -171,8 +171,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 33-01: SpotifyPlaylistService domain layer, mock/real implementations, batch import, scope update
-- [ ] 33-02: Playlist browse and track import screens, routing, entry point
+- [x] 33-01: SpotifyPlaylistService domain layer, mock/real implementations, batch import, scope update
+- [x] 33-02: Playlist browse and track import screens, routing, entry point
 
 ## Progress
 
@@ -208,4 +208,4 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 30. Local Song Search | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 31. Spotify Auth Foundation | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 32. Spotify Search | v1.4 | 1/1 | Complete | 2026-02-09 |
-| 33. Spotify Playlist Import | v1.4 | 0/2 | Not started | - |
+| 33. Spotify Playlist Import | v1.4 | 2/2 | Complete | 2026-02-09 |

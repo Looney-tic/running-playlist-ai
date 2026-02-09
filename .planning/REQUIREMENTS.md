@@ -2,13 +2,13 @@
 
 ## Song Search
 
-- [ ] **SEARCH-01**: User can search curated song catalog with typeahead autocomplete (debounced, 2-char minimum)
-- [ ] **SEARCH-02**: Search results highlight matching characters in song title and artist name
-- [ ] **SEARCH-03**: Search abstraction supports multiple backends (curated now, Spotify when connected)
+- [x] **SEARCH-01**: User can search curated song catalog with typeahead autocomplete (debounced, 2-char minimum)
+- [x] **SEARCH-02**: Search results highlight matching characters in song title and artist name
+- [x] **SEARCH-03**: Search abstraction supports multiple backends (curated now, Spotify when connected)
 
 ## Songs I Run To
 
-- [ ] **SONGS-01**: User can add songs to "Songs I Run To" list from search results
+- [x] **SONGS-01**: User can add songs to "Songs I Run To" list from search results
 - [ ] **SONGS-02**: User can view and remove songs from "Songs I Run To" list with empty state guidance
 - [ ] **SONGS-03**: Running songs receive scoring boost in playlist generation (treated like liked songs)
 - [ ] **SONGS-04**: Running songs are analyzed for taste patterns (genre/artist preferences fed to TastePatternAnalyzer)
@@ -38,10 +38,10 @@
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| SEARCH-01 | Phase 30 | — | Pending |
-| SEARCH-02 | Phase 30 | — | Pending |
-| SEARCH-03 | Phase 30 | — | Pending |
-| SONGS-01 | Phase 28 | 28-02 | Delivered (partial — add from playlists; search in Phase 30) |
+| SEARCH-01 | Phase 30 | 30-01, 30-02 | Delivered |
+| SEARCH-02 | Phase 30 | 30-02 | Delivered |
+| SEARCH-03 | Phase 30 | 30-01 | Delivered |
+| SONGS-01 | Phase 28, 30 | 28-02, 30-02 | Delivered |
 | SONGS-02 | Phase 28 | 28-02 | Delivered |
 | SONGS-03 | Phase 29 | 29-01 | Delivered |
 | SONGS-04 | Phase 29 | 29-01 | Delivered |

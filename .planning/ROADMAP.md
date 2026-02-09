@@ -80,7 +80,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 - [x] **Phase 28: "Songs I Run To" Data Layer** - User-curated running songs with persistence and list management
 - [x] **Phase 29: Scoring & Taste Integration** - Running songs boost playlist generation and feed taste learning
-- [ ] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
+- [x] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
 - [ ] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
 - [ ] **Phase 32: Spotify Search** - Spotify catalog search extending local results with dual-source UI
 - [ ] **Phase 33: Spotify Playlist Import** - Browse Spotify playlists and import songs to "Songs I Run To"
@@ -128,8 +128,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 30-01-PLAN.md — Search service domain layer with abstract interface, curated implementation, and TDD tests
-- [ ] 30-02-PLAN.md — Search UI screen with Autocomplete, match highlighting, router wiring, and entry point
+- [x] 30-01: Search service domain layer with abstract interface, curated implementation, and TDD tests
+- [x] 30-02: Search UI screen with Autocomplete, match highlighting, router wiring, and entry point
 
 ### Phase 31: Spotify Auth Foundation
 **Goal**: App can authenticate with Spotify and maintain valid tokens for API access
@@ -205,7 +205,7 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 27. Taste Learning | v1.3 | 2/2 | Complete | 2026-02-08 |
 | 28. "Songs I Run To" Data Layer | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 29. Scoring & Taste Integration | v1.4 | 2/2 | Complete | 2026-02-09 |
-| 30. Local Song Search | v1.4 | 0/2 | Not started | - |
+| 30. Local Song Search | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 31. Spotify Auth Foundation | v1.4 | 0/2 | Not started | - |
 | 32. Spotify Search | v1.4 | 0/1 | Not started | - |
 | 33. Spotify Playlist Import | v1.4 | 0/2 | Not started | - |

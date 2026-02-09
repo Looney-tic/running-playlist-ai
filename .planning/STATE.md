@@ -11,7 +11,7 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 Phase: N/A -- between milestones
 Status: v1.4 complete, archived
-Last activity: 2026-02-09 -- Completed v1.4 milestone archival
+Last activity: 2026-02-09 - Completed quick task 3: Fix all frontend bugs and UX issues from testing
 
 Progress: [##############################] 100% (53/53 plans across v0.1-v1.4)
 
@@ -53,6 +53,12 @@ v1.4 decisions archived to `.planning/milestones/v1.4-ROADMAP.md`.
 - Spotify Developer Dashboard not accepting new app registrations (since Dec 2025)
 - Spotify Developer Mode requires Premium account (Feb 2026 policy change)
 - All Spotify features built mock-first; swap to real when Dashboard opens
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 3 | Fix all frontend bugs and UX issues from testing | 2026-02-09 | ace798d | [3-fix-all-frontend-bugs-and-ux-issues-from](./quick/3-fix-all-frontend-bugs-and-ux-issues-from/) |
 
 ## Session Continuity
 

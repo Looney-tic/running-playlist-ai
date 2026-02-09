@@ -110,11 +110,11 @@ Plans:
   1. After adding songs to "Songs I Run To", the next generated playlist ranks those songs higher
   2. Genre and artist patterns from running songs appear as taste suggestions on the home screen
   3. Each song in "Songs I Run To" shows a BPM compatibility indicator (green/amber/gray) relative to the user's current cadence target
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 29-01: TBD
-- [ ] 29-02: TBD
+- [ ] 29-01: Scoring boost and taste learning integration for running songs
+- [ ] 29-02: BPM compatibility indicator on running song cards (TDD)
 
 ### Phase 30: Local Song Search
 **Goal**: Users can quickly find any song in the curated catalog through instant typeahead search

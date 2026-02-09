@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 33 in progress -- Spotify playlist import service layer shipped
+**Current focus:** v1.4 milestone complete -- Spotify playlist import UI shipped
 
 ## Current Position
 
-Phase: 33 (sixth of 6 in v1.4) -- In progress
-Plan: 01 of 2 complete
-Status: In progress
-Last activity: 2026-02-09 -- Completed 33-01-PLAN.md (SpotifyPlaylistService domain layer)
+Phase: 33 (sixth of 6 in v1.4) -- Complete
+Plan: 02 of 2 complete
+Status: v1.4 milestone complete
+Last activity: 2026-02-09 -- Completed 33-02-PLAN.md (Spotify playlist import UI screens)
 
-Progress: [############################..] 88% (52/53 plans estimated)
+Progress: [##############################] 100% (53/53 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 10 from v1.4)
+- Total plans completed: 53 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 11 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -32,7 +32,7 @@ Progress: [############################..] 88% (52/53 plans estimated)
 | v1.1 | 3 | 6 | ~30m |
 | v1.2 | 3 | 6 | ~30m |
 | v1.3 | 6 | 10 | ~30m |
-| v1.4 | 6 | ~11 | -- |
+| v1.4 | 6 | 11 | ~35m |
 
 ## Accumulated Context
 
@@ -68,10 +68,13 @@ v1.4 decisions:
 - Mock playlist service returned even when disconnected; UI layer gates access
 - Real implementation uses bare catch(_) for both Exception and Error types
 - addSongs batch method returns int for UI feedback on import count
+- Extracted _appBarActions helper to avoid duplicating conditional import button across empty/populated states
+- Track selection by index (Set<int>) for simpler state management in playlist tracks screen
+- URI-encoded playlist name in query parameter for safe navigation with special characters
 
 ### Pending Todos
 
-- **Manual UI verification:** Onboarding flow, empty states, shuffle, profile switching, feedback, taste suggestions, song search, source badges
+- **Manual UI verification:** Onboarding flow, empty states, shuffle, profile switching, feedback, taste suggestions, song search, source badges, Spotify playlist import
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text
 - **Pre-existing test failures:** 2 playlist provider error message tests (string mismatch)
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
@@ -85,5 +88,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 33 plan 01 complete. Next: execute 33-02-PLAN.md (UI screens)
-Resume file: .planning/phases/33-spotify-playlist-import/33-02-PLAN.md
+Stopped at: v1.4 milestone complete. All 53 plans shipped across v0.1-v1.4.
+Resume file: N/A -- milestone complete

@@ -21,6 +21,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: const [
           _SpotifySection(),
+          _AboutSection(),
         ],
       ),
     );
@@ -126,6 +127,49 @@ class _SpotifyConnectionTile extends ConsumerWidget {
               ref.read(spotifyAuthServiceProvider).disconnect();
             },
             child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// About section showing app version and info.
+class _AboutSection extends StatelessWidget {
+  const _AboutSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Text(
+              'About',
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('Running Playlist AI'),
+            subtitle: Text('Version 1.0.0'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('About this app'),
+            subtitle: Text(
+              'Generate BPM-matched running playlists tailored '
+              'to your pace, distance, and music taste.',
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),

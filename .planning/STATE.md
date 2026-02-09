@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 31 in progress -- Spotify auth domain layer
+**Current focus:** Phase 31 complete -- Spotify auth foundation shipped
 
 ## Current Position
 
-Phase: 31 (fourth of 6 in v1.4) -- In progress
-Plan: 01 of 2 complete
-Status: In progress
-Last activity: 2026-02-09 -- Completed 31-01-PLAN.md (Spotify Auth Domain Layer)
+Phase: 31 (fourth of 6 in v1.4) -- Complete
+Plan: 02 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 31-02-PLAN.md (Spotify Auth Wiring)
 
-Progress: [#########################.....] 81% (49/53 plans estimated)
+Progress: [##########################....] 83% (50/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 49 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 7 from v1.4)
+- Total plans completed: 50 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 8 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -58,6 +58,9 @@ v1.4 decisions:
 - SpotifyAuthService uses abstract class (not abstract interface class) matching SongSearchService pattern
 - SpotifyCredentials persists codeVerifier per Spotify PKCE requirement for token refresh
 - MockSpotifyAuthRepository uses Completer-based lock to prevent concurrent token refreshes
+- Adapted plan's API to actual spotify 0.15.0 package (no generateCodeVerifier/pkce constructor)
+- Added oauth2 as explicit dependency for AuthorizationCodeGrant type usage
+- PKCE verifier managed internally by oauth2 grant, not externally persisted in SpotifyAuthRepository
 
 ### Pending Todos
 
@@ -75,5 +78,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 31, plan 01 complete. Next: execute 31-02-PLAN.md
-Resume file: .planning/phases/31-spotify-auth-foundation/31-02-PLAN.md
+Stopped at: Phase 31 complete. Next: phase 32
+Resume file: .planning/phases/31-spotify-auth-foundation/31-02-SUMMARY.md

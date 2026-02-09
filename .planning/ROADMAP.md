@@ -79,7 +79,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 **Milestone Goal:** Let users search for and select songs they run to, feeding those selections into taste learning and scoring. Lay the Spotify API foundation so playlist import slots in when credentials become available.
 
 - [x] **Phase 28: "Songs I Run To" Data Layer** - User-curated running songs with persistence and list management
-- [ ] **Phase 29: Scoring & Taste Integration** - Running songs boost playlist generation and feed taste learning
+- [x] **Phase 29: Scoring & Taste Integration** - Running songs boost playlist generation and feed taste learning
 - [ ] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
 - [ ] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
 - [ ] **Phase 32: Spotify Search** - Spotify catalog search extending local results with dual-source UI
@@ -113,8 +113,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 29-01: Scoring boost and taste learning integration for running songs
-- [ ] 29-02: BPM compatibility indicator on running song cards (TDD)
+- [x] 29-01: Scoring boost and taste learning integration for running songs
+- [x] 29-02: BPM compatibility indicator on running song cards (TDD)
 
 ### Phase 30: Local Song Search
 **Goal**: Users can quickly find any song in the curated catalog through instant typeahead search
@@ -204,7 +204,7 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 26. Post-Run Review | v1.3 | 1/1 | Complete | 2026-02-08 |
 | 27. Taste Learning | v1.3 | 2/2 | Complete | 2026-02-08 |
 | 28. "Songs I Run To" Data Layer | v1.4 | 2/2 | Complete | 2026-02-09 |
-| 29. Scoring & Taste Integration | v1.4 | 0/2 | Not started | - |
+| 29. Scoring & Taste Integration | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 30. Local Song Search | v1.4 | 0/2 | Not started | - |
 | 31. Spotify Auth Foundation | v1.4 | 0/2 | Not started | - |
 | 32. Spotify Search | v1.4 | 0/1 | Not started | - |

@@ -68,5 +68,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 29 complete, verified, and committed. Next: Phase 30
+Stopped at: Phase 29 complete, verified, and committed. Next: `/gsd:plan-phase 30`
 Resume file: N/A

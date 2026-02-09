@@ -43,9 +43,9 @@
 | SEARCH-03 | Phase 30 | — | Pending |
 | SONGS-01 | Phase 28 | 28-02 | Delivered (partial — add from playlists; search in Phase 30) |
 | SONGS-02 | Phase 28 | 28-02 | Delivered |
-| SONGS-03 | Phase 29 | — | Pending |
-| SONGS-04 | Phase 29 | — | Pending |
-| SONGS-05 | Phase 29 | — | Pending |
+| SONGS-03 | Phase 29 | 29-01 | Delivered |
+| SONGS-04 | Phase 29 | 29-01 | Delivered |
+| SONGS-05 | Phase 29 | 29-02 | Delivered |
 | SPOTIFY-01 | Phase 31 | — | Pending |
 | SPOTIFY-02 | Phase 31 | — | Pending |
 | SPOTIFY-03 | Phase 32 | — | Pending |

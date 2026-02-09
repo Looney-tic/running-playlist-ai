@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 28 complete — next: Phase 29 (Scoring & Taste Integration)
+**Current focus:** Phase 29 in progress -- Scoring & Taste Integration
 
 ## Current Position
 
-Phase: 28 (first of 6 in v1.4) -- COMPLETE
-Plan: 02 of 2 complete
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 28-02-PLAN.md (Songs I Run To UI layer)
+Phase: 29 (second of 6 in v1.4)
+Plan: 01 of 2 complete
+Status: In progress
+Last activity: 2026-02-09 -- Completed 29-01-PLAN.md (Running songs into scoring + taste learning)
 
-Progress: [######################........] 72% (44/53 plans estimated)
+Progress: [#######################.......] 74% (45/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 2 from v1.4)
+- Total plans completed: 45 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 3 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -47,6 +47,8 @@ v1.4 decisions:
 - RunningSongSource enum uses orElse fallback to curated for forward-compatibility
 - Captured WidgetRef before showModalBottomSheet for provider access inside builder closure
 - Used sheetContext for Navigator.pop and outer context for ScaffoldMessenger.showSnackBar
+- Running song keys merged via Set.addAll() into liked set for scoring -- idempotent with explicit likes
+- Synthetic feedback merge order {...synthetic, ...real} ensures real feedback takes precedence
 
 ### Pending Todos
 
@@ -64,5 +66,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 28 complete, verified, and committed. Next: `/gsd:plan-phase 29`
-Resume file: N/A
+Stopped at: Phase 29 plan 01 complete. Next: 29-02-PLAN.md
+Resume file: .planning/phases/29-scoring-taste-integration/29-02-PLAN.md

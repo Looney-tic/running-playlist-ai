@@ -118,7 +118,8 @@ class HomeScreen extends ConsumerWidget {
                             onPressed: () => ref
                                 .read(strideNotifierProvider.notifier)
                                 .nudgeCadence(-3),
-                            icon: const Icon(Icons.remove),
+                            icon: const Icon(
+                                Icons.keyboard_double_arrow_left),
                             tooltip: '-3 spm',
                             iconSize: 20,
                           ),
@@ -126,9 +127,9 @@ class HomeScreen extends ConsumerWidget {
                             onPressed: () => ref
                                 .read(strideNotifierProvider.notifier)
                                 .nudgeCadence(-1),
-                            icon: const Icon(Icons.remove),
+                            icon: const Icon(Icons.chevron_left),
                             tooltip: '-1 spm',
-                            iconSize: 16,
+                            iconSize: 20,
                           ),
                           Padding(
                             padding:
@@ -145,15 +146,16 @@ class HomeScreen extends ConsumerWidget {
                             onPressed: () => ref
                                 .read(strideNotifierProvider.notifier)
                                 .nudgeCadence(1),
-                            icon: const Icon(Icons.add),
+                            icon: const Icon(Icons.chevron_right),
                             tooltip: '+1 spm',
-                            iconSize: 16,
+                            iconSize: 20,
                           ),
                           IconButton(
                             onPressed: () => ref
                                 .read(strideNotifierProvider.notifier)
                                 .nudgeCadence(3),
-                            icon: const Icon(Icons.add),
+                            icon: const Icon(
+                                Icons.keyboard_double_arrow_right),
                             tooltip: '+3 spm',
                             iconSize: 20,
                           ),
@@ -165,53 +167,125 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
               ],
 
-              // Navigation buttons
-              const Text(
-                'What would you like to do?',
-                style: TextStyle(fontSize: 18),
+              // Primary action
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => context.push('/playlist'),
+                    icon: const Icon(Icons.queue_music),
+                    label: const Text('Generate Playlist'),
+                    style: FilledButton.styleFrom(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/stride'),
-                icon: const Icon(Icons.directions_run),
-                label: const Text('Stride Calculator'),
+
+              // Configuration section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Configuration',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.directions_run),
+                        title: const Text('Stride Calculator'),
+                        trailing: const Icon(
+                            Icons.chevron_right, size: 20),
+                        onTap: () => context.push('/stride'),
+                      ),
+                      const Divider(
+                          height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.timer),
+                        title: const Text('My Runs'),
+                        trailing: const Icon(
+                            Icons.chevron_right, size: 20),
+                        onTap: () => context.push('/my-runs'),
+                      ),
+                      const Divider(
+                          height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.music_note),
+                        title: const Text('Taste Profiles'),
+                        trailing: const Icon(
+                            Icons.chevron_right, size: 20),
+                        onTap: () => context.push('/taste-profiles'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/my-runs'),
-                icon: const Icon(Icons.timer),
-                label: const Text('My Runs'),
+
+              // Library section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Library',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/taste-profiles'),
-                icon: const Icon(Icons.music_note),
-                label: const Text('Taste Profiles'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/playlist'),
-                icon: const Icon(Icons.queue_music),
-                label: const Text('Generate Playlist'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/playlist-history'),
-                icon: const Icon(Icons.history),
-                label: const Text('Playlist History'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/song-feedback'),
-                icon: const Icon(Icons.thumb_up_alt_outlined),
-                label: const Text('Song Feedback'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () =>
-                    context.push('/running-songs'),
-                icon: const Icon(Icons.favorite),
-                label: const Text('Songs I Run To'),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.history),
+                        title: const Text('Playlist History'),
+                        trailing: const Icon(
+                            Icons.chevron_right, size: 20),
+                        onTap: () =>
+                            context.push('/playlist-history'),
+                      ),
+                      const Divider(
+                          height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        leading:
+                            const Icon(Icons.thumb_up_alt_outlined),
+                        title: const Text('Song Feedback'),
+                        trailing: const Icon(
+                            Icons.chevron_right, size: 20),
+                        onTap: () =>
+                            context.push('/song-feedback'),
+                      ),
+                      const Divider(
+                          height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.favorite),
+                        title: const Text('Songs I Run To'),
+                        trailing: const Icon(
+                            Icons.chevron_right, size: 20),
+                        onTap: () =>
+                            context.push('/running-songs'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),

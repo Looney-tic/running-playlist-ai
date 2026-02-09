@@ -28,9 +28,9 @@ class RunPlanScreen extends ConsumerStatefulWidget {
 }
 
 class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
-  double _selectedDistance = 0;
+  double _selectedDistance = 5.0;
   double _selectedPace = 5.5;
-  int? _selectedPresetIndex;
+  int? _selectedPresetIndex = 0;
   final _customDistanceController = TextEditingController();
 
   // Run type state
@@ -415,8 +415,8 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
               value: formatDuration(durationSec),
             ),
             _SummaryRow(
-              label: 'Target BPM',
-              value: '${bpm.round()} bpm',
+              label: 'Target Cadence',
+              value: '${bpm.round()} spm',
             ),
           ],
         ),
@@ -486,7 +486,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
               (segment) => _SummaryRow(
                 label: segment.label ?? 'Segment',
                 value: '${formatDuration(segment.durationSeconds)}'
-                    ' - ${segment.targetBpm.round()} bpm',
+                    ' - ${segment.targetBpm.round()} spm',
               ),
             ),
           ],
@@ -580,7 +580,7 @@ class _SegmentTimeline extends StatelessWidget {
               child: Tooltip(
                 message: '${segment.label ?? "Segment"}: '
                     '${formatDuration(segment.durationSeconds)}'
-                    ' - ${segment.targetBpm.round()} bpm',
+                    ' - ${segment.targetBpm.round()} spm',
                 child: Container(
                   color: _colorForSegment(segment, colorScheme),
                 ),

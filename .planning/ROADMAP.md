@@ -154,10 +154,10 @@ Plans:
   1. When Spotify is connected, search results show both local and Spotify songs with source badges
   2. Spotify search results can be added to "Songs I Run To" just like local results
   3. When Spotify is not connected, search works normally with curated catalog only (no errors)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 32-01: TBD
+- [ ] 32-01: Spotify and composite search services with source badges
 
 ### Phase 33: Spotify Playlist Import
 **Goal**: Users can browse their Spotify playlists and import running-relevant songs into the app
@@ -207,5 +207,5 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 29. Scoring & Taste Integration | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 30. Local Song Search | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 31. Spotify Auth Foundation | v1.4 | 2/2 | Complete | 2026-02-09 |
-| 32. Spotify Search | v1.4 | 0/1 | Not started | - |
+| 32. Spotify Search | v1.4 | 0/1 | Planned | - |
 | 33. Spotify Playlist Import | v1.4 | 0/2 | Not started | - |

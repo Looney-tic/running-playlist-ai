@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/bpm_lookup/domain/bpm_song.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
+import 'package:running_playlist_ai/features/running_songs/domain/running_song.dart';
+import 'package:running_playlist_ai/features/running_songs/providers/running_song_providers.dart';
 import 'package:running_playlist_ai/features/song_feedback/domain/song_feedback.dart';
 import 'package:running_playlist_ai/features/song_feedback/providers/song_feedback_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -41,7 +43,7 @@ class SongTile extends ConsumerWidget {
       color: theme.colorScheme.surfaceContainerLow,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: () => _showPlayOptions(context),
+        onTap: () => _showPlayOptions(context, ref),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
@@ -232,10 +234,14 @@ class SongTile extends ConsumerWidget {
     }
   }
 
-  void _showPlayOptions(BuildContext context) {
+  void _showPlayOptions(BuildContext context, WidgetRef ref) {
+    final isInRunning = ref
+        .read(runningSongProvider.notifier)
+        .containsSong(song.lookupKey);
+
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -251,22 +257,84 @@ class SongTile extends ConsumerWidget {
               ),
             ),
             const Divider(height: 1),
+            if (!isInRunning)
+              ListTile(
+                leading: const Icon(
+                  Icons.favorite_border,
+                ),
+                title: const Text(
+                  'Add to Songs I Run To',
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final runningSong = RunningSong(
+                    songKey: song.lookupKey,
+                    artist: song.artistName,
+                    title: song.title,
+                    addedDate: DateTime.now(),
+                    bpm: song.bpm,
+                  );
+                  ref
+                      .read(
+                        runningSongProvider.notifier,
+                      )
+                      .addSong(runningSong);
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Added to Songs I Run To',
+                      ),
+                    ),
+                  );
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(Icons.favorite),
+                title: const Text(
+                  'Remove from Songs I Run To',
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  ref
+                      .read(
+                        runningSongProvider.notifier,
+                      )
+                      .removeSong(song.lookupKey);
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Removed from Songs I Run To',
+                      ),
+                    ),
+                  );
+                },
+              ),
             if (song.spotifyUrl != null)
               ListTile(
                 leading: const Icon(Icons.music_note),
                 title: const Text('Open in Spotify'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   _launchUrl(context, song.spotifyUrl!);
                 },
               ),
             if (song.youtubeUrl != null)
               ListTile(
-                leading: const Icon(Icons.play_circle_outline),
-                title: const Text('Open in YouTube Music'),
+                leading: const Icon(
+                  Icons.play_circle_outline,
+                ),
+                title: const Text(
+                  'Open in YouTube Music',
+                ),
                 onTap: () {
-                  Navigator.pop(context);
-                  _launchUrl(context, song.youtubeUrl!);
+                  Navigator.pop(sheetContext);
+                  _launchUrl(
+                    context,
+                    song.youtubeUrl!,
+                  );
                 },
               ),
             const SizedBox(height: 8),

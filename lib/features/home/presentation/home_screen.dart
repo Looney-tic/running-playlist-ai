@@ -206,6 +206,13 @@ class HomeScreen extends ConsumerWidget {
                 icon: const Icon(Icons.thumb_up_alt_outlined),
                 label: const Text('Song Feedback'),
               ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () =>
+                    context.push('/running-songs'),
+                icon: const Icon(Icons.favorite),
+                label: const Text('Songs I Run To'),
+              ),
             ],
           ),
         ),

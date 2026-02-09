@@ -168,11 +168,11 @@ Plans:
   2. User can open a playlist and see its tracks with selection controls
   3. User can select songs from a Spotify playlist and import them into "Songs I Run To"
   4. Imported songs are available for scoring, taste learning, and BPM indicators just like manually added songs
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 33-01: TBD
-- [ ] 33-02: TBD
+- [ ] 33-01: SpotifyPlaylistService domain layer, mock/real implementations, batch import, scope update
+- [ ] 33-02: Playlist browse and track import screens, routing, entry point
 
 ## Progress
 

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 31 complete -- Spotify auth foundation shipped
+**Current focus:** Phase 32 plan 01 complete -- Spotify search services shipped
 
 ## Current Position
 
-Phase: 31 (fourth of 6 in v1.4) -- Complete
-Plan: 02 of 2 complete
+Phase: 32 (fifth of 6 in v1.4) -- In progress
+Plan: 01 of 1 complete
 Status: Phase complete
-Last activity: 2026-02-09 -- Completed 31-02-PLAN.md (Spotify Auth Wiring)
+Last activity: 2026-02-09 -- Completed 32-01-PLAN.md (Spotify Search)
 
-Progress: [##########################....] 83% (50/53 plans estimated)
+Progress: [###########################...] 85% (51/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 50 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 8 from v1.4)
+- Total plans completed: 51 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 9 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -61,10 +61,13 @@ v1.4 decisions:
 - Adapted plan's API to actual spotify 0.15.0 package (no generateCodeVerifier/pkce constructor)
 - Added oauth2 as explicit dependency for AuthorizationCodeGrant type usage
 - PKCE verifier managed internally by oauth2 grant, not externally persisted in SpotifyAuthRepository
+- Used mock Spotify search service since Dashboard unavailable; real SpotifySongSearchService ready for swap
+- Adapted plan's Spotify search API to actual package: BundledPages.first() returns List<Page<dynamic>>
+- SongKey.normalize used for composite dedup, consistent with song_feedback and running_song patterns
 
 ### Pending Todos
 
-- **Manual UI verification:** Onboarding flow, empty states, shuffle, profile switching, feedback, taste suggestions, song search
+- **Manual UI verification:** Onboarding flow, empty states, shuffle, profile switching, feedback, taste suggestions, song search, source badges
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text
 - **Pre-existing test failures:** 2 playlist provider error message tests (string mismatch)
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
@@ -78,5 +81,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 31 complete, verified, and committed. Next: `/gsd:plan-phase 32`
+Stopped at: Phase 32 plan 01 complete. Next: verify phase 32 or plan next phase.
 Resume file: N/A

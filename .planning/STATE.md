@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 30 plan 01 complete -- next: 30-02
+**Current focus:** Phase 30 complete -- next phase in v1.4
 
 ## Current Position
 
-Phase: 30 (third of 6 in v1.4) -- In progress
-Plan: 01 of 2 complete
-Status: In progress
-Last activity: 2026-02-09 -- Completed 30-01-PLAN.md (Song Search Service)
+Phase: 30 (third of 6 in v1.4) -- Complete
+Plan: 02 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 30-02-PLAN.md (Search UI)
 
-Progress: [########################......] 77% (47/53 plans estimated)
+Progress: [#########################.....] 79% (48/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 47 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 5 from v1.4)
+- Total plans completed: 48 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 6 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -53,10 +53,12 @@ v1.4 decisions:
 - BPM chip uses cadence passed as int from parent (provider decoupled from card widget)
 - Abstract SongSearchService interface kept despite one-member-abstract lint for Spotify extensibility
 - Separate curatedSongsListProvider for search, decoupled from scoring providers
+- Used Flutter SDK debounce pattern (Timer+Completer+CancelException) for Autocomplete
+- Track _lastQuery in state for options view highlighting since optionsViewBuilder has no direct text access
 
 ### Pending Todos
 
-- **Manual UI verification:** Onboarding flow, empty states, shuffle, profile switching, feedback, taste suggestions
+- **Manual UI verification:** Onboarding flow, empty states, shuffle, profile switching, feedback, taste suggestions, song search
 - **Pre-existing test failure:** widget_test.dart expects "Home Screen" text
 - **Pre-existing test failures:** 2 playlist provider error message tests (string mismatch)
 - **User setup:** Add GETSONGBPM_API_KEY to .env before runtime API calls
@@ -70,5 +72,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 30 plan 01 complete. Next: execute 30-02-PLAN.md (Search UI)
-Resume file: .planning/phases/30-local-song-search/30-02-PLAN.md
+Stopped at: Phase 30 complete. Next: next phase in v1.4 milestone
+Resume file: .planning/ROADMAP.md

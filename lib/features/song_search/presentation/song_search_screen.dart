@@ -185,14 +185,21 @@ class _SearchResultTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: option.bpm != null
-          ? Text(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildSourceBadge(option.source, theme),
+          if (option.bpm != null) ...[
+            const SizedBox(width: 8),
+            Text(
               '${option.bpm} BPM',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
-            )
-          : null,
+            ),
+          ],
+        ],
+      ),
       onTap: () {
         if (alreadyAdded) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -226,9 +233,38 @@ class _SearchResultTile extends StatelessWidget {
             addedDate: DateTime.now(),
             bpm: result.bpm,
             genre: result.genre,
+            source: result.source == 'spotify'
+                ? RunningSongSource.spotify
+                : RunningSongSource.curated,
           ),
         );
   }
+}
+
+/// Builds a small colored badge indicating the result's source.
+///
+/// Spotify results get a green badge; curated catalog results get
+/// the theme's primary container color.
+Widget _buildSourceBadge(String source, ThemeData theme) {
+  final isSpotify = source == 'spotify';
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: isSpotify
+          ? const Color(0xFF1DB954).withValues(alpha: 0.15)
+          : theme.colorScheme.primaryContainer,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(
+      isSpotify ? 'Spotify' : 'Catalog',
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: isSpotify
+            ? const Color(0xFF1DB954)
+            : theme.colorScheme.onPrimaryContainer,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:running_playlist_ai/features/running_songs/domain/bpm_compatibility.dart';
 import 'package:running_playlist_ai/features/running_songs/domain/running_song.dart';
 import 'package:running_playlist_ai/features/running_songs/providers/running_song_providers.dart';
+import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
 
 /// Screen displaying the user's "Songs I Run To" collection.
 ///
@@ -24,6 +26,8 @@ class RunningSongsScreen extends ConsumerWidget {
     final songs = songsMap.values.toList()
       ..sort((a, b) => b.addedDate.compareTo(a.addedDate));
 
+    final cadence = ref.watch(strideNotifierProvider).cadence.round();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Songs I Run To')),
       body: ListView.builder(
@@ -33,6 +37,7 @@ class RunningSongsScreen extends ConsumerWidget {
           return _RunningSongCard(
             key: ValueKey(song.songKey),
             song: song,
+            cadence: cadence,
             ref: ref,
           );
         },
@@ -76,15 +81,17 @@ class _EmptyRunningSongsView extends StatelessWidget {
   }
 }
 
-/// Displays a single running song entry with remove action.
+/// Displays a single running song entry with remove action and BPM chip.
 class _RunningSongCard extends StatelessWidget {
   const _RunningSongCard({
     required this.song,
+    required this.cadence,
     required this.ref,
     super.key,
   });
 
   final RunningSong song;
+  final int cadence;
   final WidgetRef ref;
 
   @override
@@ -147,6 +154,10 @@ class _RunningSongCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (song.bpm != null) ...[
+              const SizedBox(width: 8),
+              _BpmChip(bpm: song.bpm!, cadence: cadence),
+            ],
             SizedBox(
               width: 32,
               height: 32,
@@ -164,6 +175,55 @@ class _RunningSongCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Colored BPM chip showing compatibility with the user's cadence.
+///
+/// Green for exact/half/double-time match, amber for close (within 5%),
+/// gray for no meaningful relationship.
+class _BpmChip extends StatelessWidget {
+  const _BpmChip({required this.bpm, required this.cadence});
+
+  final int bpm;
+  final int cadence;
+
+  @override
+  Widget build(BuildContext context) {
+    final compatibility = bpmCompatibility(songBpm: bpm, cadence: cadence);
+
+    final Color chipColor;
+    switch (compatibility) {
+      case BpmCompatibility.match:
+        chipColor = Colors.green;
+      case BpmCompatibility.close:
+        chipColor = Colors.amber;
+      case BpmCompatibility.none:
+        chipColor = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: chipColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, color: chipColor, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            '$bpm',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: chipColor,
+            ),
+          ),
+        ],
       ),
     );
   }

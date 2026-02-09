@@ -21,6 +21,8 @@ dependencies:
   shared_preferences: ^2.5.4
   http: ^1.6.0
   url_launcher: ^6.3.2
+  spotify: ^0.15.0
+  oauth2: ^2.0.5
 
 dev_dependencies:
   flutter_test:

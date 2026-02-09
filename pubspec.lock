@@ -592,6 +592,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.17.4"
+  oauth2:
+    dependency: "direct main"
+    description:
+      name: oauth2
+      sha256: "890a032ba1b44fa8dcfeba500e613df0ecbe16aeace13bb0fe1d25eb42cda5b8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.5"
   objective_c:
     dependency: transitive
     description:
@@ -877,6 +885,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.1"
+  spotify:
+    dependency: "direct main"
+    description:
+      name: spotify
+      sha256: "1726123289a55b9156097fb37953274e41800ffd8a2bb42514cfc6e86a25ae1d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.15.0"
   stack_trace:
     dependency: transitive
     description:

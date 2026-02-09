@@ -12,10 +12,11 @@ import 'package:running_playlist_ai/features/playlist/domain/playlist.dart';
 import 'package:running_playlist_ai/features/playlist/domain/playlist_generator.dart';
 import 'package:running_playlist_ai/features/playlist/domain/song_link_builder.dart';
 import 'package:running_playlist_ai/features/playlist/providers/playlist_history_providers.dart';
-import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
-import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
 import 'package:running_playlist_ai/features/playlist_freshness/domain/playlist_freshness.dart';
 import 'package:running_playlist_ai/features/playlist_freshness/providers/playlist_freshness_providers.dart';
+import 'package:running_playlist_ai/features/run_plan/domain/run_plan.dart';
+import 'package:running_playlist_ai/features/run_plan/providers/run_plan_providers.dart';
+import 'package:running_playlist_ai/features/running_songs/providers/running_song_providers.dart';
 import 'package:running_playlist_ai/features/song_feedback/providers/song_feedback_providers.dart';
 import 'package:running_playlist_ai/features/taste_profile/domain/taste_profile.dart';
 import 'package:running_playlist_ai/features/taste_profile/providers/taste_profile_providers.dart';
@@ -108,6 +109,9 @@ class PlaylistGenerationNotifier
         disliked.add(entry.key);
       }
     }
+    // Merge "Songs I Run To" keys into liked set for scoring boost
+    final runningSongs = ref.read(runningSongProvider);
+    liked.addAll(runningSongs.keys);
     return (disliked: disliked, liked: liked);
   }
 
@@ -137,6 +141,7 @@ class PlaylistGenerationNotifier
     await ref.read(songFeedbackProvider.notifier).ensureLoaded();
     await ref.read(playHistoryProvider.notifier).ensureLoaded();
     await ref.read(freshnessModeProvider.notifier).ensureLoaded();
+    await ref.read(runningSongProvider.notifier).ensureLoaded();
 
     final runPlan = ref.read(runPlanNotifierProvider);
     if (runPlan == null) {
@@ -293,6 +298,7 @@ class PlaylistGenerationNotifier
       await ref.read(songFeedbackProvider.notifier).ensureLoaded();
       await ref.read(playHistoryProvider.notifier).ensureLoaded();
       await ref.read(freshnessModeProvider.notifier).ensureLoaded();
+      await ref.read(runningSongProvider.notifier).ensureLoaded();
       final feedback = _readFeedbackSets();
       final playHistory = _readPlayHistory();
 

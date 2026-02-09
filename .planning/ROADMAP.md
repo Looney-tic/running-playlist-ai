@@ -140,11 +140,11 @@ Plans:
   2. OAuth tokens are stored securely (not in SharedPreferences/localStorage)
   3. Expired tokens are refreshed automatically before API calls, without user intervention
   4. When Spotify is unavailable or tokens cannot be refreshed, the app continues working with local-only features
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 31-01: TBD
-- [ ] 31-02: TBD
+- [ ] 31-01: Spotify auth domain layer -- abstract service interface, secure token storage, and mock implementation
+- [ ] 31-02: Spotify auth wiring -- providers, real auth repository scaffold, and Settings UI connect/disconnect
 
 ### Phase 32: Spotify Search
 **Goal**: Users with Spotify connected can search beyond the curated catalog, finding any song on Spotify

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 29 complete -- next: Phase 30
+**Current focus:** Phase 30 plan 01 complete -- next: 30-02
 
 ## Current Position
 
-Phase: 29 (second of 6 in v1.4) -- COMPLETE
-Plan: 02 of 2 complete
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 29-02-PLAN.md (BPM compatibility indicator)
+Phase: 30 (third of 6 in v1.4) -- In progress
+Plan: 01 of 2 complete
+Status: In progress
+Last activity: 2026-02-09 -- Completed 30-01-PLAN.md (Song Search Service)
 
-Progress: [########################......] 75% (46/53 plans estimated)
+Progress: [########################......] 77% (47/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 46 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 4 from v1.4)
+- Total plans completed: 47 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 5 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -51,6 +51,8 @@ v1.4 decisions:
 - Synthetic feedback merge order {...synthetic, ...real} ensures real feedback takes precedence
 - Corrected plan test: songBpm 180 at cadence 170 is none (10 > ceil(170*0.05)=9 tolerance)
 - BPM chip uses cadence passed as int from parent (provider decoupled from card widget)
+- Abstract SongSearchService interface kept despite one-member-abstract lint for Spotify extensibility
+- Separate curatedSongsListProvider for search, decoupled from scoring providers
 
 ### Pending Todos
 
@@ -68,5 +70,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 29 complete, verified, and committed. Next: `/gsd:plan-phase 30`
-Resume file: N/A
+Stopped at: Phase 30 plan 01 complete. Next: execute 30-02-PLAN.md (Search UI)
+Resume file: .planning/phases/30-local-song-search/30-02-PLAN.md

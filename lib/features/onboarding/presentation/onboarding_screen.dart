@@ -86,6 +86,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _isGenerating = true);
 
     try {
+      // Ensure library notifiers have finished loading from preferences
+      // to prevent the background _load() from overwriting our additions.
+      await ref.read(tasteProfileLibraryProvider.notifier).ensureLoaded();
+      await ref.read(runPlanLibraryProvider.notifier).ensureLoaded();
+
       // 1. Create a TasteProfile with selected genres and sensible defaults.
       final profile = TasteProfile(
         name: 'My Taste',
@@ -427,8 +432,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     value: '${formatPace(_selectedPace)} /km',
                   ),
                   _SummaryRow(
-                    label: 'Target BPM',
-                    value: '${bpm.round()} bpm',
+                    label: 'Target Cadence',
+                    value: '${bpm.round()} spm',
                   ),
                 ],
               ),

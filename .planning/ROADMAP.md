@@ -125,11 +125,11 @@ Plans:
   2. Matching characters in song title and artist name are visually highlighted in results
   3. User can tap a search result to add it to "Songs I Run To"
   4. Search service uses an abstract interface that can be extended with additional backends without changing UI
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 30-01: TBD
-- [ ] 30-02: TBD
+- [ ] 30-01-PLAN.md — Search service domain layer with abstract interface, curated implementation, and TDD tests
+- [ ] 30-02-PLAN.md — Search UI screen with Autocomplete, match highlighting, router wiring, and entry point
 
 ### Phase 31: Spotify Auth Foundation
 **Goal**: App can authenticate with Spotify and maintain valid tokens for API access

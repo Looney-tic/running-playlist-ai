@@ -47,6 +47,30 @@ class RunningSongNotifier extends StateNotifier<Map<String, RunningSong>> {
     await RunningSongPreferences.save(state);
   }
 
+  /// Adds multiple songs to the collection in a single batch.
+  ///
+  /// Updates state ONCE and persists ONCE regardless of input size,
+  /// unlike calling [addSong] N times which would persist N times.
+  /// Songs whose [RunningSong.songKey] already exists in the collection
+  /// are silently skipped (deduplication).
+  ///
+  /// Returns the number of newly added songs.
+  Future<int> addSongs(List<RunningSong> songs) async {
+    var added = 0;
+    final newState = Map<String, RunningSong>.from(state);
+    for (final song in songs) {
+      if (!newState.containsKey(song.songKey)) {
+        newState[song.songKey] = song;
+        added++;
+      }
+    }
+    if (added > 0) {
+      state = newState;
+      await RunningSongPreferences.save(state);
+    }
+    return added;
+  }
+
   /// Returns whether the collection contains a song with the given key.
   bool containsSong(String songKey) => state.containsKey(songKey);
 }

@@ -228,4 +228,131 @@ void main() {
       expect(_state(), isEmpty);
     });
   });
+
+  group('addSongs batch method', () {
+    late ProviderContainer container;
+
+    RunningSong _makeSong({
+      required String artist,
+      required String title,
+      RunningSongSource source = RunningSongSource.spotify,
+    }) {
+      final key = SongKey.normalize(artist, title);
+      return RunningSong(
+        songKey: key,
+        artist: artist,
+        title: title,
+        addedDate: DateTime(2026, 2, 9),
+        source: source,
+      );
+    }
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      container = ProviderContainer();
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    Future<RunningSongNotifier> _notifier() async {
+      final notifier = container.read(runningSongProvider.notifier);
+      await notifier.ensureLoaded();
+      return notifier;
+    }
+
+    Map<String, RunningSong> _state() {
+      return container.read(runningSongProvider);
+    }
+
+    test('addSongs with 3 new songs adds all and returns 3', () async {
+      final notifier = await _notifier();
+      final songs = [
+        _makeSong(artist: 'Eminem', title: 'Lose Yourself'),
+        _makeSong(artist: 'The Weeknd', title: 'Blinding Lights'),
+        _makeSong(artist: 'Dua Lipa', title: 'Levitating'),
+      ];
+
+      final added = await notifier.addSongs(songs);
+
+      expect(added, 3);
+      expect(_state(), hasLength(3));
+      expect(
+        notifier.containsSong(SongKey.normalize('Eminem', 'Lose Yourself')),
+        isTrue,
+      );
+      expect(
+        notifier.containsSong(
+          SongKey.normalize('The Weeknd', 'Blinding Lights'),
+        ),
+        isTrue,
+      );
+      expect(
+        notifier.containsSong(SongKey.normalize('Dua Lipa', 'Levitating')),
+        isTrue,
+      );
+    });
+
+    test('addSongs skips existing songs and returns correct count', () async {
+      final notifier = await _notifier();
+
+      // Pre-add one song.
+      await notifier.addSong(
+        _makeSong(artist: 'Eminem', title: 'Lose Yourself'),
+      );
+      expect(_state(), hasLength(1));
+
+      // Batch add 2 songs where 1 already exists.
+      final songs = [
+        _makeSong(artist: 'Eminem', title: 'Lose Yourself'), // Duplicate
+        _makeSong(artist: 'Dua Lipa', title: 'Levitating'), // New
+      ];
+
+      final added = await notifier.addSongs(songs);
+
+      expect(added, 1);
+      expect(_state(), hasLength(2));
+    });
+
+    test('addSongs with empty list returns 0 and state unchanged', () async {
+      final notifier = await _notifier();
+
+      // Pre-add one song so state is non-empty.
+      await notifier.addSong(
+        _makeSong(artist: 'Eminem', title: 'Lose Yourself'),
+      );
+      final stateBefore = _state();
+
+      final added = await notifier.addSongs([]);
+
+      expect(added, 0);
+      expect(_state(), equals(stateBefore));
+    });
+
+    test('addSongs with all duplicates returns 0 and state unchanged',
+        () async {
+      final notifier = await _notifier();
+
+      // Pre-add songs.
+      await notifier.addSong(
+        _makeSong(artist: 'Eminem', title: 'Lose Yourself'),
+      );
+      await notifier.addSong(
+        _makeSong(artist: 'Dua Lipa', title: 'Levitating'),
+      );
+      expect(_state(), hasLength(2));
+
+      // Try to batch add the same songs.
+      final songs = [
+        _makeSong(artist: 'Eminem', title: 'Lose Yourself'),
+        _makeSong(artist: 'Dua Lipa', title: 'Levitating'),
+      ];
+
+      final added = await notifier.addSongs(songs);
+
+      expect(added, 0);
+      expect(_state(), hasLength(2));
+    });
+  });
 }

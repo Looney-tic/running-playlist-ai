@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 30 complete -- next: Phase 31
+**Current focus:** Phase 31 in progress -- Spotify auth domain layer
 
 ## Current Position
 
-Phase: 30 (third of 6 in v1.4) -- Complete
-Plan: 02 of 2 complete
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 30-02-PLAN.md (Search UI)
+Phase: 31 (fourth of 6 in v1.4) -- In progress
+Plan: 01 of 2 complete
+Status: In progress
+Last activity: 2026-02-09 -- Completed 31-01-PLAN.md (Spotify Auth Domain Layer)
 
-Progress: [#########################.....] 79% (48/53 plans estimated)
+Progress: [#########################.....] 81% (49/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 48 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 6 from v1.4)
+- Total plans completed: 49 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 7 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -55,6 +55,9 @@ v1.4 decisions:
 - Separate curatedSongsListProvider for search, decoupled from scoring providers
 - Used Flutter SDK debounce pattern (Timer+Completer+CancelException) for Autocomplete
 - Track _lastQuery in state for options view highlighting since optionsViewBuilder has no direct text access
+- SpotifyAuthService uses abstract class (not abstract interface class) matching SongSearchService pattern
+- SpotifyCredentials persists codeVerifier per Spotify PKCE requirement for token refresh
+- MockSpotifyAuthRepository uses Completer-based lock to prevent concurrent token refreshes
 
 ### Pending Todos
 
@@ -72,5 +75,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 30 complete, verified, and committed. Next: `/gsd:plan-phase 31`
-Resume file: N/A
+Stopped at: Phase 31, plan 01 complete. Next: execute 31-02-PLAN.md
+Resume file: .planning/phases/31-spotify-auth-foundation/31-02-PLAN.md

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/running_songs/domain/bpm_compatibility.dart';
 import 'package:running_playlist_ai/features/running_songs/domain/running_song.dart';
 import 'package:running_playlist_ai/features/running_songs/providers/running_song_providers.dart';
@@ -18,7 +19,16 @@ class RunningSongsScreen extends ConsumerWidget {
 
     if (songsMap.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Songs I Run To')),
+        appBar: AppBar(
+          title: const Text('Songs I Run To'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Search songs',
+              onPressed: () => context.push('/song-search'),
+            ),
+          ],
+        ),
         body: const _EmptyRunningSongsView(),
       );
     }
@@ -29,7 +39,16 @@ class RunningSongsScreen extends ConsumerWidget {
     final cadence = ref.watch(strideNotifierProvider).cadence.round();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Songs I Run To')),
+      appBar: AppBar(
+        title: const Text('Songs I Run To'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search songs',
+            onPressed: () => context.push('/song-search'),
+          ),
+        ],
+      ),
       body: ListView.builder(
         itemCount: songs.length,
         itemBuilder: (context, index) {
@@ -69,8 +88,9 @@ class _EmptyRunningSongsView extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'Add songs from your generated playlists to build your '
-              'personal running music collection.',
+              'Search the song catalog or add songs from your '
+              'generated playlists to build your running '
+              'music collection.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),

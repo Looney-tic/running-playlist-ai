@@ -34,7 +34,10 @@ class PlaylistHistoryDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(playlist.runPlanName ?? 'Playlist'),
+        title: Text(playlist.runPlanName ??
+            (playlist.distanceKm != null
+                ? '${playlist.distanceKm!.toStringAsFixed(1)} km Run'
+                : 'Playlist')),
         actions: [
           IconButton(
             onPressed: () => _copyPlaylist(context, playlist),

@@ -49,7 +49,10 @@ class PlaylistHistoryScreen extends ConsumerWidget {
                   ),
                   child: ListTile(
                     title: Text(
-                      playlist.runPlanName ?? 'Untitled Run',
+                      playlist.runPlanName ??
+                          (playlist.distanceKm != null
+                              ? '${playlist.distanceKm!.toStringAsFixed(1)} km Run'
+                              : 'Untitled Run'),
                     ),
                     subtitle: Text(_formatSubtitle(playlist)),
                     trailing: Text(

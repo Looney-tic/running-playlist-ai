@@ -78,5 +78,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 31 complete. Next: phase 32
-Resume file: .planning/phases/31-spotify-auth-foundation/31-02-SUMMARY.md
+Stopped at: Phase 31 complete, verified, and committed. Next: `/gsd:plan-phase 32`
+Resume file: N/A

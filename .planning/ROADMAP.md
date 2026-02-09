@@ -81,7 +81,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 28: "Songs I Run To" Data Layer** - User-curated running songs with persistence and list management
 - [x] **Phase 29: Scoring & Taste Integration** - Running songs boost playlist generation and feed taste learning
 - [x] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
-- [ ] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
+- [x] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
 - [ ] **Phase 32: Spotify Search** - Spotify catalog search extending local results with dual-source UI
 - [ ] **Phase 33: Spotify Playlist Import** - Browse Spotify playlists and import songs to "Songs I Run To"
 
@@ -143,8 +143,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 31-01: Spotify auth domain layer -- abstract service interface, secure token storage, and mock implementation
-- [ ] 31-02: Spotify auth wiring -- providers, real auth repository scaffold, and Settings UI connect/disconnect
+- [x] 31-01: Spotify auth domain layer -- abstract service interface, secure token storage, and mock implementation
+- [x] 31-02: Spotify auth wiring -- providers, real auth repository scaffold, and Settings UI connect/disconnect
 
 ### Phase 32: Spotify Search
 **Goal**: Users with Spotify connected can search beyond the curated catalog, finding any song on Spotify
@@ -206,6 +206,6 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 28. "Songs I Run To" Data Layer | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 29. Scoring & Taste Integration | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 30. Local Song Search | v1.4 | 2/2 | Complete | 2026-02-09 |
-| 31. Spotify Auth Foundation | v1.4 | 0/2 | Not started | - |
+| 31. Spotify Auth Foundation | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 32. Spotify Search | v1.4 | 0/1 | Not started | - |
 | 33. Spotify Playlist Import | v1.4 | 0/2 | Not started | - |

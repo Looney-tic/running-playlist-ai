@@ -502,6 +502,17 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
       calibratedCadence: strideState.calibratedCadence,
     );
 
+    // Auto-generate a descriptive name for the plan
+    final distLabel = _selectedPresetIndex != null
+        ? _distancePresets[_selectedPresetIndex!].label
+        : '${_selectedDistance.toStringAsFixed(1)} km';
+    final typeLabel = switch (_selectedRunType) {
+      RunType.steady => 'Steady',
+      RunType.warmUpCoolDown => 'Warm-up/Cool-down',
+      RunType.interval => 'Intervals',
+    };
+    final autoName = '$distLabel $typeLabel';
+
     final RunPlan plan;
 
     switch (_selectedRunType) {
@@ -510,6 +521,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
           distanceKm: _selectedDistance,
           paceMinPerKm: _selectedPace,
           targetBpm: bpm,
+          name: autoName,
         );
       case RunType.warmUpCoolDown:
         plan = RunPlanCalculator.createWarmUpCoolDownPlan(
@@ -518,6 +530,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
           targetBpm: bpm,
           warmUpSeconds: _warmUpMinutes * 60,
           coolDownSeconds: _coolDownMinutes * 60,
+          name: autoName,
         );
       case RunType.interval:
         plan = RunPlanCalculator.createIntervalPlan(
@@ -527,6 +540,7 @@ class _RunPlanScreenState extends ConsumerState<RunPlanScreen> {
           intervalCount: _intervalCount,
           workSeconds: _workSeconds,
           restSeconds: _restSeconds,
+          name: autoName,
         );
     }
 

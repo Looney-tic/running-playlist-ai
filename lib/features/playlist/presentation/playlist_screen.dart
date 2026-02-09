@@ -571,7 +571,10 @@ class _RunPlanSelector extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                selected?.name ?? 'Select Run Plan',
+                selected != null
+                    ? (selected.name ??
+                        '${selected.distanceKm.toStringAsFixed(1)} km ${selected.type.name}')
+                    : 'Select Run Plan',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,

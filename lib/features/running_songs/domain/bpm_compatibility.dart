@@ -24,5 +24,20 @@ BpmCompatibility bpmCompatibility({
   required int? songBpm,
   required int cadence,
 }) {
+  if (songBpm == null) return BpmCompatibility.none;
+
+  final targets = [cadence, cadence ~/ 2, cadence * 2];
+
+  // First pass: check exact match against each target.
+  for (final target in targets) {
+    if (songBpm == target) return BpmCompatibility.match;
+  }
+
+  // Second pass: check within 5% tolerance of each target.
+  for (final target in targets) {
+    final tolerance = (target * 0.05).ceil();
+    if ((songBpm - target).abs() <= tolerance) return BpmCompatibility.close;
+  }
+
   return BpmCompatibility.none;
 }

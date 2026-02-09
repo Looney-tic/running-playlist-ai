@@ -13,6 +13,8 @@ import 'package:running_playlist_ai/features/running_songs/presentation/running_
 import 'package:running_playlist_ai/features/settings/presentation/settings_screen.dart';
 import 'package:running_playlist_ai/features/song_feedback/presentation/song_feedback_library_screen.dart';
 import 'package:running_playlist_ai/features/song_search/presentation/song_search_screen.dart';
+import 'package:running_playlist_ai/features/spotify_import/presentation/spotify_playlist_tracks_screen.dart';
+import 'package:running_playlist_ai/features/spotify_import/presentation/spotify_playlists_screen.dart';
 import 'package:running_playlist_ai/features/stride/presentation/stride_screen.dart';
 import 'package:running_playlist_ai/features/taste_profile/presentation/taste_profile_library_screen.dart';
 import 'package:running_playlist_ai/features/taste_profile/presentation/taste_profile_screen.dart';
@@ -93,6 +95,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/song-search',
         builder: (context, state) =>
             const SongSearchScreen(),
+      ),
+      GoRoute(
+        path: '/spotify-playlists',
+        builder: (context, state) => const SpotifyPlaylistsScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              final name = state.uri.queryParameters['name'];
+              return SpotifyPlaylistTracksScreen(
+                playlistId: id,
+                playlistName: name,
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/post-run-review',

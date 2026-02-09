@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:running_playlist_ai/features/running_songs/domain/bpm_compatibility.dart';
 import 'package:running_playlist_ai/features/running_songs/domain/running_song.dart';
 import 'package:running_playlist_ai/features/running_songs/providers/running_song_providers.dart';
+import 'package:running_playlist_ai/features/spotify_auth/domain/spotify_auth_service.dart';
+import 'package:running_playlist_ai/features/spotify_auth/providers/spotify_auth_providers.dart';
 import 'package:running_playlist_ai/features/stride/providers/stride_providers.dart';
 
 /// Screen displaying the user's "Songs I Run To" collection.
@@ -16,18 +18,13 @@ class RunningSongsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final songsMap = ref.watch(runningSongProvider);
+    final spotifyStatus = ref.watch(spotifyConnectionStatusSyncProvider);
 
     if (songsMap.isEmpty) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Songs I Run To'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.search),
-              tooltip: 'Search songs',
-              onPressed: () => context.push('/song-search'),
-            ),
-          ],
+          actions: _appBarActions(context, spotifyStatus),
         ),
         body: const _EmptyRunningSongsView(),
       );
@@ -41,13 +38,7 @@ class RunningSongsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Songs I Run To'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: 'Search songs',
-            onPressed: () => context.push('/song-search'),
-          ),
-        ],
+        actions: _appBarActions(context, spotifyStatus),
       ),
       body: ListView.builder(
         itemCount: songs.length,
@@ -62,6 +53,29 @@ class RunningSongsScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  /// Builds the app bar actions with conditional Spotify import button.
+  ///
+  /// The "Import from Spotify" button is only shown when the user has
+  /// an active Spotify connection. The search button is always shown.
+  List<Widget> _appBarActions(
+    BuildContext context,
+    SpotifyConnectionStatus status,
+  ) {
+    return [
+      if (status == SpotifyConnectionStatus.connected)
+        IconButton(
+          icon: const Icon(Icons.cloud_download),
+          tooltip: 'Import from Spotify',
+          onPressed: () => context.push('/spotify-playlists'),
+        ),
+      IconButton(
+        icon: const Icon(Icons.search),
+        tooltip: 'Search songs',
+        onPressed: () => context.push('/song-search'),
+      ),
+    ];
   }
 }
 

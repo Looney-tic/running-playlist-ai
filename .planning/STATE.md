@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 32 complete -- Spotify search shipped
+**Current focus:** Phase 33 in progress -- Spotify playlist import service layer shipped
 
 ## Current Position
 
-Phase: 32 (fifth of 6 in v1.4) -- Complete
-Plan: 01 of 1 complete
-Status: Phase complete, verified
-Last activity: 2026-02-09 -- Completed phase 32 verification (5/5 must-haves)
+Phase: 33 (sixth of 6 in v1.4) -- In progress
+Plan: 01 of 2 complete
+Status: In progress
+Last activity: 2026-02-09 -- Completed 33-01-PLAN.md (SpotifyPlaylistService domain layer)
 
-Progress: [###########################...] 87% (51/53 plans estimated)
+Progress: [############################..] 88% (52/53 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 9 from v1.4)
+- Total plans completed: 52 (8 from v0.1 + 10 from v1.0 + 6 from v1.1 + 6 from v1.2 + 2 quick tasks + 10 from v1.3 + 10 from v1.4)
 - Average duration: 5m
 - Total execution time: ~3 hours
 
@@ -64,6 +64,10 @@ v1.4 decisions:
 - Used mock Spotify search service since Dashboard unavailable; real SpotifySongSearchService ready for swap
 - Adapted plan's Spotify search API to actual package: BundledPages.first() returns List<Page<dynamic>>
 - SongKey.normalize used for composite dedup, consistent with song_feedback and running_song patterns
+- SpotifyPlaylistService uses abstract class (not abstract interface class) matching established pattern
+- Mock playlist service returned even when disconnected; UI layer gates access
+- Real implementation uses bare catch(_) for both Exception and Error types
+- addSongs batch method returns int for UI feedback on import count
 
 ### Pending Todos
 
@@ -81,5 +85,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 32 complete, verified, and committed. Next: `/gsd:plan-phase 33`
-Resume file: N/A
+Stopped at: Phase 33 plan 01 complete. Next: execute 33-02-PLAN.md (UI screens)
+Resume file: .planning/phases/33-spotify-playlist-import/33-02-PLAN.md

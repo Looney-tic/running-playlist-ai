@@ -82,7 +82,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 29: Scoring & Taste Integration** - Running songs boost playlist generation and feed taste learning
 - [x] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
 - [x] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
-- [ ] **Phase 32: Spotify Search** - Spotify catalog search extending local results with dual-source UI
+- [x] **Phase 32: Spotify Search** - Spotify catalog search extending local results with dual-source UI
 - [ ] **Phase 33: Spotify Playlist Import** - Browse Spotify playlists and import songs to "Songs I Run To"
 
 ## Phase Details
@@ -157,7 +157,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 32-01: Spotify and composite search services with source badges
+- [x] 32-01: Spotify and composite search services with source badges
 
 ### Phase 33: Spotify Playlist Import
 **Goal**: Users can browse their Spotify playlists and import running-relevant songs into the app
@@ -207,5 +207,5 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 29. Scoring & Taste Integration | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 30. Local Song Search | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 31. Spotify Auth Foundation | v1.4 | 2/2 | Complete | 2026-02-09 |
-| 32. Spotify Search | v1.4 | 0/1 | Planned | - |
+| 32. Spotify Search | v1.4 | 1/1 | Complete | 2026-02-09 |
 | 33. Spotify Playlist Import | v1.4 | 0/2 | Not started | - |

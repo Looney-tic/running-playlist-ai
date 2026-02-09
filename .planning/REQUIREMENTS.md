@@ -18,7 +18,7 @@
 
 - [x] **SPOTIFY-01**: App supports Spotify OAuth PKCE authorization flow with secure token storage
 - [x] **SPOTIFY-02**: Token management handles expiry, refresh, and graceful degradation when unavailable
-- [ ] **SPOTIFY-03**: User can search Spotify catalog when connected, extending local search results with dual-source UI
+- [x] **SPOTIFY-03**: User can search Spotify catalog when connected, extending local search results with dual-source UI
 - [ ] **SPOTIFY-04**: User can browse their Spotify playlists when connected
 - [ ] **SPOTIFY-05**: User can select songs from Spotify playlists to import into "Songs I Run To"
 
@@ -48,7 +48,7 @@
 | SONGS-05 | Phase 29 | 29-02 | Delivered |
 | SPOTIFY-01 | Phase 31 | 31-01, 31-02 | Delivered |
 | SPOTIFY-02 | Phase 31 | 31-01, 31-02 | Delivered |
-| SPOTIFY-03 | Phase 32 | — | Pending |
+| SPOTIFY-03 | Phase 32 | 32-01 | Delivered |
 | SPOTIFY-04 | Phase 33 | — | Pending |
 | SPOTIFY-05 | Phase 33 | — | Pending |
 

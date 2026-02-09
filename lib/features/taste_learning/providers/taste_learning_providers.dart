@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:running_playlist_ai/features/curated_songs/providers/curated_song_providers.dart';
+import 'package:running_playlist_ai/features/running_songs/domain/running_song.dart';
+import 'package:running_playlist_ai/features/running_songs/providers/running_song_providers.dart';
+import 'package:running_playlist_ai/features/song_feedback/domain/song_feedback.dart';
 import 'package:running_playlist_ai/features/song_feedback/providers/song_feedback_providers.dart';
 import 'package:running_playlist_ai/features/taste_learning/data/taste_suggestion_preferences.dart';
 import 'package:running_playlist_ai/features/taste_learning/domain/taste_pattern_analyzer.dart';
@@ -21,9 +24,10 @@ import 'package:running_playlist_ai/features/taste_profile/providers/taste_profi
 class TasteSuggestionNotifier extends StateNotifier<List<TasteSuggestion>> {
   TasteSuggestionNotifier({required this.ref}) : super([]) {
     _load();
-    // Re-analyze when feedback or profile changes
+    // Re-analyze when feedback, profile, or running songs change
     ref.listen(songFeedbackProvider, (_, __) => _reanalyze());
     ref.listen(tasteProfileLibraryProvider, (_, __) => _reanalyze());
+    ref.listen(runningSongProvider, (_, __) => _reanalyze());
   }
 
   /// Reference to the Riverpod container for reading other providers.
@@ -48,22 +52,49 @@ class TasteSuggestionNotifier extends StateNotifier<List<TasteSuggestion>> {
     }
   }
 
+  /// Converts running songs to synthetic liked [SongFeedback] entries
+  /// for taste pattern analysis. Real feedback takes precedence via
+  /// merge order in [_reanalyze].
+  Map<String, SongFeedback> _syntheticFeedbackFromRunningSongs(
+    Map<String, RunningSong> runningSongs,
+  ) {
+    return {
+      for (final entry in runningSongs.entries)
+        entry.key: SongFeedback(
+          songKey: entry.key,
+          isLiked: true,
+          feedbackDate: entry.value.addedDate,
+          songTitle: entry.value.title,
+          songArtist: entry.value.artist,
+          genre: entry.value.genre,
+        ),
+    };
+  }
+
   /// Re-runs the pattern analyzer against current feedback and profile state.
   Future<void> _reanalyze() async {
     final feedback = ref.read(songFeedbackProvider);
+    final runningSongs = ref.read(runningSongProvider);
     final profileState = ref.read(tasteProfileLibraryProvider);
     final profile = profileState.selectedProfile;
-    if (profile == null || feedback.isEmpty) {
+    if (profile == null ||
+        (feedback.isEmpty && runningSongs.isEmpty)) {
       if (mounted) state = [];
       return;
     }
+
+    // Merge running songs as synthetic liked feedback.
+    // Real feedback overwrites synthetic via spread order.
+    final syntheticFeedback =
+        _syntheticFeedbackFromRunningSongs(runningSongs);
+    final mergedFeedback = {...syntheticFeedback, ...feedback};
 
     // Load curated genre lookup (async provider, use cached value if ready)
     final genreLookupAsync = ref.read(curatedGenreLookupProvider);
     final genreLookup = genreLookupAsync.valueOrNull ?? {};
 
     final suggestions = TastePatternAnalyzer.analyze(
-      feedback: feedback,
+      feedback: mergedFeedback,
       curatedGenreLookup: genreLookup,
       activeProfile: profile,
       dismissedSuggestions: _dismissedSuggestions,

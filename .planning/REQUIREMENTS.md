@@ -41,8 +41,8 @@
 | SEARCH-01 | Phase 30 | — | Pending |
 | SEARCH-02 | Phase 30 | — | Pending |
 | SEARCH-03 | Phase 30 | — | Pending |
-| SONGS-01 | Phase 28 | — | Pending |
-| SONGS-02 | Phase 28 | — | Pending |
+| SONGS-01 | Phase 28 | 28-02 | Delivered (partial — add from playlists; search in Phase 30) |
+| SONGS-02 | Phase 28 | 28-02 | Delivered |
 | SONGS-03 | Phase 29 | — | Pending |
 | SONGS-04 | Phase 29 | — | Pending |
 | SONGS-05 | Phase 29 | — | Pending |

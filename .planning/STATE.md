@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** A runner enters their run plan and gets a playlist where every song's beat matches their footstrike cadence
-**Current focus:** Phase 28 complete - next phase pending
+**Current focus:** Phase 28 complete — next: Phase 29 (Scoring & Taste Integration)
 
 ## Current Position
 
@@ -64,5 +64,5 @@ v1.4 decisions:
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed phase 28 (Songs I Run To data + UI); next phase pending
-Resume file: .planning/ROADMAP.md
+Stopped at: Phase 28 complete, verified, and committed. Next: `/gsd:plan-phase 29`
+Resume file: N/A

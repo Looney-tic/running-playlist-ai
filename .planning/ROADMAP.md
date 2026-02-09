@@ -78,7 +78,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 **Milestone Goal:** Let users search for and select songs they run to, feeding those selections into taste learning and scoring. Lay the Spotify API foundation so playlist import slots in when credentials become available.
 
-- [ ] **Phase 28: "Songs I Run To" Data Layer** - User-curated running songs with persistence and list management
+- [x] **Phase 28: "Songs I Run To" Data Layer** - User-curated running songs with persistence and list management
 - [ ] **Phase 29: Scoring & Taste Integration** - Running songs boost playlist generation and feed taste learning
 - [ ] **Phase 30: Local Song Search** - Typeahead autocomplete against curated catalog with search abstraction
 - [ ] **Phase 31: Spotify Auth Foundation** - OAuth PKCE flow with secure token lifecycle management
@@ -99,8 +99,8 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 28-01: RunningSong domain model, persistence, provider, and tests
-- [ ] 28-02: Running songs screen, SongTile add action, route, and home navigation
+- [x] 28-01: RunningSong domain model, persistence, provider, and tests
+- [x] 28-02: Running songs screen, SongTile add action, route, and home navigation
 
 ### Phase 29: Scoring & Taste Integration
 **Goal**: Songs in "Songs I Run To" actively improve playlist quality and teach the system user preferences
@@ -203,7 +203,7 @@ Phases 31 can start independently. Phases 32-33 depend on both tracks.
 | 25. Freshness | v1.3 | 2/2 | Complete | 2026-02-08 |
 | 26. Post-Run Review | v1.3 | 1/1 | Complete | 2026-02-08 |
 | 27. Taste Learning | v1.3 | 2/2 | Complete | 2026-02-08 |
-| 28. "Songs I Run To" Data Layer | v1.4 | 0/2 | Not started | - |
+| 28. "Songs I Run To" Data Layer | v1.4 | 2/2 | Complete | 2026-02-09 |
 | 29. Scoring & Taste Integration | v1.4 | 0/2 | Not started | - |
 | 30. Local Song Search | v1.4 | 0/2 | Not started | - |
 | 31. Spotify Auth Foundation | v1.4 | 0/2 | Not started | - |
